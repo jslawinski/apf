@@ -27,6 +27,7 @@
 static char verlev;
 static char loglev;
 static FILE* logfd;
+static signed long compressgained;
 
 char*
 datum(void)
@@ -76,4 +77,22 @@ aflog(char type, const char* format, ...)
 			fflush(logfd);
 		}
 	va_end(ap);
+}
+
+void
+addtocg(int amount)
+{
+	compressgained += amount;
+}
+
+signed long
+getcg(void)
+{
+	return compressgained;
+}
+
+void
+resetcg(void)
+{
+	compressgained = 0;
 }

@@ -36,17 +36,17 @@ typedef struct {
 	char* lisportnum;
 	char* manportnum;
 	char* users;
+	unsigned char pass[4];
 	int usercon;
 	int usernum;
 	int listenfd;
 	int managefd;
-	int commfd;
 	char ready;
 	char type;
 	socklen_t addrlen;
 	struct sockaddr* cliaddr;
 	struct timeval tv;
-	SSL* ssl;
+	clifd cliconn;
 	ConnectuserT* contable;
 } RealmT;
 

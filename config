@@ -27,7 +27,8 @@ hostname	<yourhostname> #this is a name of the server (it's using it for choosin
 listen		50127 	       #portnumber on which server is listening for users
 manage		50126          #portnumber on which server is listening for afclient
 users		5              #amount of users we are allowing to connect
-type		tcp	       #type of the realm (which protocol it will forward (tcp|udp)
+proto		tcp	       #type of the realm (which protocol it will forward (tcp|udp)
+#pass		mypassword	#this is a password used for client identification
 
 # and now the second realm
 
@@ -36,4 +37,4 @@ hostname	<yourhostname>
 listen		50125
 manage		50124
 users		5
-type		tcp
+proto		tcp

@@ -1,3 +1,12 @@
+09.01.2004 (v0.5.3):
+	- Added: client password identification (weak)
+	- Added: sigint intercepting and server closing
+	- Modified: communication between server and client
+	- Added: 'nossl' and 'nozlib' modes
+	- Added: zlib support
+	- Lightly Modified: verbose mode
+	- Modified/Added: help screen and long options support
+	
 06.12.2003 (v0.5.2):
 	- Added: types of realm
 	- Added: logging to a file

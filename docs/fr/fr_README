@@ -1,0 +1,102 @@
+AF - Active Port Forwarder v0.5.2 - fr_README
+Copyright (C) 2003 jeremian - jeremian@poczta.fm
+================================================
+
+================================================================================
+
+GRAY-WORLD.NET / Active Port Forwarder
+======================================
+
+  Le  programme  Active  Port  Forwarder  est  partie  intégrante  des   projets
+  Gray-World.net.
+
+  Notre équipe  présente  sur  le  site  http://gray-world.net  les  projets  et
+  publications sur lesquels nous travaillons. Ces projets et  publications  sont
+  relatifs au contournement  des  systèmes  de  contrôle  d'accès  réseau  (NACS
+  bypassing) ainsi qu'à la sécurité des systèmes et réseaux.
+
+================================================================================
+
+Active port forwarder est un programme permettant de réaliser du  forwarding  de
+port sécurisé.
+Il  utilise  le  protocole  SSL  pour  augmenter  le  niveau  de  sécurité   des
+communications entre serveur et client.
+
+Af est destiné aux personnes sans  adresse  IP  publique  externe  qui  désirent
+offrir des services accessibles depuis le net.
+
+EXEMPLE 1:
+
+L'utilisation de Af est extrèmement simple. Supposons que nous voulons mettre en
+place un serveur http sur notre station et que nous sommes masqueradés ou  placé
+derrière un firewall:
+
+1) Nous devons tout d'abord  trouver  une  station  sur  internet  avec  une  IP
+publique et un shell.
+
+2) Utilisez ensuite make pour compiler Af sur cette machine. (Vous pouvez par la
+suite supprimer les fichiers afclient et client.rsa)
+
+3) Editez le fichier de configuration ou entrez sur la  console: (pour  utiliser
+la configuration, entrez type -f <cfgfile>)
+	$ ./afserver
+   Si vous voulez utiliser les valeurs par défaut:
+   - Le nom d'hôte sera pris en compte par la fonction hostname (Il serait idéal
+     qu'il soit référencé dans le fichier /etc/hosts)
+   - Le serveur sera en écoute pour les utilisateurs sur le port 50127
+   - Le serveur sera en écoute pour le client sur le port 50126
+   - Le serveur sera limité à 5 utilisateurs
+   - Le serveur retransmettra les paquets tcp
+   - Aucun log ou message verbeux ne sera activé
+
+4) Nous utilisons make sur notre propre station (Nous pouvons ensuite  supprimer
+tous les fichiers sauf afclient et client.rsa)
+
+5) Nous entrons sur la console:
+	$ ./afclient -n <name of the server> -p 80
+   Où <name of the server> est une chaîne du  type  :  'bastion.univ.gda.pl'  ou
+   '153.19.7.200'
+
+6) Nous pouvons ensuite utiliser notre navigateur web avec : 
+   <name of the server>:50127 et nous atteindrons notre propre station.
+
+EXEMPLE 2:
+
+Regardons comment nous pouvons utiliser  af  pour  forwarder  des  paquets  udp.
+Supposez que nous voulons mettre en place un serveur de jeu  sur  notre  station
+(port udp 27960 sur notre station):
+
+1) - 4) sont les mêmes que pour  l'exemple  1. (mais  nous  utilisons  l'option:
+-t udp)
+
+5) Nous entrons sur la console:
+	$ ./afclient -u -n <name of the server> -p 27960
+   Où <name of the server> est un nom (ou une ip) d'un  hôte  sur  lequel  notre
+   serveur tourne.
+
+6) Nous connecter à notre jeu est un peu plus compliqué. L'utilisateur  doit  se
+   servir de afclient pour cela.
+   Il doit spécifier le serveur auquel il veut  se  connecter  et  le  port  sur
+   lequel son programme sera en écoute:
+        $ ./afclient -U -d <hostname> -p <portnum> -n <name of the server> -m\
+          <server port>
+   Où <hostname> est le nom de la station utilisateur (qui veut se  connecter  à
+   notre jeu). <portnum> est le port auquel  il  se  connectera.  <name  of  the
+   server> est le nom de l'hôte sur lequel notre serveur tourne.  <server  port>
+   est le port sur lequel notre serveur est en écoute pour les utilisateurs.
+   Pour se connecter à notre jeu, l'utilisateur doit se connecter à  <hostname>:
+   <portnum>.
+
+Active port forwarder est toujours en phase en développement, alors envoyez  moi
+vos commentaires, les bugs que vous rencontrez et vos suggestions à
+<jeremian [at] poczta.fm>
+
+Et merci pour votre utilisation de ce programme!
+
+LICENCE
+-------
+
+  Active Port Forwarder est distribué sous  les  termes  de  la  licence  GNU  -
+  General Public  Licence  version  2.0  et  est  copyright  (c)  2003  jeremian
+  <jeremian [at] poczta.fm>.
+  Consultez le fichier COPYING pour plus de details.

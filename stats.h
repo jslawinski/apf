@@ -23,6 +23,9 @@
 
 int loginit(char verlev, char loglev, const char* logfname); /* initializes logging routine */
 void aflog(char type, const char* format, ...); /* log to a file or|and screen */
+void addtocg(int amount); /* add amount to compressgained value */
+void resetcg(void); /* reset the compressgained value */
+signed long getcg(void); /* returns the compressgained value */
 
 #endif
 

@@ -6,10 +6,10 @@ security=server.rsa client.rsa cacert.pem
 all: compi $(programs) ok1 secure
 
 afserver: afserver.c network.o file.o stats.o
-	$(CC) $(CFLAGS) -lssl afserver.c network.o file.o stats.o -o afserver
+	$(CC) $(CFLAGS) -lssl -lz afserver.c network.o file.o stats.o -o afserver
 
 afclient: afclient.c network.o stats.o
-	$(CC) $(CFLAGS) -lssl afclient.c network.o stats.o -o afclient
+	$(CC) $(CFLAGS) -lssl -lz afclient.c network.o stats.o -o afclient
 
 network.o: network.c network.h
 	$(CC) $(CFLAGS) -c network.c
@@ -23,10 +23,10 @@ stats.o: stats.c stats.h
 secure: crea $(security) ok2
 
 server.rsa: 
-	@openssl genrsa -out server.rsa 2048
+	@openssl genrsa -rand Makefile -out server.rsa 2048
 	
 client.rsa: 
-	@openssl genrsa -out client.rsa 2048
+	@openssl genrsa -rand server.rsa -out client.rsa 2048
 	
 cacert.pem:
 	@echo -e "\n Generating certificate...\n"

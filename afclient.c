@@ -28,15 +28,36 @@
 #include <sys/ioctl.h>
 #include <linux/sockios.h>
 #include <signal.h>
+#include <string.h>
+
+#include <getopt.h>
 
 static void usage(char* info);
+static void sig_int(int);
+
+static struct option long_options[] = {
+        {"help", 0, 0, 'h'},
+        {"udpmode", 0, 0, 'u'},
+        {"reverseudp", 0, 0, 'U'},
+        {"servername", 1, 0, 'n'},
+        {"manageport", 1, 0, 'm'},
+        {"hostname", 1, 0, 'd'},
+        {"portnum", 1, 0, 'p'},
+        {"verbose", 0, 0, 'v'},
+        {"keyfile", 1, 0, 'k'},
+        {"heavylog", 1, 0, 'O'},
+        {"lightlog", 1, 0, 'o'},
+        {"pass", 1, 0, 301},
+        {0, 0, 0, 0}
+};
 
 int
 main(int argc, char **argv)
 {
-	int	masterfd, i, n, numofcon, length, buflength, notsent, temp2; /* !!! */
+	int	i, n, numofcon, length, buflength, notsent, temp2; /* !!! */
 	ConnectuserT* contable = NULL;
-	unsigned char				buff[8096];
+	clifd master;
+	unsigned char				buff[9000];
 	char hostname[100];
 	struct timeval tv;
 	int			maxfdp1, usernum, usercon, merror;
@@ -51,19 +72,21 @@ main(int argc, char **argv)
 	char* despor = NULL;
 	char* keys = NULL;
 	char* logfname = NULL;
+	unsigned char pass[4];
 	char udp = 0;
 	char reverse = 0;
+	char type;
 
 	SSL_METHOD* method;
 	SSL_CTX* ctx;
-	SSL* ssl;
 
 	signal(SIGPIPE, SIG_IGN);
+	signal(SIGINT, sig_int);
 
-	while ((n = getopt(argc, argv, "huUn:m:d:p:vk:O:o:")) != -1) {
+	while ((n = getopt_long(argc, argv, "huUn:m:d:p:vk:O:o:", long_options, 0)) != -1) {
 		switch (n) {
 		  case 'h': {
-				    usage("Active port forwarder (client) v0.5.2");
+				    usage(AF_VER("Active port forwarder (client)"));
 					  break;
 				  }
 		  case 'n': {
@@ -108,12 +131,24 @@ main(int argc, char **argv)
 				    logging = 1;
 				    break;
 			    }
+		  case 301: {
+				    n = strlen(optarg);
+				    memset(pass, 0, 4);
+				    for (i = 0; i < n; ++i) {
+					    pass[i%4] += optarg[i];
+				    }
+				    break;
+			    }
 		  case '?': {
 				    usage("");
 				    break;
 			    }
 		}
 	}
+
+        if (optind < argc) {
+            usage("Unrecognized non-option elements");
+        }
 
 	if (name == NULL) {
 		usage("Name of the server is required");
@@ -134,8 +169,11 @@ main(int argc, char **argv)
 		keys = "client.rsa";
 	}
 
+	type = 0;
+	TYPE_SET_SSL(type);
+	TYPE_SET_ZLIB(type);
 
-	masterfd = ip_connect(name, manage, "tcp");
+	master.commfd = ip_connect(name, manage, "tcp");
 
 	if (!reverse) {
 	SSL_library_init();
@@ -149,14 +187,14 @@ main(int argc, char **argv)
 		printf("Setting rsa key failed (%s)... exiting\n", keys);
 		exit(1);
 	}
-	ssl = SSL_new(ctx);
-	if (SSL_set_fd(ssl, masterfd) != 1) {
+	master.ssl = SSL_new(ctx);
+	if (SSL_set_fd(master.ssl, master.commfd) != 1) {
 		printf("Problem with initializing ssl... exiting\n");
 		exit(1);
 	}
 	if (verbose>1)
 		printf("Trying SSL_connect\n");
-	if ((n = SSL_connect(ssl)) == 1) {
+	if ((n = SSL_connect(master.ssl)) == 1) {
 		if (verbose) {
 			printf("SSL_connect successfull\n");
 		}
@@ -168,19 +206,24 @@ main(int argc, char **argv)
 
 	
 	buff[0] = AF_S_LOGIN;
-	buff[1] = 1;
-	buff[2] = 3;
-	buff[3] = 6;
-	buff[4] = 2;
-	SSL_write(ssl, buff, 5);
+	buff[1] = pass[0];
+	buff[2] = pass[1];
+	buff[3] = pass[2];
+	buff[4] = pass[3];
+	send_message(type, master, buff, 5);
 	buff[0] = 0;
-	SSL_read(ssl, buff, 5);
+	get_message(type, master, buff, -5);
 	
+	if ( buff[0] == 0 ) {
+		printf("Wrong password\n");
+		exit(1);
+	}
 	if ( buff[0] != AF_S_LOGIN ) {
 		printf("Incompatible server type or server full\n");
 		exit(1);
 	}
 
+	type = buff[3];
 	usernum = buff[1];
 	usernum = usernum << 8;
 	usernum += buff[2];
@@ -188,7 +231,7 @@ main(int argc, char **argv)
 	} /* !reverse */
 	else {
 		usernum = 1;
-		ssl = NULL;
+		master.ssl = NULL;
 	}
 
 	contable = calloc( usernum, sizeof(ConnectuserT));
@@ -198,7 +241,7 @@ main(int argc, char **argv)
 	}
 	
 	len = 4;
-	if (getsockopt(masterfd, SOL_SOCKET, SO_SNDBUF, &buflength, &len) == -1) {
+	if (getsockopt(master.commfd, SOL_SOCKET, SO_SNDBUF, &buflength, &len) == -1) {
 		printf("Can't get socket send buffor size - exiting...\n");
 		exit(1);
 	}
@@ -213,18 +256,18 @@ main(int argc, char **argv)
 	
 	FD_ZERO(&allset);
 	
-	FD_SET(masterfd, &allset);
-	maxfdp1 = masterfd + 1;
+	FD_SET(master.commfd, &allset);
+	maxfdp1 = master.commfd + 1;
 
 	if (reverse) {
 		contable[0].connfd=ip_listen(desnam, despor, &addrlen, "udp");
 		cliaddr = malloc(addrlen);
 		maxfdp1 = (maxfdp1>contable[0].connfd+1) ? maxfdp1 : contable[0].connfd+1;
 		FD_SET(contable[0].connfd, &allset);
-		aflog(1, "^^Started in udp reverse mode^^");
+		aflog(1, "CLIENT STARTED mode: udp reverse");
 		for ( ; ; ) {
 			len = 4;
-			if (getsockopt(masterfd, SOL_SOCKET, SO_SNDBUF, &temp2, &len) != -1) {
+			if (getsockopt(master.commfd, SOL_SOCKET, SO_SNDBUF, &temp2, &len) != -1) {
 				if (temp2 != buflength) {
 					buflength = temp2;
 					aflog(2, "Send buffor size changed...");
@@ -234,11 +277,11 @@ main(int argc, char **argv)
 			rset = allset;
 			aflog(2, ">select");
 			select(maxfdp1, &rset, NULL, NULL, NULL);
-			aflog(2, ">>after select...");
+			aflog(2, " >>after select...");
 			if (FD_ISSET(contable[0].connfd, &rset)) {
 				n = recvfrom(contable[0].connfd, &buff[5], 8091, 0, cliaddr, &len);
 #ifdef SIOCOUTQ
-				if (ioctl(masterfd, SIOCOUTQ, &notsent)) {
+				if (ioctl(master.commfd, SIOCOUTQ, &notsent)) {
 					aflog(0, "ioctl error -> exiting...");
 					exit(1);
 				}
@@ -246,7 +289,7 @@ main(int argc, char **argv)
 					aflog(2, "drop: size:%d, buf:%d, w:%d/%d",
 								n, buflength, notsent, buflength);
 #else
-				if (ioctl(masterfd, TIOCOUTQ, &notsent)) {
+				if (ioctl(master.commfd, TIOCOUTQ, &notsent)) {
 					aflog(0, "ioctl error -> exiting...");
 					exit(1);
 				}
@@ -270,12 +313,12 @@ main(int argc, char **argv)
 						buff[2] = AF_S_MESSAGE;
 						buff[3] = n >> 8;
 						buff[4] = n;
-						writen(masterfd, buff, n + 5);
+						writen(master.commfd, buff, n + 5);
 					}
 				}
 			}
-			if (FD_ISSET(masterfd, &rset)) {
-				n = readn(masterfd, buff, 5);
+			if (FD_ISSET(master.commfd, &rset)) {
+				n = readn(master.commfd, buff, 5);
 				if (n == 5) {
 					if ((buff[0] != AF_S_MESSAGE) || (buff[1] != AF_S_LOGIN)
 							|| (buff[2] != AF_S_MESSAGE)) {
@@ -285,7 +328,7 @@ main(int argc, char **argv)
 					length = buff[3];
 					length = length << 8;
 					length += buff[4]; /* this is length of message */
-					n = readn(masterfd, buff, length);
+					n = readn(master.commfd, buff, length);
 				}
 				else {
 					n = 0;
@@ -302,55 +345,57 @@ main(int argc, char **argv)
 		exit(0); /* we shouldn't get here */
 	}
 	
-	aflog(1, "^^Started in normal mode^^ (%s)", (udp)?"udp":"tcp");
+	aflog(1, "CLIENT STARTED mode: %s", (udp)?"udp":"tcp");
+	aflog(1, "SERVER SSL: %s, ZLIB: %s, MODE: %s", (TYPE_IS_SSL(type))?"yes":"no",
+			(TYPE_IS_ZLIB(type))?"yes":"no", (TYPE_IS_TCP(type))?"tcp":"udp");
 	
 	for ( ; ; ) {
 		rset = allset;
 			aflog(2, ">select");
 		select(maxfdp1, &rset, NULL, NULL, NULL);
-			aflog(2, ">>after select...");
+			aflog(2, " >>after select...");
 
 		for (i = 0; i < usernum; ++i) {
 			if (contable[i].state == S_STATE_OPEN)
 			   if (FD_ISSET(contable[i].connfd, &rset)) {	
-				aflog(2, "FD_ISSET(contable[%d].connfd)", i);
+				aflog(2, " user[%d]: FD_ISSET", i);
 				n = read(contable[i].connfd, &buff[5], 8091);
 				if (n == -1) {
-					aflog(0, "FATAL ERROR! (%d) while reading from user", n);
+					aflog(0, "  error (%d): while reading from service", n);
 					n = 0;
 				}
 #ifdef SIOCOUTQ
-				if (ioctl(masterfd, SIOCOUTQ, &notsent)) {
+				if (ioctl(master.commfd, SIOCOUTQ, &notsent)) {
 					aflog(0, "ioctl error -> exiting...");
 					exit(1);
 				}
 				if (udp) {
 					len = 4;
-					if (getsockopt(masterfd, SOL_SOCKET, SO_SNDBUF, &temp2, &len) != -1) {
+					if (getsockopt(master.commfd, SOL_SOCKET, SO_SNDBUF, &temp2, &len) != -1) {
 						if (temp2 != buflength) {
 							buflength = temp2;
 							aflog(2, "Send buffor size changed...");
 						}
 					}
 					if (buflength <= notsent + n + 5) { /* when we can't send this */
-						aflog(2, "drop: size:%d, buf:%d, w:%d/%d",
-								n+5, buflength, notsent, buflength);
+						aflog(2, " user[%d]: DROP size:%d, buf:%d, w:%d/%d",
+								i, n+5, buflength, notsent, buflength);
 #else
-				if (ioctl(masterfd, TIOCOUTQ, &notsent)) {
+				if (ioctl(master.commfd, TIOCOUTQ, &notsent)) {
 					aflog(0, "ioctl error -> exiting...");
 					exit(1);
 				}
 				if (udp) {
 					len = 4;
-					if (getsockopt(masterfd, SOL_SOCKET, SO_SNDBUF, &temp2, &len) != -1) {
+					if (getsockopt(master.commfd, SOL_SOCKET, SO_SNDBUF, &temp2, &len) != -1) {
 						if (temp2 != buflength) {
 							buflength = temp2;
 							aflog(2, "Send buffor size changed...");
 						}
 					}
 					if (notsent <= n + 5) { /* when we can't send this */
-						aflog(2, "drop: size:%d, buf:%d, w:%d/%d",
-								n+5, buflength, buflength-notsent, buflength);
+						aflog(2, " user[%d]: DROP size:%d, buf:%d, w:%d/%d",
+							i, n+5, buflength, buflength-notsent, buflength);
 #endif
 						continue; /* drop this packet */
 					}
@@ -361,15 +406,15 @@ main(int argc, char **argv)
 					buff[2] = i;		/* low bits of user number */
 					buff[3] = n >> 8;	/* high bits of message length */
 					buff[4] = n;		/* low bits of message length */
-					aflog(2, "Sending %d bytes to user (%d) [%d/%d]",
-								n, i,
+					aflog(2, "  user[%d]: TO msglen: %d [%d/%d]",
+								i, n,
 #ifdef SIOCOUTQ
 									notsent
 #else
 									buflength - notsent
 #endif
 									, buflength);
-					SSL_writen(ssl, buff, n+5);
+					send_message(type, master, buff, n+5);
 				}
 				else if (!udp) {
 					close(contable[i].connfd);
@@ -378,18 +423,19 @@ main(int argc, char **argv)
 					buff[0] = AF_S_CONCLOSED; /* closing connection */
 					buff[1] = i >> 8;	/* high bits of user number */
 					buff[2] = i;		/* low bits of user number */
-					SSL_writen(ssl, buff, 5);
+					send_message(type, master, buff, 5);
 				}
 			}
 		}
 
-		if (FD_ISSET(masterfd, &rset)) {
-			aflog(2, "FD_ISSET(masterfd)");
-			n = SSL_readn(ssl, buff, 5);
+		if (FD_ISSET(master.commfd, &rset)) {
+			aflog(2, " masterfd: FD_ISSET");
+			n = get_message(type, master, buff, 5);
 			if (n != 5) {
-				aflog(2, "FATAL ERROR! (%d)", n);
+				aflog(2, "  FATAL ERROR! (%d)", n);
 				if (n == -1) {
-					merror = SSL_get_error(ssl, n);
+					if (TYPE_IS_SSL(type)) {
+					merror = SSL_get_error(master.ssl, n);
 					switch (merror) {
                                                         case SSL_ERROR_NONE : {
 										      aflog(2, "FE: none");
@@ -427,12 +473,13 @@ main(int argc, char **argv)
                                                                               }
                                                 }
 					continue; /* what happened? */
+					}
 				}
 				if (n != 0)
 					exit(1);
 			}
 			if (n == 0) { /* server quits -> we do the same... */
-				aflog(0, "premature quit of the server -> exiting...");
+				aflog(0, "  SERVER: premature quit -> exiting...");
 				exit(1);
 			}
 			numofcon = buff[1];
@@ -455,7 +502,7 @@ main(int argc, char **argv)
 					      buff[0] = AF_S_CONCLOSED; /* closing connection */
 					      buff[1] = numofcon >> 8;		/* high bits of user number */
 					      buff[2] = numofcon;		/* low bits of user number */
-					      SSL_writen(ssl, buff, 5);
+					      send_message(type, master, buff, 5);
 							      }
 						      }
 						      break;
@@ -465,43 +512,43 @@ main(int argc, char **argv)
 							usercon++;
  						  if (contable[numofcon].state == S_STATE_CLEAR) {
 							  if (udp) {
-						    contable[numofcon].connfd=ip_connect(desnam,despor,"udp");
+					    contable[numofcon].connfd=ip_connect(desnam,despor,"udp");
 							  }
 							  else {
-						    contable[numofcon].connfd=ip_connect(desnam,despor,"tcp");
+					    contable[numofcon].connfd=ip_connect(desnam,despor,"tcp");
 							  }
-						    FD_SET(contable[numofcon].connfd, &allset);
-						    maxfdp1 = (maxfdp1 > (contable[numofcon].connfd+1)) ? maxfdp1 : (contable[numofcon].connfd+1);
+					    FD_SET(contable[numofcon].connfd, &allset);
+					    maxfdp1 = (maxfdp1 > (contable[numofcon].connfd+1)) ? maxfdp1 : (contable[numofcon].connfd+1);
 					    buff[0] = AF_S_CONOPEN; /* closing connection */
 					    buff[1] = numofcon >> 8;		/* high bits of user number */
 					    buff[2] = numofcon; 		/* low bits of user number */
-					    SSL_writen(ssl, buff, 5);
+					    send_message(type, master, buff, 5);
 					    contable[numofcon].state = S_STATE_OPEN;
 						  }
 						}
 						break;
 						    }
 				case AF_S_MESSAGE : {
-					    aflog(2, "Received msg for con[%d], length=%d", numofcon, length);
-							    n = SSL_readn(ssl, buff, length);
-							    if (n != length) {
-								aflog(2, "n(%d)!=length(%d)", n, length);
-							      break;
-							    }
+					    aflog(2, "  user[%d]: FROM msglen: %d", numofcon, length);
+							    n = get_message(type, master, buff, length);
 						if ((numofcon>=0) && (numofcon<=usernum)) {
 							if (contable[numofcon].state == S_STATE_OPEN) {
-							aflog(2, "sent msg con[%d], length=%d", numofcon, n);
-							  if (writen(contable[numofcon].connfd, buff, n)==-1) {
+					    aflog(2, "  user[%d]: FROM msglen: %d SENT", numofcon, n);
+					  if (writen(contable[numofcon].connfd, buff, n)==-1) {
 								  aflog(0, "Sending msg failed!");
-							  }
+					  }
 							}
 						}
 							    break;
 						    }
-				default : { /* unrecognized type of message -> exiting... */
-					  aflog(0, "Server sents unrecognized message -> exiting...");
+				case AF_S_CLOSING : { /* server shut down -> exiting... */
+					  aflog(0, "  SERVER: CLOSED -> exiting... cg: %ld bytes", getcg());
 					  exit(1);
-						  
+						  break;
+					  }
+				default : { /* unrecognized type of message -> exiting... */
+			  aflog(0, "  SERVER: unrecognized message -> exiting... cg: %ld bytes", getcg());
+					  exit(1);
 						  break;
 					  }
 			}
@@ -514,24 +561,32 @@ usage(char* info)
 {
     printf("\n%s\n\n", info);
     printf("  Options:\n");
-    printf("  -h                      - prints this help\n");
-    printf("  -n [server name]        - where the second part of the active\n");
-    printf("                            port forwarder is running (required)\n");
-    printf("  -m [portnum]            - the manage port number - server must\n");
-    printf("                            listening on it (default: 50126)\n");
-    printf("  -d [hostname]           - name of this host/remote host - the final\n");
-    printf("                            destination of the packets (default: name\n");
-    printf("                            returned by hostname function)\n");
-    printf("  -p [portnum]            - port we are forwarding connection to (required)\n");
-    printf("  -k [keyfile]            - name of the file with RSA key (default: client.rsa)\n");
-    printf("  -u                      - udp mode - client will use udp protocol to\n");
-    printf("                            communicate with hostname\n");
-    printf("  -U                      - reverse udp forwarding. Udp packets will be forwarded\n");
-    printf("                            from hostname:portnum (-p) to server name:portnum (-m)\n");
-    printf("  -O [logfile]            - logging everything to a logfile\n");
-    printf("  -o [logfile]            - logging some data to a logfile\n");
-    printf("  -v                      - to be verbose - program won't enter into\n");
-    printf("                            the daemon mode (use twice for greater effect)\n\n");
+    printf("  -h, --help          - prints this help\n");
+    printf("  -n, --servername    - where the second part of the active\n");
+    printf("                        port forwarder is running (required)\n");
+    printf("  -m, --manageport    - the manage port number - server must\n");
+    printf("                        listening on it (default: 50126)\n");
+    printf("  -d, --hostname      - name of this host/remote host - the final\n");
+    printf("                        destination of the packets (default: name\n");
+    printf("                        returned by hostname function)\n");
+    printf("  -p, --portnum       - port we are forwarding connection to (required)\n");
+    printf("  -k, --keyfile       - name of the file with RSA key (default: client.rsa)\n");
+    printf("  -u, --udpmode       - udp mode - client will use udp protocol to\n");
+    printf("                        communicate with hostname\n");
+    printf("  -U, --reverseudp    - reverse udp forwarding. Udp packets will be forwarded\n");
+    printf("                        from hostname:portnum (-p) to server name:portnum (-m)\n");
+    printf("  -O, --heavylog      - logging everything to a logfile\n");
+    printf("  -o, --lightlog      - logging some data to a logfile\n");
+    printf("  -v, --verbose       - to be verbose - program won't enter into\n");
+    printf("                        the daemon mode (use twice for greater effect)\n");
+    printf("  --pass              - set the password used for client identification\n");
+    printf("                        (default: no password)\n\n");	  
     exit(0);
 }
 
+static void
+sig_int(int signo)
+{
+	aflog(1, "CLIENT CLOSED cg: %ld bytes", getcg());
+	exit(0);
+}

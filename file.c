@@ -19,6 +19,7 @@
  */
 
 #include "file.h"
+#include "activefor.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -29,7 +30,7 @@ parsefile(char* name, int* status)
 {
 	static ConfigurationT cfg;
 	FILE* file = NULL;
-	int state;
+	int state, i, n;
 	char buff[256];
 	char helpbuf1[256];
 	char helpbuf2[256];
@@ -75,6 +76,17 @@ parsefile(char* name, int* status)
 			if (state == 1) {
 				if (strcmp(helpbuf1, "newrealm")==0) {
 					++cfg.size;
+					TYPE_SET_SSL(cfg.realmtable[cfg.size-1].type);
+					TYPE_SET_ZLIB(cfg.realmtable[cfg.size-1].type);
+				}
+				else if (cfg.size == 0) {
+					return cfg;
+				}
+				else if (strcmp(helpbuf1, "nossl")==0) {
+					TYPE_UNSET_SSL(cfg.realmtable[cfg.size-1].type);
+				}
+				else if (strcmp(helpbuf1, "nozlib")==0) {
+					TYPE_UNSET_ZLIB(cfg.realmtable[cfg.size-1].type);
 				}
 				else {
 					return cfg;
@@ -120,6 +132,12 @@ parsefile(char* name, int* status)
 							sizeof(char));
 					strcpy(cfg.realmtable[cfg.size-1].lisportnum, helpbuf2);
 				}
+				else if (strcmp(helpbuf1, "pass")==0) {
+					n = strlen(helpbuf2);
+					for (i = 0; i < n; ++i) {
+						cfg.realmtable[cfg.size-1].pass[i%4] += helpbuf2[i];
+					}
+				}
 				else if (strcmp(helpbuf1, "manage")==0) {
 					cfg.realmtable[cfg.size-1].manportnum = calloc(strlen(helpbuf2)+1, 
 							sizeof(char));
@@ -130,15 +148,15 @@ parsefile(char* name, int* status)
 							sizeof(char));
 					strcpy(cfg.realmtable[cfg.size-1].users, helpbuf2);
 				}
-				else if (strcmp(helpbuf1, "type")==0) {
-					if (cfg.realmtable[cfg.size-1].type != 0) {
+				else if (strcmp(helpbuf1, "proto")==0) {
+					if (TYPE_IS_SET(cfg.realmtable[cfg.size-1].type)) {
 						return cfg;
 					}
 					if (strcmp(helpbuf2, "tcp")==0) {
-						cfg.realmtable[cfg.size-1].type = 1;
+						TYPE_SET_TCP(cfg.realmtable[cfg.size-1].type);
 					}
 					else if (strcmp(helpbuf2, "udp")==0) {
-						cfg.realmtable[cfg.size-1].type = 2;
+						TYPE_SET_UDP(cfg.realmtable[cfg.size-1].type);
 					}
 					else {
 						return cfg;
