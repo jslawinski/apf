@@ -23,156 +23,176 @@
 #include "stats.h"
 #include <string.h>
 #include <errno.h>
-#include <signal.h>
 #include <zlib.h>
 
-static void
-sig_alrm(int signo)
-{
-	return;
-}
-
 int
-ip_listen(const char *host, const char *serv, socklen_t *addrlenp, const char *type)
+ip_listen(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, const char type)
 {
-	int				listenfd, n, typ;
+	int			 n;
 	const int		on = 1;
 	struct addrinfo	hints, *res, *ressave;
 
-	if (strcmp(type, "udp") == 0)
-		typ = 0; /* this is udp_listen */
-	else
-		typ = 1; /* default: tcp_listen */
-	
 	bzero(&hints, sizeof(struct addrinfo));
 	hints.ai_flags = AI_PASSIVE;
-	hints.ai_family = AF_UNSPEC;
+	if (type & 0x02) {
+		hints.ai_family = AF_INET;
+	}
+	else if (type & 0x04) {
+		hints.ai_family = AF_INET6;
+	}
+	else {
+		hints.ai_family = AF_UNSPEC;
+	}
 	
-	if (typ)
+	if (type & 0x01) {
 		hints.ai_socktype = SOCK_STREAM;
-	else
+	}
+	else {
 		hints.ai_socktype = SOCK_DGRAM;
+	}
 
 	if ( (n = getaddrinfo(host, serv, &hints, &res)) != 0) {
-		printf("%s_listen error for %s, %s: %s\n",
-				 (typ)?"tcp":"udp", host, serv, gai_strerror(n));
-		exit(1);
+		return n;
 	}
 	ressave = res;
 
 	do {
-		listenfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-		if (listenfd < 0)
+		(*sockfd) = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+		if ((*sockfd) < 0) {
 			continue;		/* error, try next one */
+		}
 
-		if (typ) /* tcp_listen */
-			setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-		if (bind(listenfd, res->ai_addr, res->ai_addrlen) == 0)
+		if (type & 0x01) { /* tcp_listen */
+			setsockopt((*sockfd), SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+		}
+		if (bind((*sockfd), res->ai_addr, res->ai_addrlen) == 0) {
 			break;			/* success */
+		}
 
-		close(listenfd);	/* bind error, close and try next one */
+		close((*sockfd));	/* bind error, close and try next one */
 	} while ( (res = res->ai_next) != NULL);
 
 	if (res == NULL) {	/* errno from final socket() or bind() */
-		printf("%s_listen error for %s, %s\n", (typ)?"tcp":"udp", host, serv);
-		exit(1);
+		return 1;
 	}
 
-	if (typ) /* tcp_listen */
-		listen(listenfd, 1);
+	if (type & 0x01) { /* tcp_listen */
+		listen((*sockfd), 1);
+	}
 
-	if (addrlenp)
+	if (addrlenp) {
 		*addrlenp = res->ai_addrlen;	/* return size of protocol address */
+	}
 
 	freeaddrinfo(ressave);
 
-	return(listenfd);
+	return(0);
 }
 
 int
-ip_connect(const char *host, const char *serv, const char* type)
+ip_connect(int* sockfd, const char *host, const char *serv, const char type)
 {
-	int				sockfd, n, typ;
+	int				n;
 	struct addrinfo	hints, *res, *ressave;
 
-	if (strcmp(type, "udp") == 0)
-		typ = 0; /* this is udp_listen */
-	else
-		typ = 1; /* default: tcp_listen */
-	
 	bzero(&hints, sizeof(struct addrinfo));
-	hints.ai_family = AF_UNSPEC;
-	if (typ)
+	if (type & 0x02) {
+		hints.ai_family = AF_INET;
+	}
+	else if (type & 0x04) {
+		hints.ai_family = AF_INET6;
+	}
+	else {
+		hints.ai_family = AF_UNSPEC;
+	}
+	if (type & 0x01) {
 		hints.ai_socktype = SOCK_STREAM;
-	else
+	}
+	else {
 		hints.ai_socktype = SOCK_DGRAM;
+	}
 
 	if ( (n = getaddrinfo(host, serv, &hints, &res)) != 0) {
-		printf("%s_connect error for %s, %s: %s\n",
-				(typ)?"tcp":"udp", host, serv, gai_strerror(n));
-		exit(1);
+		return n;
 	}
 	ressave = res;
 
 	do {
-		sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-		if (sockfd < 0)
+		(*sockfd) = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+		if ((*sockfd) < 0) {
 			continue;	/* ignore this one */
+		}
 
-		if (connect(sockfd, res->ai_addr, res->ai_addrlen) == 0)
+		if (connect((*sockfd), res->ai_addr, res->ai_addrlen) == 0) {
 			break;		/* success */
+		}
 
-		close(sockfd);	/* ignore this one */
+		close((*sockfd));	/* ignore this one */
 	} while ( (res = res->ai_next) != NULL);
 
 	if (res == NULL) {	/* errno set from final connect() */
-		printf("%s_connect error for %s, %s\n", (typ)?"tcp":"udp", host, serv);
-		exit(1);
+		return 1;
 	}
 
 	freeaddrinfo(ressave);
 
-	return(sockfd);
+	return(0);
 }
 
 char *
-sock_ntop(const struct sockaddr *sa, socklen_t salen)
+sock_ntop(const struct sockaddr *sa, socklen_t salen, char* namebuf, char* portbuf)
 {
     char		portstr[7];
     static char str[128];		/* Unix domain is largest */
 
-	switch (sa->sa_family) {
+    switch (sa->sa_family) {
 	case AF_INET: {
 		struct sockaddr_in	*sin = (struct sockaddr_in *) sa;
 
-		if (inet_ntop(AF_INET, &sin->sin_addr, str, sizeof(str)) == NULL)
+		if (inet_ntop(AF_INET, &sin->sin_addr, str, sizeof(str)) == NULL) {
 			return(NULL);
+		}
+		if (namebuf) {
+			if (inet_ntop(AF_INET, &sin->sin_addr, namebuf, 128) == NULL) {
+				return(NULL);
+			}
+		}
 		if (ntohs(sin->sin_port) != 0) {
 			snprintf(portstr, sizeof(portstr), ".%d", ntohs(sin->sin_port));
+			if (portbuf) {
+				snprintf(portbuf, 7, "%d", ntohs(sin->sin_port));
+			}
 			strcat(str, portstr);
 		}
 		return(str);
 	}
-
-#ifdef	IPV6
+#ifdef AF_INET6
 	case AF_INET6: {
 		struct sockaddr_in6	*sin6 = (struct sockaddr_in6 *) sa;
 
-		if (inet_ntop(AF_INET6, &sin6->sin6_addr, str, sizeof(str)) == NULL)
+		if (inet_ntop(AF_INET6, &sin6->sin6_addr, str, sizeof(str)) == NULL) {
 			return(NULL);
+		}
+		if (namebuf) {
+			if (inet_ntop(AF_INET6, &sin6->sin6_addr, namebuf, 128) == NULL) {
+				return(NULL);
+			}
+		}
 		if (ntohs(sin6->sin6_port) != 0) {
 			snprintf(portstr, sizeof(portstr), ".%d", ntohs(sin6->sin6_port));
+			if (portbuf) {
+				snprintf(portbuf, 7, "%d", ntohs(sin6->sin6_port));
+			}
 			strcat(str, portstr);
 		}
 		return(str);
 	}
 #endif
-
-	default:
-		snprintf(str, sizeof(str), "sock_ntop: unknown AF_xxx: %d, len %d",
-				 sa->sa_family, salen);
+	default: {
+		snprintf(str, sizeof(str), "sock_ntop: unknown AF_xxx: %d, len %d", sa->sa_family, salen);
 		return(str);
 	}
+    }
     return (NULL);
 }
 
@@ -182,10 +202,7 @@ SSL_writen(SSL* fd, unsigned char* buf, int amount)
 	int sent, n;
 	sent = 0;
 	while (sent < amount) {
-		signal(SIGALRM, sig_alrm);
-		alarm(5);
 		n = SSL_write(fd, buf+sent, amount - sent);
-		alarm(0);
 		if (n != -1) {
 			sent += n;
 		}
@@ -223,10 +240,7 @@ writen(int fd, unsigned char* buf, int amount)
 	int sent, n;
 	sent = 0;
 	while (sent < amount) {
-		signal(SIGALRM, sig_alrm);
-		alarm(5);
 		n = write(fd, buf+sent, amount - sent);
-		alarm(0);
 		if (n != -1) {
 			sent += n;
 		}

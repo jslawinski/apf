@@ -50,6 +50,8 @@ static struct option long_options[] = {
 	{"nossl", 0, 0, 301},
 	{"nozlib", 0, 0, 302},
 	{"pass", 1, 0, 303},
+	{"ipv4", 0, 0, '4'},
+	{"ipv6", 0, 0, '6'},
 	{0, 0, 0, 0}
 };
 
@@ -58,12 +60,12 @@ static ConfigurationT config;
 int
 main(int argc, char **argv)
 {
-	int	i, j, n, flags;
+	int	i, j, n, flags, sent;
 	socklen_t	len;
 	unsigned char				buff[9000];
 	char	hostname[100];
 	int			maxfdp1;
-	fd_set		rset, allset;
+	fd_set		rset, allset, wset, tmpset;
 	int manconnecting, numofcon, length;
 	char* name    = NULL;
 	char* listen  = NULL;
@@ -72,17 +74,24 @@ main(int argc, char **argv)
 	char* filenam = NULL;
 	char* type    = NULL;
 	char* znak;
-	unsigned char pass[4];
+	unsigned char pass[4] = {1, 2, 3, 4};
 	char verbose = 0;
 	char mode = 0;
+	char ipfam = 0;
 	RealmT* pointer = NULL;
+	struct sigaction act;
 
 	SSL_METHOD* method;
 	SSL_CTX* ctx;
 	
-	signal(SIGPIPE, SIG_IGN);
-	signal(SIGINT, sig_int);
-
+	sigfillset(&(act.sa_mask));
+	act.sa_flags = 0;
+	
+	act.sa_handler = SIG_IGN;
+	sigaction(SIGPIPE, &act, NULL);
+	act.sa_handler = sig_int;
+	sigaction(SIGINT, &act, NULL);
+	
 	TYPE_SET_SSL(mode);
 	TYPE_SET_ZLIB(mode);
 
@@ -93,7 +102,7 @@ main(int argc, char **argv)
 	config.logging = 0;
 	config.logfnam = NULL;
 
-	while ((n = getopt_long(argc, argv, "hn:l:m:vu:c:k:f:p:o:O:", long_options, 0)) != -1) {
+	while ((n = getopt_long(argc, argv, "hn:l:m:vu:c:k:f:p:o:O:46", long_options, 0)) != -1) {
 		switch (n) {
 		  case 'h': {
 				    usage(AF_VER("Active port forwarder (server)"));
@@ -161,7 +170,24 @@ main(int argc, char **argv)
                                     }
                                     break;
                             }
-
+		  case '4': {
+				    if (ipfam != 0) {
+					    ipfam = -1;
+				    }
+				    else {
+					    ipfam = 4;
+				    }
+				    break;
+			    }
+		  case '6': {
+				    if (ipfam != 0) {
+					    ipfam = -1;
+				    }
+				    else {
+					    ipfam = 6;
+				    }
+				    break;
+			    }
 		  case '?': {
 				    usage("");
 				    break;
@@ -224,6 +250,16 @@ main(int argc, char **argv)
 		else {
 			TYPE_SET_ZERO(config.realmtable[0].type);
 		}
+		if (ipfam == -1) {
+			printf("Conflicting types of ip protocol family... exiting\n");
+			exit(1);
+		}
+		else if (ipfam == 4) {
+			TYPE_SET_IPV4(config.realmtable[0].type);
+		}
+		else if (ipfam == 6) {
+			TYPE_SET_IPV6(config.realmtable[0].type);
+		}
 		config.realmtable[0].type |= mode;
 	}
 
@@ -251,14 +287,16 @@ main(int argc, char **argv)
 	}
 	
 	FD_ZERO(&allset);
+	FD_ZERO(&wset);
 	
 	for (i = 0; i < config.size; ++i) {
 		if ((config.realmtable[i].hostname == NULL) ||
 			(config.realmtable[i].lisportnum == NULL) ||
 			(config.realmtable[i].manportnum == NULL) ||
 			(config.realmtable[i].users == NULL)) {
-			printf("Missing some of configurable variables... exiting\n");
-			printf("%d) %s, %s, %s, %s\n", i, config.realmtable[i].hostname,
+			printf("Missing some of the configurable variables...\n");
+			printf("\nRealm: %d\nhostname: %s\nlistenport: %s\nmanageport: %s\nusers: %s\n",
+					i, config.realmtable[i].hostname,
 					config.realmtable[i].lisportnum,
 					config.realmtable[i].manportnum,
 					config.realmtable[i].users);
@@ -282,11 +320,27 @@ main(int argc, char **argv)
 			printf("Calloc error - try define smaller amount of users\n");
 			exit(1);
 		}
-	
-		config.realmtable[i].listenfd = ip_listen(config.realmtable[i].hostname,
-				config.realmtable[i].lisportnum, (&(config.realmtable[i].addrlen)), "tcp");
-		config.realmtable[i].managefd = ip_listen(config.realmtable[i].hostname,
-				config.realmtable[i].manportnum, (&(config.realmtable[i].addrlen)), "tcp");
+		ipfam = 0x01;
+		if (TYPE_IS_IPV4(config.realmtable[i].type)) {
+			ipfam |= 0x02;
+		}
+		else if (TYPE_IS_IPV6(config.realmtable[i].type)) {
+			ipfam |= 0x04;
+		}
+		if (ip_listen(&(config.realmtable[i].listenfd), config.realmtable[i].hostname,
+			config.realmtable[i].lisportnum, (&(config.realmtable[i].addrlen)), ipfam)) {
+			printf("tcp_listen_%s error for %s, %s\n",
+					(ipfam & 0x02)?"ipv4":(ipfam & 0x04)?"ipv6":"unspec",
+					config.realmtable[i].hostname, config.realmtable[i].lisportnum);
+			exit(1);
+		}
+		if (ip_listen(&(config.realmtable[i].managefd), config.realmtable[i].hostname,
+			config.realmtable[i].manportnum, (&(config.realmtable[i].addrlen)), ipfam)) {
+			printf("tcp_listen_%s error for %s, %s\n",
+					(ipfam & 0x02)?"ipv4":(ipfam & 0x04)?"ipv6":"unspec",
+					config.realmtable[i].hostname, config.realmtable[i].manportnum);
+			exit(1);
+		}
 		config.realmtable[i].cliaddr = malloc(config.realmtable[i].addrlen);
 		
 		config.realmtable[i].cliconn.ssl = SSL_new(ctx);
@@ -296,7 +350,9 @@ main(int argc, char **argv)
 		}
 		
 		FD_SET(config.realmtable[i].managefd, &allset);
+		FD_SET(config.realmtable[i].listenfd, &allset);
 		maxfdp1 = (maxfdp1 > (config.realmtable[i].managefd+1)) ? maxfdp1 : (config.realmtable[i].managefd+1);
+		maxfdp1 = (maxfdp1 > (config.realmtable[i].listenfd+1)) ? maxfdp1 : (config.realmtable[i].listenfd+1);
 		config.realmtable[i].usercon = 0;
 		config.realmtable[i].ready = 0;
 		config.realmtable[i].tv.tv_sec = 5;
@@ -315,7 +371,8 @@ main(int argc, char **argv)
 	
 	for ( ; ; ) {
 		rset = allset;
-			aflog(2, ">select, maxfdp1: %d", maxfdp1);
+		tmpset = wset;
+			aflog(3, ">select, maxfdp1: %d", maxfdp1);
 		if (manconnecting) {
 			/* find out, in what realm client is trying to connect */
 			for (i = 0; i < config.size; ++i) {
@@ -323,10 +380,9 @@ main(int argc, char **argv)
 					break; /* so i points to first good realm */
 				}
 			}
-			if (select(maxfdp1, &rset, NULL, NULL, (&(config.realmtable[i].tv))) == 0) { 
+			if (select(maxfdp1, &rset, &tmpset, NULL, (&(config.realmtable[i].tv))) == 0) { 
 				  close (config.realmtable[i].cliconn.commfd);
 				  FD_CLR(config.realmtable[i].cliconn.commfd, &allset);
-				  FD_CLR(config.realmtable[i].listenfd, &allset);
 				  FD_SET(config.realmtable[i].managefd, &allset);
 				  config.realmtable[i].ready = 0;
 				  manconnecting--;
@@ -334,16 +390,17 @@ main(int argc, char **argv)
 			}
 		}
 		else {
-			select(maxfdp1, &rset, NULL, NULL, NULL);
+			select(maxfdp1, &rset, &tmpset, NULL, NULL);
 		}
-		aflog(2, " >>after select...");
+		aflog(3, " >>after select...");
 
 	for (j = 0; j < config.size; ++j) {
 		pointer = (&(config.realmtable[j]));
 		for (i = 0; i <pointer->usernum; ++i) {
-		  if (pointer->contable[i].state == S_STATE_OPEN)
+		  if ((pointer->contable[i].state == S_STATE_OPEN) ||
+				  (pointer->contable[i].state == S_STATE_STOPPED))
 			if (FD_ISSET(pointer->contable[i].connfd, &rset)) {
-				aflog(2, " realm[%d]: user[%d]: FD_ISSET", j, i);
+				aflog(3, " realm[%d]: user[%d]: FD_ISSET", j, i);
 				if (TYPE_IS_TCP(pointer->type)) { /* forwarding tcp packets */
 				n = read(pointer->contable[i].connfd, &buff[5], 8091);
 				if (n == -1)
@@ -364,9 +421,13 @@ main(int argc, char **argv)
 				}
 				else {
 					aflog(1, "  realm[%d]: user[%d]: CLOSED", j, i);
+					aflog(2, "   IP:%s PORT:%s", pointer->contable[i].namebuf,
+							pointer->contable[i].portbuf);
 					close(pointer->contable[i].connfd);
 					FD_CLR(pointer->contable[i].connfd, &allset);
+					FD_CLR(pointer->contable[i].connfd, &wset);
 					pointer->contable[i].state = S_STATE_CLOSING;
+					 freebuflist(&pointer->contable[i].head);
 					buff[0] = AF_S_CONCLOSED; /* closing connection */
 					buff[1] = i >> 8;	/* high bits of user number */
 					buff[2] = i;		/* low bits of user number */
@@ -398,9 +459,13 @@ main(int argc, char **argv)
 				
 				if (n == 0) {
 					aflog(1, "  realm[%d]: user[%d]: CLOSED", j, i);
+					aflog(2, "   IP:%s PORT:%s", pointer->contable[i].namebuf,
+							pointer->contable[i].portbuf);
 					close(pointer->contable[i].connfd);
 					FD_CLR(pointer->contable[i].connfd, &allset);
+					FD_CLR(pointer->contable[i].connfd, &wset);
 					pointer->contable[i].state = S_STATE_CLOSING;
+					 freebuflist(&pointer->contable[i].head);
 					buff[0] = AF_S_CONCLOSED; /* closing connection */
 					buff[1] = i >> 8;	/* high bits of user number */
 					buff[2] = i;		/* low bits of user number */
@@ -410,31 +475,88 @@ main(int argc, char **argv)
 				}
 			}
 		}
-		if (pointer->ready == 3)
+		/* ------------------------------------ */
+		for (i = 0; i <pointer->usernum; ++i) {
+		  if (pointer->contable[i].state == S_STATE_STOPPED)
+			if (FD_ISSET(pointer->contable[i].connfd, &tmpset)) {
+				aflog(3, " realm[%d]: user[%d]: FD_ISSET - WRITE", j, i);
+		n = pointer->contable[i].head->msglen - pointer->contable[i].head->actptr;
+	sent = write(pointer->contable[i].connfd,
+		&(pointer->contable[i].head->buff[pointer->contable[i].head->actptr]), n);
+						 if ((sent > 0) && (sent != n)) {
+							 pointer->contable[i].head->actptr+=sent;
+						 }
+						 else if ((sent == -1) && (errno == EAGAIN)) {
+						 }
+						 else if (sent == -1) {
+					aflog(1, "  realm[%d]: user[%d]: CLOSED", j, i);
+					aflog(2, "   IP:%s PORT:%s", pointer->contable[i].namebuf,
+							pointer->contable[i].portbuf);
+					close(pointer->contable[i].connfd);
+					FD_CLR(pointer->contable[i].connfd, &allset);
+					FD_CLR(pointer->contable[i].connfd, &wset);
+					pointer->contable[i].state = S_STATE_CLOSING;
+					 freebuflist(&pointer->contable[i].head);
+					buff[0] = AF_S_CONCLOSED; /* closing connection */
+					buff[1] = i >> 8;	/* high bits of user number */
+					buff[2] = i;		/* low bits of user number */
+					send_message(pointer->type, pointer->cliconn, buff, 5);
+						 }
+						 else {
+							 deleteblnode(&pointer->contable[i].head);
+							 if (pointer->contable[i].head == NULL) {
+					pointer->contable[i].state = S_STATE_OPEN;
+					FD_CLR(pointer->contable[i].connfd, &wset);
+					buff[0] = AF_S_CAN_SEND; /* stopping transfer */
+					buff[1] = i >> 8;	/* high bits of user number */
+					buff[2] = i;		/* low bits of user number */
+				aflog(3, "  realm[%d]: TO user[%d]: BUFFERING MESSAGE ENDED", j, i);
+					send_message(pointer->type, pointer->cliconn, buff, 5);
+							 }
+						 }
+			}
+		}
+		/* ------------------------------------ */
 		if (FD_ISSET(pointer->listenfd, &rset)) {
-			aflog(2, " realm[%d]: listenfd: FD_ISSET", j);
 			len = pointer->addrlen;
+			sent = accept(pointer->listenfd, pointer->cliaddr, &len);
+			flags = fcntl(sent, F_GETFL, 0);
+			fcntl(sent, F_SETFL, flags | O_NONBLOCK);
+			aflog(3, " realm[%d]: listenfd: FD_ISSET", j);
 			if (pointer->ready == 3) {
+				if (pointer->usercon == pointer->usernum) {
+					close(sent);
+				aflog(3, " realm[%d]: user limit EXCEEDED", j);
+				}
+				else {
 				for (i = 0; i < pointer->usernum; ++i) {
 					if (pointer->contable[i].state == S_STATE_CLEAR) {
-				aflog(2, "  realm[%d]: new user[%d]: CONNECTING", j, i);
-						pointer->contable[i].connfd =
-							accept(pointer->listenfd, pointer->cliaddr, &len);
+						aflog(2, "  realm[%d]: new user[%d]: CONNECTING", j, i);
+						pointer->contable[i].connfd = sent;
 						pointer->contable[i].state = S_STATE_OPENING;
 						pointer->usercon++;
-					aflog(1, "  user IP:%s",sock_ntop(pointer->cliaddr, len));
-						if (pointer->usercon == pointer->usernum)
-							FD_CLR(pointer->listenfd, &allset);
+					aflog(1, "  user IP:%s",sock_ntop(pointer->cliaddr, len,
+						pointer->contable[i].namebuf, pointer->contable[i].portbuf));
+						memcpy(&buff[5], pointer->contable[i].namebuf, 128);
+						memcpy(&buff[133], pointer->contable[i].portbuf, 7);
+						n = 135;
 						buff[0] = AF_S_CONOPEN; /* opening connection */
 						buff[1] = i >> 8;	/* high bits of user number */
 						buff[2] = i;		/* low bits of user number */
-						send_message(pointer->type, pointer->cliconn, buff, 5);
+						buff[3] = n >> 8;	/* high bits of message length */
+						buff[4] = n;		/* low bits of message length */
+						send_message(pointer->type, pointer->cliconn, buff, n+5);
 						break;
 					}
 				}
+				}
+			}
+			else {
+				close(sent);
+				aflog(3, " realm[%d]: client is NOT CONNECTED", j);
 			}
 		}
-		if (pointer->ready != 0)
+		if (pointer->ready != 0) /* Command file descriptor */
 		if (FD_ISSET(pointer->cliconn.commfd, &rset)) {	
 			if (pointer->ready == 1) {
 				if (SSL_set_fd(pointer->cliconn.ssl, pointer->cliconn.commfd) != 1) {
@@ -496,7 +618,7 @@ main(int argc, char **argv)
 				}
 				  continue; /* in the case this is not our client */
 			}
-			aflog(2, " realm[%d]: commfd: FD_ISSET", j);
+			aflog(3, " realm[%d]: commfd: FD_ISSET", j);
 			if (pointer->ready == 2) {
 				n = get_message(pointer->type | TYPE_SSL, pointer->cliconn, buff, -5);
 			}
@@ -517,7 +639,6 @@ main(int argc, char **argv)
 			if (n==0) {
 				close(pointer->cliconn.commfd);
 				FD_CLR(pointer->cliconn.commfd, &allset);
-				FD_CLR(pointer->listenfd, &allset);
 				FD_SET(pointer->managefd, &allset);
 				maxfdp1 = (maxfdp1 > (pointer->managefd+1)) ? maxfdp1 : (pointer->managefd+1);
 				if (pointer->ready == 3) {
@@ -525,6 +646,7 @@ main(int argc, char **argv)
 					  if (pointer->contable[i].state != S_STATE_CLEAR) {
 					  pointer->contable[i].state = S_STATE_CLEAR;
 					  FD_CLR(pointer->contable[i].connfd, &allset);
+					  FD_CLR(pointer->contable[i].connfd, &wset);
 					  close(pointer->contable[i].connfd);
 					  }
 				  }
@@ -547,19 +669,21 @@ main(int argc, char **argv)
 							(numofcon<=(pointer->usernum)) &&
 							  ((pointer->ready)==3)) {
 							      (pointer->usercon)--;
-								if (pointer->usercon == pointer->usernum-1)
-									FD_SET(pointer->listenfd, &allset);
  						        	if (pointer->contable[numofcon].state ==
 										S_STATE_CLOSING) {
 								     pointer->contable[numofcon].state =
 									     S_STATE_CLEAR; 
 							      }
-							      else if (pointer->contable[numofcon].state ==
-									      S_STATE_OPEN) {
+					      else if ((pointer->contable[numofcon].state == S_STATE_OPEN) ||
+						      (pointer->contable[numofcon].state == S_STATE_STOPPED)) {
 					aflog(1, "  realm[%d]: user[%d]: KICKED", j, numofcon);
+					aflog(2, "   IP:%s PORT:%s", pointer->contable[numofcon].namebuf,
+							pointer->contable[numofcon].portbuf);
 					close(pointer->contable[numofcon].connfd);
 					FD_CLR(pointer->contable[numofcon].connfd, &allset);
+					FD_CLR(pointer->contable[numofcon].connfd, &wset);
 					pointer->contable[numofcon].state = S_STATE_CLEAR;
+					 freebuflist(&pointer->contable[numofcon].head);
 					buff[0] = AF_S_CONCLOSED; /* closing connection */
 					buff[1] = numofcon >> 8;	/* high bits of user number */
 					buff[2] = numofcon;		/* low bits of user number */
@@ -569,7 +693,6 @@ main(int argc, char **argv)
 							  else {
 							  close (pointer->cliconn.commfd);
 							  FD_CLR(pointer->cliconn.commfd, &allset);
-							  FD_CLR(pointer->listenfd, &allset);
 							  FD_SET(pointer->managefd, &allset);
 							  if (pointer->ready == 2)
 								  manconnecting--;
@@ -595,7 +718,6 @@ main(int argc, char **argv)
 							  else {
 							  close (pointer->cliconn.commfd);
 							  FD_CLR(pointer->cliconn.commfd, &allset);
-							  FD_CLR(pointer->listenfd, &allset);
 							  FD_SET(pointer->managefd, &allset);
 							  if (pointer->ready == 2)
 								  manconnecting--;
@@ -604,11 +726,38 @@ main(int argc, char **argv)
 							  }
 							      break;
 						      }
+
+				case AF_S_CANT_OPEN : {
+						      if ((numofcon>=0) &&
+								   (numofcon<=(pointer->usernum)) &&
+								      ((pointer->ready)==3)) {
+							      if (pointer->contable[numofcon].state ==
+									      S_STATE_OPENING) {
+							aflog(2, "  realm[%d]: user[%d]: DROPPED",j, numofcon);
+							      (pointer->usercon)--;
+								close(pointer->contable[numofcon].connfd);
+								pointer->contable[numofcon].state =
+									S_STATE_CLEAR;
+							      }
+						      }
+							  else {
+							  close (pointer->cliconn.commfd);
+							  FD_CLR(pointer->cliconn.commfd, &allset);
+							  FD_SET(pointer->managefd, &allset);
+							  if (pointer->ready == 2)
+								  manconnecting--;
+					  		  SSL_clear(pointer->cliconn.ssl);
+							  pointer->ready = 0;
+							  }
+							      break;
+						      }
+
+
+						    
 				case AF_S_MESSAGE : {
 							  if ((pointer->ready) != 3) {
 							  close (pointer->cliconn.commfd);
 							  FD_CLR(pointer->cliconn.commfd, &allset);
-							  FD_CLR(pointer->listenfd, &allset);
 							  FD_SET(pointer->managefd, &allset);
 							  manconnecting--;
 					  		  SSL_clear(pointer->cliconn.ssl);
@@ -629,10 +778,94 @@ main(int argc, char **argv)
 					if (TYPE_IS_UDP(pointer->type)) { /* udp */
 						buff[1] = AF_S_LOGIN;
 						buff[2] = AF_S_MESSAGE;
-					         writen(pointer->contable[numofcon].connfd, buff, n+5);
+		                                buff[3] = n >> 8; /* high bits of message length */
+		                                buff[4] = n;      /* low bits of message length */
+					         sent = write(pointer->contable[numofcon].connfd, buff, n+5);
+						 if ((sent > 0) && (sent != n)) {
+					 insertblnode(&(pointer->contable[numofcon].head), sent, n, buff);
+					pointer->contable[numofcon].state = S_STATE_STOPPED;
+					FD_SET(pointer->contable[numofcon].connfd, &wset);
+					buff[0] = AF_S_DONT_SEND; /* stopping transfer */
+					buff[1] = numofcon >> 8;	/* high bits of user number */
+					buff[2] = numofcon;		/* low bits of user number */
+				aflog(3, "  realm[%d]: TO user[%d]: BUFFERING MESSAGE STARTED", j, numofcon);
+					send_message(pointer->type, pointer->cliconn, buff, 5);
+						 }
+						 else if ((sent == -1) && (errno == EAGAIN)) {
+					 insertblnode(&(pointer->contable[numofcon].head), 0, n, buff);
+					pointer->contable[numofcon].state = S_STATE_STOPPED;
+					FD_SET(pointer->contable[numofcon].connfd, &wset);
+					buff[0] = AF_S_DONT_SEND; /* stopping transfer */
+					buff[1] = numofcon >> 8;	/* high bits of user number */
+					buff[2] = numofcon;		/* low bits of user number */
+				aflog(3, "  realm[%d]: TO user[%d]: BUFFERING MESSAGE STARTED", j, numofcon);
+					send_message(pointer->type, pointer->cliconn, buff, 5);
+						 }
+						 else if (sent == -1) {
+					aflog(1, "  realm[%d]: user[%d]: CLOSED", j, numofcon);
+					aflog(2, "   IP:%s PORT:%s", pointer->contable[numofcon].namebuf,
+							pointer->contable[numofcon].portbuf);
+					close(pointer->contable[numofcon].connfd);
+					FD_CLR(pointer->contable[numofcon].connfd, &allset);
+					FD_CLR(pointer->contable[numofcon].connfd, &wset);
+					pointer->contable[numofcon].state = S_STATE_CLOSING;
+					 freebuflist(&pointer->contable[numofcon].head);
+					buff[0] = AF_S_CONCLOSED; /* closing connection */
+					buff[1] = numofcon >> 8;	/* high bits of user number */
+					buff[2] = numofcon;		/* low bits of user number */
+					send_message(pointer->type, pointer->cliconn, buff, 5);
+						 }
+					}
+					else { /* tcp */
+					         sent = write(pointer->contable[numofcon].connfd, buff, n);
+						 if ((sent > 0) && (sent != n)) {
+					 insertblnode(&(pointer->contable[numofcon].head), sent, n, buff);
+					pointer->contable[numofcon].state = S_STATE_STOPPED;
+					FD_SET(pointer->contable[numofcon].connfd, &wset);
+					buff[0] = AF_S_DONT_SEND; /* stopping transfer */
+					buff[1] = numofcon >> 8;	/* high bits of user number */
+					buff[2] = numofcon;		/* low bits of user number */
+				aflog(3, "  realm[%d]: TO user[%d]: BUFFERING MESSAGE STARTED", j, numofcon);
+					send_message(pointer->type, pointer->cliconn, buff, 5);
+						 }
+						 else if ((sent == -1) && (errno == EAGAIN)) {
+					 insertblnode(&(pointer->contable[numofcon].head), 0, n, buff);
+					pointer->contable[numofcon].state = S_STATE_STOPPED;
+					FD_SET(pointer->contable[numofcon].connfd, &wset);
+					buff[0] = AF_S_DONT_SEND; /* stopping transfer */
+					buff[1] = numofcon >> 8;	/* high bits of user number */
+					buff[2] = numofcon;		/* low bits of user number */
+				aflog(3, "  realm[%d]: TO user[%d]: BUFFERING MESSAGE STARTED", j, numofcon);
+					send_message(pointer->type, pointer->cliconn, buff, 5);
+						 }
+						 else if (sent == -1) {
+					aflog(1, "  realm[%d]: user[%d]: CLOSED", j, numofcon);
+					aflog(2, "   IP:%s PORT:%s", pointer->contable[numofcon].namebuf,
+							pointer->contable[numofcon].portbuf);
+					close(pointer->contable[numofcon].connfd);
+					FD_CLR(pointer->contable[numofcon].connfd, &allset);
+					FD_CLR(pointer->contable[numofcon].connfd, &wset);
+					pointer->contable[numofcon].state = S_STATE_CLOSING;
+					 freebuflist(&pointer->contable[numofcon].head);
+					buff[0] = AF_S_CONCLOSED; /* closing connection */
+					buff[1] = numofcon >> 8;	/* high bits of user number */
+					buff[2] = numofcon;		/* low bits of user number */
+					send_message(pointer->type, pointer->cliconn, buff, 5);
+						 }
+					}
+							      }
+							      else if (pointer->contable[numofcon].state ==
+									      S_STATE_STOPPED) {
+				aflog(3, "  realm[%d]: TO user[%d]: BUFFERING MESSAGE", j, numofcon);
+					if (TYPE_IS_UDP(pointer->type)) { /* udp */
+						buff[1] = AF_S_LOGIN;
+						buff[2] = AF_S_MESSAGE;
+		                                buff[3] = n >> 8; /* high bits of message length */
+		                                buff[4] = n;      /* low bits of message length */
+					 insertblnode(&(pointer->contable[numofcon].head), 0, n+5, buff);
 					}
 					else {
-					         writen(pointer->contable[numofcon].connfd, buff, n);
+					 insertblnode(&(pointer->contable[numofcon].head), 0, n, buff);
 					}
 							      }
 						      }
@@ -649,14 +882,12 @@ main(int argc, char **argv)
 						buff[2] = pointer->usernum;     /* low bits of user number */
 						buff[3] = pointer->type;	/* type of connection */
 					send_message(pointer->type | TYPE_SSL, pointer->cliconn, buff, 5);
-							FD_SET(pointer->listenfd, &allset);
 							manconnecting--;
 							  }
 							  else {
 						  	aflog(1, "  realm[%d]: Wrong password - CLOSING", j);
 							  close (pointer->cliconn.commfd);
 							  FD_CLR(pointer->cliconn.commfd, &allset);
-							  FD_CLR(pointer->listenfd, &allset);
 							  FD_SET(pointer->managefd, &allset);
 							if (pointer->ready == 2)
 								manconnecting--;
@@ -665,11 +896,19 @@ main(int argc, char **argv)
 							  }
 							  break;
 						  }
+                                case AF_S_DONT_SEND: {
+                                              FD_CLR(pointer->contable[numofcon].connfd, &allset);
+                                                             break;
+                                                     }
+                                case AF_S_CAN_SEND: {
+                                              FD_SET(pointer->contable[numofcon].connfd, &allset);
+                                                             break;
+                                                     }
+
 				default : {
 						  aflog(1, "  realm[%d]: Unrecognized message - CLOSING", j);
 						  close (pointer->cliconn.commfd);
 						  FD_CLR(pointer->cliconn.commfd, &allset);
-					  	  FD_CLR(pointer->listenfd, &allset);
 						  FD_SET(pointer->managefd, &allset);
 						  if (pointer->ready == 2)
 							  manconnecting--;
@@ -678,6 +917,7 @@ main(int argc, char **argv)
 							  if (pointer->contable[i].state != S_STATE_CLEAR) {
 								  pointer->contable[i].state = S_STATE_CLEAR;
 				  			  FD_CLR(pointer->contable[i].connfd, &allset);
+							  FD_CLR(pointer->contable[i].connfd, &wset);
 								  close(pointer->contable[i].connfd);
 							  }
 							  }
@@ -689,14 +929,14 @@ main(int argc, char **argv)
 		}
 
 		if (FD_ISSET(pointer->managefd, &rset)) {
-			aflog(2, " realm[%d]: managefd: FD_ISSET", j);
+			aflog(3, " realm[%d]: managefd: FD_ISSET", j);
 			len = pointer->addrlen;
 			if (!(pointer->ready)) {
 				aflog(2, "  realm[%d]: new client: CONNECTING", j);
 				pointer->cliconn.commfd = accept(pointer->managefd, pointer->cliaddr, &len);
 				flags = fcntl(pointer->cliconn.commfd, F_GETFL, 0);
 				fcntl(pointer->cliconn.commfd, F_SETFL, flags | O_NONBLOCK);
-				aflog(1, "  realm[%d]: Client IP:%s", j, sock_ntop(pointer->cliaddr, len));
+			aflog(1, "  realm[%d]: Client IP:%s", j, sock_ntop(pointer->cliaddr, len, NULL, NULL));
 				FD_SET(pointer->cliconn.commfd, &allset);
 		maxfdp1 = (maxfdp1 > (pointer->cliconn.commfd+1)) ? maxfdp1 : (pointer->cliconn.commfd+1);
 				FD_CLR(pointer->managefd, &allset);
@@ -717,28 +957,31 @@ usage(char* info)
    printf("  -h, --help          - prints this help\n");
    printf("  -n, --hostname      - it's used when creating listening sockets\n");
    printf("                        (default: name returned by hostname function)\n");
-   printf("  -l, --listenport    - the listening port number - users connect\n");
+   printf("  -l, --listenport    - listening port number - users connect\n");
    printf("                        to it (default: 50127)\n");
-   printf("  -m, --manageport    - the manage port number - second part of active\n");
+   printf("  -m, --manageport    - manage port number - second part of the active\n");
    printf("                        port forwarder connects to it (default: 50126)\n");
-   printf("  -u, --users         - amount of users allowed to use this server\n");
+   printf("  -u, --users         - the amount of users allowed to use this server\n");
    printf("                        (default: 5)\n");
-   printf("  -c, --cerfile       - name of the file with certificate (default: cacert.pem)\n");
-   printf("  -k, --keyfile       - name of the file with RSA key (default: server.rsa)\n");
-   printf("  -f, --cfgfile       - name of the file with configuration for active\n");
-   printf("                        forwarder (server)\n");
-   printf("  -p, --proto         - type of the server (tcp|udp) - for which protocol it\n");
-   printf("                        would be (default: tcp)\n");
+   printf("  -c, --cerfile       - the name of the file with certificate\n");
+   printf("                        (default: cacert.pem)\n");
+   printf("  -k, --keyfile       - the name of the file with RSA key (default: server.rsa)\n");
+   printf("  -f, --cfgfile       - the name of the file with the configuration for the\n");
+   printf("                        active forwarder (server)\n");
+   printf("  -p, --proto         - type of server (tcp|udp) - for which protocol it will be\n");
+   printf("                        operating (default: tcp)\n");
    printf("  -O, --heavylog      - logging everything to a logfile\n");
    printf("  -o, --lightlog      - logging some data to a logfile\n");
-   printf("  -v, --verbose       - to be verbose - program won't enter into\n");
-   printf("                        the daemon mode (use twice for greater effect)\n");
+   printf("  -v, --verbose       - to be verbose - program won't enter the daemon mode\n");
+   printf("                        (use several times for greater effect)\n");
    printf("  --nossl             - ssl is not used for transfering data (but it's still\n");
-   printf("                        used to establish connection) (default: ssl is used)\n");
+   printf("                        used to establish a connection) (default: ssl is used)\n");
    printf("  --nozlib            - zlib is not used for compressing data (default:\n");
    printf("                        zlib is used)\n");
    printf("  --pass              - set the password used for client identification\n");
-   printf("                        (default: no password)\n\n");
+   printf("                        (default: no password)\n");
+   printf("  -4, --ipv4          - use ipv4 only\n");
+   printf("  -6, --ipv6          - use ipv6 only\n\n");
    exit(0);
 }
 

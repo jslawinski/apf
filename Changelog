@@ -1,6 +1,17 @@
+26.05.2004 (v0.5.4):
+	- Fixed: default password incompatibilities
+	- Modified: Server listening behaviour
+	- Added: Module support for client's packet filtering
+	- Modified: client behaviour after unsuccessful connection
+	- Fixed: printing ipv6 addresses
+	- Added: IP protocol family strict choice: 'ipv4' and 'ipv6'
+	- Added: flow control / packet buffering
+	- Fixed: signal handling
+	- Fixed: client freeze in udp reverse mode with zlib enabled
+
 09.01.2004 (v0.5.3):
 	- Added: client password identification (weak)
-	- Added: sigint intercepting and server closing
+	- Added: sigint interception and server closing
 	- Modified: communication between server and client
 	- Added: 'nossl' and 'nozlib' modes
 	- Added: zlib support

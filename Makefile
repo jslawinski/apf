@@ -5,20 +5,18 @@ security=server.rsa client.rsa cacert.pem
 
 all: compi $(programs) ok1 secure
 
-afserver: afserver.c network.o file.o stats.o
-	$(CC) $(CFLAGS) -lssl -lz afserver.c network.o file.o stats.o -o afserver
+afserver: afserver.c network.o file.o stats.o buflist.o
+	$(CC) $(CFLAGS) -lssl -lz afserver.c network.o file.o stats.o buflist.o -o afserver
 
-afclient: afclient.c network.o stats.o
-	$(CC) $(CFLAGS) -lssl -lz afclient.c network.o stats.o -o afclient
+afclient: afclient.c network.o stats.o buflist.o
+	$(CC) $(CFLAGS) -rdynamic -lssl -lz -ldl afclient.c network.o stats.o buflist.o -o afclient
 
-network.o: network.c network.h
-	$(CC) $(CFLAGS) -c network.c
+%.o: %.c %.h
+	$(CC) $(CFLAGS) -c $*.c
 
-file.o: file.c file.h
-	$(CC) $(CFLAGS) -c file.c
-
-stats.o: stats.c stats.h
-	$(CC) $(CFLAGS) -c stats.c
+exmodule: exmodule.c
+	$(CC) -fPIC $(CFLAGS) -c $@.c
+	$(CC) $(CFLAGS) -shared -o $@ $@.o
 
 secure: crea $(security) ok2
 
@@ -47,4 +45,4 @@ ok2:
 .PHONY: clean
 
 clean:
-	rm -rf a.out *~ *.o $(programs) $(security)
+	rm -rf a.out *~ *.o $(programs) $(security) exmodule

@@ -39,9 +39,9 @@ typedef struct {
 	SSL* ssl;
 } clifd;
 
-int ip_listen(const char *host, const char *serv, socklen_t *addrlenp, const char *type); /* socket, bind, listen... */
-int ip_connect(const char *host, const char *serv, const char *type); /* socket, connect... */
-char* sock_ntop(const struct sockaddr* sa, socklen_t salen); /* return the hostname of connected user */
+int ip_listen(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, const char type); /* socket, bind, listen... */
+int ip_connect(int* sockfd, const char *host, const char *serv, const char type); /* socket, connect... */
+char* sock_ntop(const struct sockaddr* sa, socklen_t salen, char* namebuf, char* portbuf); /* return the IP of connected user */
 
 int send_message(char type, clifd fd, unsigned char* buf, int amount);
 int get_message(char type, clifd fd, unsigned char* buf, int amount);
