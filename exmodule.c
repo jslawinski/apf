@@ -18,10 +18,8 @@
  *
  */
 
-/* This example module put IP of the connected user into a body of the message */
-#include <string.h>
-/* There is no required headers for module to work.
- * We just need string.h for memcpy and strlen functions.
+/* This example module scan the message for specified string and perform
+ * appropriate action
  */
 
 /* info
@@ -32,7 +30,7 @@
 char*
 info(void)
 {
-	return "An example module";
+	return "Module tester v0.1";
 }
 
 /* allow
@@ -52,15 +50,32 @@ allow(char* host, char* port)
  * 0 - allow to transfer
  * 1 - drop the packet
  * 2 - drop the connection
+ * 3 - release the module
+ * 4 - drop the packet and release the module
+ * 5 - drop the connection and release the module
  */
 
 int
 filter(char* host, unsigned char* message, int* length)
 {
-	int n;
-	n = strlen(host);
-	message[*length] = '|';
-	memcpy(&message[*length+1], host, n);
-	*length += n+1;
-	return 0; /* allow to transfer */
+  int i;
+    for (i = 0; i < *length; ++i) {
+      if ((message[i] == 'M') && (message[i+1] == '1')) {
+        return 1; /* ignored */
+      }
+      if ((message[i] == 'M') && (message[i+1] == '2')) {
+        return 2; /* dropped */
+      }
+      if ((message[i] == 'M') && (message[i+1] == '3')) {
+        return 3; /* release */
+      }
+      if ((message[i] == 'M') && (message[i+1] == '4')) {
+        return 4; /* ignored + release */
+      }
+      if ((message[i] == 'M') && (message[i+1] == '5')) {
+        return 5; /* dropped + release */
+      }
+    }
+  return 0; /* allow to transfer */
+
 }

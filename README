@@ -1,4 +1,4 @@
-AF - Active Port Forwarder v0.5.4 - README
+AF - Active Port Forwarder v0.5.5 - README
 Copyright (C) 2003,2004 jeremian - <jeremian [at] poczta.fm>
 ===================
 
@@ -7,10 +7,10 @@ Copyright (C) 2003,2004 jeremian - <jeremian [at] poczta.fm>
 GRAY-WORLD.NET / Active Port Forwarder
 ==========================
 
-  The Active Port Forwarder program is	part  of  the  Gray-World.net  projects.
+  The Active Port Forwarder program is  part  of  the  Gray-World.net  projects.
 
   Our Gray-World Team presents on the http://gray-world.net website the projects
-  and publications we are working on which are	related  to  the  NACS	(Network
+  and publications we are working on which are  related  to  the  NACS  (Network
   Access Control System) bypassing  research  field  and  to  the  computer  and
   network security topics.
 
@@ -44,19 +44,21 @@ THANKS
 INTRO
 =====
 
-Active	port  forwarder  is  a	software  tool	for  secure   port   forwarding.
+Active  port  forwarder  is  a  software  tool  for  secure   port   forwarding.
 It uses ssl to increase security of communication between a server and a client.
 Originally, it was developed to forward data point to point.  However, the  need
 for bypassing firewalls in order to  connect  to  internally  located  computers
 influenced the further development of the project.
 
-AF is dedicated for people, who don't have an external ip  number  and	want  to
+AF is dedicated for people, who don't have an external ip  number  and  want  to
 make some services available across the net.
 
 Moreover, zlib is used to compress the transferred data.
 
 Using one, permanent data/control channel with flow control /  packet  buffering
 provides good performance and reasonably small latency.
+
+Multiple clients allow to create more sophisticated tunneling scheme.
 
 ================================================================================
 
@@ -99,15 +101,23 @@ provides good performance and reasonably small latency.
   ------------
 
   Options:
-  -h, --help          - prints this help
   -n, --hostname      - it's used when creating listening sockets
                         (default: name returned by hostname function)
   -l, --listenport    - listening port number - users connect
                         to it (default: 50127)
   -m, --manageport    - manage port number - second part of the active
                         port forwarder connects to it (default: 50126)
+  -t, --timeout       - the timeout value for the client's connection
+                        (default: 5)
   -u, --users         - the amount of users allowed to use this server
                         (default: 5)
+  -C, --clients       - the number of allowed clients to use this server
+                        (default: 1)
+  -U, --usrpcli       - the number of allowed users per client (default: $users)
+  -M, --climode       - strategy used for connecting users with clients (default: 1)
+                      Available strategies:
+                        1. fill first client before go to next
+
   -c, --cerfile       - the name of the file with certificate
                         (default: cacert.pem)
   -k, --keyfile       - the name of the file with RSA key (default: server.rsa)
@@ -119,14 +129,18 @@ provides good performance and reasonably small latency.
   -o, --lightlog      - logging some data to a logfile
   -v, --verbose       - to be verbose - program won't enter the daemon mode
                         (use several times for greater effect)
-  --nossl             - ssl is not used for transferring data (but it's still
+
+  --nossl             - ssl is not used for transfering data (but it's still
                         used to establish a connection) (default: ssl is used)
   --nozlib            - zlib is not used for compressing data (default:
                         zlib is used)
   --pass              - set the password used for client identification
                         (default: no password)
+
   -4, --ipv4          - use ipv4 only
   -6, --ipv6          - use ipv6 only
+
+  -h, --help          - prints this help
 
   2.2 afclient
   ------------
@@ -140,13 +154,13 @@ provides good performance and reasonably small latency.
   -d, --hostname      - the name of this host/remote host - the final
                         destination of the packets (default: the name
                         returned by hostname function)
-  -p, --portnum       - the port we are forwarding the connection to (required)
-  -k, --keyfile       - the name of the file with RSA key (default: client.rsa)
+  -p, --portnum       - the port we are forwarding connection to (required)
+  -k, --keyfile       - the name of the file with RSA key (default: (none))
   -u, --udpmode       - udp mode - client will use udp protocol to
                         communicate with the hostname
   -U, --reverseudp    - reverse udp forwarding. Udp packets will be forwarded
                         from hostname:portnum (-p) to the server name:portnum
-			(-m)
+                        (-m)
   -O, --heavylog      - logging everything to a logfile
   -o, --lightlog      - logging some data to a logfile
   -v, --verbose       - to be verbose - program won't enter the daemon mode
@@ -155,7 +169,8 @@ provides good performance and reasonably small latency.
                         (default: no password)
   -4, --ipv4          - use ipv4 only
   -6, --ipv6          - use ipv6 only
-  -l, --load          - load a module for packets filtering
+  -l, --load          - load a module for user's packets filtering
+  -L, --Load          - load a module for service's packets filtering
 
 ================================================================================
 
@@ -181,7 +196,7 @@ provides good performance and reasonably small latency.
 The use of it is extremely simple. Let's suppose we want to create a http server
 on our computer and we are behind a masquerade or a firewall:
 
-1) We have to find some machine on the net with  an  external  ip  and	a  shell
+1) We have to find some machine on the net with  an  external  ip  and  a  shell
    account.
    
 2) Use "make" to compile everything on that machine. (you can freely remove the
@@ -191,7 +206,7 @@ on our computer and we are behind a masquerade or a firewall:
    type -f <cfgfile>) :
         $ ./afserver
    This will work, if you want to use default values:
-   - hostname will be taken from hostname function  (it  would	be  ideally,  if
+   - hostname will be taken from hostname function  (it  would  be  ideally,  if
      there is appropriate registration in /etc/hosts)
    - server will be listening for users on port 50127
    - server will be listening for client on port 50126
@@ -230,10 +245,10 @@ on our computer and we are behind a masquerade or a firewall:
 Let's see how to use af to forward udp packets. Suppose we want to create a game
 server on our computer (udp port 27960 on our machine):
 
-1) - 4)  is  the  same	like  in  example  1.	(but  we  add  option:	-p  udp)
+1) - 4)  is  the  same  like  in  example  1.  (but  we  add  option:  -p  udp)
 
 5) We are typing from the console:
-	$ ./afclient -u -n <name of the server> -p 27960
+  $ ./afclient -u -n <name of the server> -p 27960
    Where <name of the server> is a name (or ip) of a host where  our  server  is
    running.
 
@@ -287,7 +302,7 @@ README file.
 LICENSE
 -------
 
-  Active Port Forwarder is distributed	under  the  terms  of  the  GNU  General
+  Active Port Forwarder is distributed  under  the  terms  of  the  GNU  General
   Public License v2.0 and is copyright (c)  2003,2004  jeremian  <jeremian  [at]
   poczta.fm>. See the file COPYING for details.
 

@@ -1,36 +1,50 @@
+11.10.2004 (v0.5.5):
+  - Added: rsa key generation by afclient
+  - Modified: afclient is now generating keys by default
+  - Fixed: major bug in packet buffering
+  - Added: 'timeout', 'clients' and 'usrpcli' options
+  - Fixed: parsing 'users' option
+  - Modified: module management routines
+  - Added: module support for service's packet filtering
+  - Fixed: few minor bugs in closing connection routines
+  - Added: possibility to use several clients per realm
+  - Modified: there is no need for 'users', 'timeout', 'clients', 
+              'proto', 'usrpcli' and 'climode' options in config
+              file when default values are acceptable
+  
 26.05.2004 (v0.5.4):
-	- Fixed: default password incompatibilities
-	- Modified: Server listening behaviour
-	- Added: Module support for client's packet filtering
-	- Modified: client behaviour after unsuccessful connection
-	- Fixed: printing ipv6 addresses
-	- Added: IP protocol family strict choice: 'ipv4' and 'ipv6'
-	- Added: flow control / packet buffering
-	- Fixed: signal handling
-	- Fixed: client freeze in udp reverse mode with zlib enabled
+  - Fixed: default password incompatibilities
+  - Modified: server listening behaviour
+  - Added: module support for client's packet filtering
+  - Modified: client behaviour after unsuccessful connection
+  - Fixed: printing ipv6 addresses
+  - Added: IP protocol family strict choice: 'ipv4' and 'ipv6'
+  - Added: flow control / packet buffering
+  - Fixed: signal handling
+  - Fixed: client freeze in udp reverse mode with zlib enabled
 
 09.01.2004 (v0.5.3):
-	- Added: client password identification (weak)
-	- Added: sigint interception and server closing
-	- Modified: communication between server and client
-	- Added: 'nossl' and 'nozlib' modes
-	- Added: zlib support
-	- Lightly Modified: verbose mode
-	- Modified/Added: help screen and long options support
-	
+  - Added: client password identification (weak)
+  - Added: sigint interception and server closing
+  - Modified: communication between server and client
+  - Added: 'nossl' and 'nozlib' modes
+  - Added: zlib support
+  - Lightly Modified: verbose mode
+  - Modified/Added: help screen and long options support
+  
 06.12.2003 (v0.5.2):
-	- Added: types of realm
-	- Added: logging to a file
-	- Fixed: major bug in communication between server and client
-	- Fixed: deformed packets in udp protocol forwarding
-	
+  - Added: types of realm
+  - Added: logging to a file
+  - Fixed: major bug in communication between server and client
+  - Fixed: deformed packets in udp protocol forwarding
+  
 04.12.2003 (v0.5.1):
-	- Fixed: Some data transfer problems
-	- Added: udp protocol tunneling/forwarding
-	- Fixed: bug in parsing the config file
-	- Improved: making connection between server and client
-	- Lightly modified: verbose mode (added double v mode)
+  - Fixed: some data transfer problems
+  - Added: udp protocol tunneling/forwarding
+  - Fixed: bug in parsing the config file
+  - Improved: making connection between server and client
+  - Lightly modified: verbose mode (added double v mode)
 
 23.11.2003 (v0.5):
-	- This is the first release
-	- There are no known major bugs
+  - This is the first release
+  - There are no known major bugs

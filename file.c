@@ -158,6 +158,22 @@ parsefile(char* name, int* status)
         cfg.realmtable[cfg.size-1].users = calloc(strlen(helpbuf2)+1, sizeof(char));
         strcpy(cfg.realmtable[cfg.size-1].users, helpbuf2);
       }
+      else if (strcmp(helpbuf1, "timeout")==0) {
+        cfg.realmtable[cfg.size-1].timeout = calloc(strlen(helpbuf2)+1, sizeof(char));
+        strcpy(cfg.realmtable[cfg.size-1].timeout, helpbuf2);
+      }
+      else if (strcmp(helpbuf1, "clients")==0) {
+        cfg.realmtable[cfg.size-1].clients = calloc(strlen(helpbuf2)+1, sizeof(char));
+        strcpy(cfg.realmtable[cfg.size-1].clients, helpbuf2);
+      }
+      else if (strcmp(helpbuf1, "usrpcli")==0) {
+        cfg.realmtable[cfg.size-1].usrpcli = calloc(strlen(helpbuf2)+1, sizeof(char));
+        strcpy(cfg.realmtable[cfg.size-1].usrpcli, helpbuf2);
+      }
+      else if (strcmp(helpbuf1, "climode")==0) {
+        cfg.realmtable[cfg.size-1].clim = calloc(strlen(helpbuf2)+1, sizeof(char));
+        strcpy(cfg.realmtable[cfg.size-1].clim, helpbuf2);
+      }
       else if (strcmp(helpbuf1, "proto")==0) {
         if (TYPE_IS_SET(cfg.realmtable[cfg.size-1].type)) {
           return cfg;

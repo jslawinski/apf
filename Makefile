@@ -1,15 +1,17 @@
 CC=gcc
 CFLAGS=-pedantic -Wall -O2 
 programs=afserver afclient
-security=server.rsa client.rsa cacert.pem
+security=server.rsa cacert.pem
+serdepends=afserver.c network.o file.o stats.o buflist.o
+clidepends=afclient.c network.o stats.o buflist.o modules.o
 
 all: compi $(programs) ok1 secure
 
-afserver: afserver.c network.o file.o stats.o buflist.o
-	$(CC) $(CFLAGS) -lssl -lz afserver.c network.o file.o stats.o buflist.o -o afserver
+afserver: $(serdepends)
+	$(CC) $(CFLAGS) -lssl -lz $(serdepends) -o afserver
 
-afclient: afclient.c network.o stats.o buflist.o
-	$(CC) $(CFLAGS) -rdynamic -lssl -lz -ldl afclient.c network.o stats.o buflist.o -o afclient
+afclient: $(clidepends)
+	$(CC) $(CFLAGS) -rdynamic -lssl -lz -ldl $(clidepends) -o afclient
 
 %.o: %.c %.h
 	$(CC) $(CFLAGS) -c $*.c

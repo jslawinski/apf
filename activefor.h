@@ -39,7 +39,7 @@
 #define S_STATE_OPEN	7
 #define S_STATE_STOPPED	11
 
-#define	AF_VER(info)	info" v0.5.4"
+#define	AF_VER(info)	info" v0.5.5"
 
 #define TYPE_TCP	1
 #define TYPE_UDP	3
@@ -79,8 +79,18 @@ typedef struct {
 	int connfd;
 	char namebuf[128];
 	char portbuf[7];
+  int whatcli;
 	blnodeT* head;
 } ConnectuserT;
+
+typedef struct {
+  char ready;
+  clifd cliconn;
+  struct timeval tv;
+  int* users;
+  int usercon;
+  int usernum;
+} ConnectclientT;
 
 #endif
 

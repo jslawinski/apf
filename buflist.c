@@ -26,20 +26,20 @@
 int
 insertblnode(blnodeT** headRef, int actptr, int msglen, unsigned char* buff)
 {
-        blnodeT* newnode, *lastnode;
+  blnodeT* newnode, *lastnode;
 	lastnode = newnode = *headRef;
 	while (newnode) {
 		lastnode = newnode;
 		newnode = newnode->next;
 	}
-        newnode = calloc(1, sizeof(blnodeT));
-        newnode->next = NULL;
+  newnode = calloc(1, sizeof(blnodeT));
+  newnode->next = NULL;
 	newnode->actptr = 0;
 	newnode->msglen = msglen - actptr;
 	newnode->buff = calloc(1, newnode->msglen);
 	if (newnode->buff == NULL)
 		return 1;
-	strncpy(newnode->buff, buff, newnode->msglen);
+	strncpy(newnode->buff, buff+actptr, newnode->msglen);
 	if (lastnode)
 		lastnode->next = newnode;
 	else
@@ -53,9 +53,10 @@ deleteblnode(blnodeT** headRef)
 	blnodeT* node = *headRef;
 	if (*headRef == NULL)
 		return 1;
-        *headRef = node->next;
-        free(node->buff);
-        free(node);
+  *headRef = node->next;
+  if (node->buff != NULL)
+    free(node->buff);
+  free(node);
 	return 0;
 }
 

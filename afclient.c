@@ -21,7 +21,9 @@
 #include "activefor.h"
 #include "network.h"
 #include "stats.h"
+#include "modules.h"
 
+#include <openssl/rsa.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <sys/time.h>
@@ -30,12 +32,12 @@
 #include <signal.h>
 #include <string.h>
 #include <fcntl.h>
-#include <dlfcn.h>
 
 #include <getopt.h>
 
 static void usage(char* info);
 static void sig_int(int);
+static void callback(int, int, void*);
 
 static struct option long_options[] = {
   {"help", 0, 0, 'h'},
@@ -53,6 +55,7 @@ static struct option long_options[] = {
   {"ipv4", 0, 0, '4'},
   {"ipv6", 0, 0, '6'},
   {"load", 1, 0, 'l'},
+  {"Load", 1, 0, 'L'},
   {0, 0, 0, 0}
 };
 
@@ -83,17 +86,11 @@ main(int argc, char **argv)
   char reverse = 0;
   char type = 0;
   struct sigaction act;
-  struct {
-    char loaded;
-    char* name;
-    void* handle;
-    char* (*info)(void);
-    int (*allow)(char*, char*);
-    int (*filter)(char*, unsigned char*, int*);
-  } module = {0, NULL, NULL, NULL, NULL};
+  moduleT module = {0, NULL, NULL, NULL, NULL}, secmodule = {0, NULL, NULL, NULL, NULL};
 
   SSL_METHOD* method;
   SSL_CTX* ctx;
+  RSA* rsa;
  
   sigfillset(&(act.sa_mask));
   act.sa_flags = 0;
@@ -103,7 +100,7 @@ main(int argc, char **argv)
   act.sa_handler = sig_int;
   sigaction(SIGINT, &act, NULL);
 
-  while ((n = getopt_long(argc, argv, "huUn:m:d:p:vk:O:o:46l:", long_options, 0)) != -1) {
+  while ((n = getopt_long(argc, argv, "huUn:m:d:p:vk:O:o:46l:L:", long_options, 0)) != -1) {
     switch (n) {
       case 'h': {
         usage(AF_VER("Active port forwarder (client)"));
@@ -181,6 +178,10 @@ main(int argc, char **argv)
         module.name = optarg;
         break;
       }
+      case 'L': {
+        secmodule.name = optarg;
+        break;
+      }
       case '?': {
         usage("");
         break;
@@ -207,26 +208,16 @@ main(int argc, char **argv)
   if (despor == NULL) {
     usage("Destination port number is required");
   }
-  if (keys == NULL) {
-    keys = "client.rsa";
-  }
-  if (module.name) {
-    module.handle = dlopen(module.name, RTLD_NOW);
-    if (!module.handle) {
-      printf("Can't load a module: %s\n", dlerror());
-      exit(1);
-    }
-    dlerror();
-    *(void**) (&module.info) = dlsym(module.handle, "info");
-    *(void**) (&module.allow) = dlsym(module.handle, "allow");
-    *(void**) (&module.filter) = dlsym(module.handle, "filter");
-    if (dlerror() != NULL) {
+
+  if (loadmodule(&module)) {
       printf("Loading a module %s failed!\n", module.name);
       exit(1);
-    }
-    module.loaded = 1;
   }
-
+  if (loadmodule(&secmodule)) {
+      printf("Loading a module %s failed!\n", secmodule.name);
+      exit(1);
+  }
+  
   TYPE_SET_SSL(type);
   TYPE_SET_ZLIB(type);
 
@@ -262,9 +253,32 @@ main(int argc, char **argv)
       printf("Setting cipher list failed... exiting\n");
       exit(1);
     }
-    if (SSL_CTX_use_RSAPrivateKey_file(ctx, keys, SSL_FILETYPE_PEM) != 1) {
-      printf("Setting rsa key failed (%s)... exiting\n", keys);
-      exit(1);
+    if (keys == NULL) {
+      gettimeofday(&tv, 0);
+      srand(tv.tv_sec);
+      if (verbose)
+        printf("Generating RSA key...\n");
+      if (verbose>1) {
+          rsa = RSA_generate_key(2048, 65537, callback, NULL);
+          printf("\n");
+      }
+      else {
+        rsa = RSA_generate_key(2048, 65537, NULL, NULL);
+      }
+      if (verbose) {
+        if (RSA_check_key(rsa)==1) {
+          printf("   OK!\n");
+        }
+        else {
+          printf("   FAILED\n");
+        }
+      }
+    }
+    else {
+      if (SSL_CTX_use_RSAPrivateKey_file(ctx, keys, SSL_FILETYPE_PEM) != 1) {
+        printf("Setting rsa key failed (%s)... exiting\n", keys);
+        exit(1);
+      }
     }
     master.ssl = SSL_new(ctx);
     if (SSL_set_fd(master.ssl, master.commfd) != 1) {
@@ -313,7 +327,7 @@ main(int argc, char **argv)
 
   contable = calloc( usernum, sizeof(ConnectuserT));
   if (contable == NULL) {
-    printf("Calloc error - unable to succesfully comunicate with server\n");
+    printf("Calloc error - unable to succesfully communicate with server\n");
     exit(1);
   }
 	
@@ -422,7 +436,6 @@ main(int argc, char **argv)
           n = 0;
         }
         if (n == 0) { /* server quits -> we do the same... */
-          gettimeofday(&tv, 0);
           aflog(0, "premature quit of the server -> exiting...");
           exit(1);
         }
@@ -439,8 +452,11 @@ main(int argc, char **argv)
   aflog(1, "SERVER SSL: %s, ZLIB: %s, MODE: %s", (TYPE_IS_SSL(type))?"yes":"no",
 		  (TYPE_IS_ZLIB(type))?"yes":"no", (TYPE_IS_TCP(type))?"tcp":"udp");
   aflog(2, "CIPHER: %s VER: %s", SSL_get_cipher_name(master.ssl), SSL_get_cipher_version(master.ssl));
-  if (module.loaded) {
+  if (ismloaded(&module)) {
     aflog(1, "LOADED MODULE: %s INFO: %s", module.name, module.info());
+  }
+  if (ismloaded(&secmodule)) {
+    aflog(1, "LOADED MODULE (ser): %s INFO: %s", secmodule.name, secmodule.info());
   }
 	
   for ( ; ; ) {
@@ -495,6 +511,42 @@ main(int argc, char **argv)
             }
           }
           if (n) {
+              if (ismloaded(&secmodule)) {
+                switch ((temp2 = secmodule.filter(contable[i].namebuf, &buff[5], &n))) {
+                  case 1: case 4: {
+                    aflog(3, "  user[%d] (by ser): PACKET IGNORED BY MODULE", i);
+		    if (temp2 == 4) {
+                      aflog(1, "RELEASED MODULE (ser): %s INFO: %s", secmodule.name, secmodule.info());
+		      releasemodule(&secmodule);
+		    }
+                    continue;
+                    break;
+                  }
+                  case 2: case 5: {
+                    aflog(2, "  user[%d] (by ser): DROPPED BY MODULE", i);
+                    close(contable[i].connfd);
+                    FD_CLR(contable[i].connfd, &allset);
+                    FD_CLR(contable[i].connfd, &wset);
+                    contable[i].state = S_STATE_CLOSING;
+                    freebuflist(&contable[i].head);
+                    buff[0] = AF_S_CONCLOSED; /* closing connection */
+                    buff[1] = i >> 8;	/* high bits of user number */
+                    buff[2] = i;		/* low bits of user number */
+                    send_message(type, master, buff, 5);
+		    if (temp2 == 5) {
+                      aflog(1, "RELEASED MODULE (ser): %s INFO: %s", secmodule.name, secmodule.info());
+		      releasemodule(&secmodule);
+		    }
+		    continue;
+                    break;
+                  }
+                  case 3: {
+                    aflog(1, "RELEASED MODULE (ser): %s INFO: %s", secmodule.name, secmodule.info());
+		    releasemodule(&secmodule);
+                    break;
+                  }
+                }
+              }
             buff[0] = AF_S_MESSAGE; /* sending message */
             buff[1] = i >> 8;	/* high bits of user number */
             buff[2] = i;		/* low bits of user number */
@@ -654,7 +706,7 @@ main(int argc, char **argv)
               aflog(2, "  user[%d]: OPENING", numofcon);
               aflog(1, "user[%d]: IP:%s PORT:%s", numofcon,
               contable[numofcon].namebuf, contable[numofcon].portbuf);
-              if (module.loaded && module.allow(contable[numofcon].namebuf, contable[numofcon].portbuf)) {
+              if (ismloaded(&module) && module.allow(contable[numofcon].namebuf, contable[numofcon].portbuf)) {
                 aflog(2, "   IT'S NOT ALLOWED - DROPPING", numofcon);
                 buff[0] = AF_S_CANT_OPEN; /* not opening connection */
                 buff[1] = numofcon >> 8;		/* high bits of user number */
@@ -702,14 +754,18 @@ main(int argc, char **argv)
           n = get_message(type, master, buff, length);
           if ((numofcon>=0) && (numofcon<=usernum)) {
             if (contable[numofcon].state == S_STATE_OPEN) {
-              if (module.loaded) {
-                switch (module.filter(contable[numofcon].namebuf, buff, &n)) {
-                  case 1: {
+              if (ismloaded(&module)) {
+                switch ((temp2 = module.filter(contable[numofcon].namebuf, buff, &n))) {
+                  case 1: case 4:{
                     aflog(3, "  user[%d]: PACKET IGNORED BY MODULE", numofcon);
+		    if (temp2 == 4) {
+                      aflog(1, "RELEASED MODULE: %s INFO: %s", module.name, module.info());
+		      releasemodule(&module);
+		    }
                     continue;
                     break;
                   }
-                  case 2: {
+                  case 2: case 5:{
                     aflog(2, "  user[%d]: DROPPED BY MODULE", numofcon);
                     close(contable[numofcon].connfd);
                     FD_CLR(contable[numofcon].connfd, &allset);
@@ -720,6 +776,16 @@ main(int argc, char **argv)
                     buff[1] = numofcon >> 8;	/* high bits of user number */
                     buff[2] = numofcon;		/* low bits of user number */
                     send_message(type, master, buff, 5);
+		    if (temp2 == 5) {
+                      aflog(1, "RELEASED MODULE: %s INFO: %s", module.name, module.info());
+		      releasemodule(&module);
+		    }
+		    continue;
+                    break;
+                  }
+                  case 3: {
+                    aflog(1, "RELEASED MODULE: %s INFO: %s", module.name, module.info());
+		    releasemodule(&module);
                     break;
                   }
                 }
@@ -751,6 +817,7 @@ main(int argc, char **argv)
                 FD_CLR(contable[numofcon].connfd, &allset);
                 FD_CLR(contable[numofcon].connfd, &wset);
                 contable[numofcon].state = S_STATE_CLOSING;
+                freebuflist(&contable[numofcon].head);
                 buff[0] = AF_S_CONCLOSED; /* closing connection */
                 buff[1] = numofcon >> 8;	/* high bits of user number */
                 buff[2] = numofcon;		/* low bits of user number */
@@ -801,7 +868,7 @@ usage(char* info)
   printf("                        destination of the packets (default: the name\n");
   printf("                        returned by hostname function)\n");
   printf("  -p, --portnum       - the port we are forwarding connection to (required)\n");
-  printf("  -k, --keyfile       - the name of the file with RSA key (default: client.rsa)\n");
+  printf("  -k, --keyfile       - the name of the file with RSA key (default: (none))\n");
   printf("  -u, --udpmode       - udp mode - client will use udp protocol to\n");
   printf("                        communicate with the hostname\n");
   printf("  -U, --reverseudp    - reverse udp forwarding. Udp packets will be forwarded\n");
@@ -815,7 +882,8 @@ usage(char* info)
   printf("                        (default: no password)\n");
   printf("  -4, --ipv4          - use ipv4 only\n");
   printf("  -6, --ipv6          - use ipv6 only\n");
-  printf("  -l, --load          - load a module for packets filtering\n\n");
+  printf("  -l, --load          - load a module for user's packets filtering\n");
+  printf("  -L, --Load          - load a module for service's packets filtering\n\n");
 
   exit(0);
 }
@@ -825,4 +893,13 @@ sig_int(int signo)
 {
   aflog(1, "CLIENT CLOSED cg: %ld bytes", getcg());
   exit(0);
+}
+
+void
+callback(int i, int j, void* k)
+{
+  if (k == NULL) {
+    printf("%d", i);
+    fflush(stdout);
+  }
 }

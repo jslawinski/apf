@@ -18,55 +18,46 @@
  *
  */
 
-#include "activefor.h"
-#include "network.h"
-#include <openssl/ssl.h>
+#include "modules.h"
 
-#ifndef _JS_FILE_H
-#define _JS_FILE_H
+#include <stdlib.h>
+#include <dlfcn.h>
 
-#define	F_UNKNOWN	1
-#define F_IGNORE	2
-#define	F_ROPTION	3
-#define	F_RVALUE	4
-#define	F_MIDDLE	5
+int
+loadmodule(moduleT* module)
+{
+  if (module->name) {
+    module->handle = dlopen(module->name, RTLD_NOW);
+    if (!module->handle) {
+      return 1;
+    }
+    dlerror();
+    *(void**) (&module->info) = dlsym(module->handle, "info");
+    *(void**) (&module->allow) = dlsym(module->handle, "allow");
+    *(void**) (&module->filter) = dlsym(module->handle, "filter");
+    if (dlerror() != NULL) {
+      return 2;
+    }
+    module->loaded = 1;
+  }	
+  return 0;
+}
 
-typedef struct {
-	char* hostname;
-	char* lisportnum;
-	char* manportnum;
-	char* users;
-	char* clients; 
-	char* usrpcli; 
-	char* clim; 
-	char* timeout;
-	unsigned char pass[4];
-	int usercon;
-	int usernum;
-  int clicon; 
-  int clinum; 
-  int upcnum; 
-	int tmout;
-	int listenfd;
-	int managefd;
-	int climode;
-	char type;
-	socklen_t addrlen;
-	struct sockaddr* cliaddr;
-  ConnectclientT* clitable; 
-	ConnectuserT* contable;
-} RealmT;
+int
+releasemodule(moduleT* module)
+{
+	if (ismloaded(module)) {
+		module->loaded = 0;
+		module->info = NULL;
+		module->allow = NULL;
+		module->filter = NULL;
+	return dlclose(module->handle);
+	}
+	return 0;
+}
 
-typedef struct {
-	char* certif;
-	char* keys;
-	char* logfnam;
-	char logging;
-	int size;
-	RealmT* realmtable;
-} ConfigurationT;
-
-ConfigurationT parsefile(char*, int*); /* parse the cfg file */
-
-#endif
-
+int
+ismloaded(moduleT* module)
+{
+	return module->loaded;
+}

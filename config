@@ -23,18 +23,20 @@ newrealm
 
 #options        values
 
-hostname	<yourhostname> #this is a name of the server (it's using it for choosing interface)
-listen		50127 	       #portnumber on which server is listening for users
-manage		50126          #portnumber on which server is listening for afclient
-users		5              #amount of users we are allowing to connect
-proto		tcp	       #type of the realm (which protocol it will forward (tcp|udp)
-#pass		mypassword	#this is a password used for client identification
+hostname  <yourhostname> #this is a name of the server (it's using it for choosing interface)
+listen    50127          #portnumber on which server is listening for users
+manage    50126         #portnumber on which server is listening for afclient
+#users     5           #amount of users we are allowing to connect (>0) (default: 5)
+#timeout   5          #timeout value for the client's connection (>0) (default: 5)
+#clients   1          #number of allowed clients for this realm (>0) (default: 1)
+#usrpcli   $users     #allowed users per client for this realm (>0) (default: $users)
+#climode   1          #strategy used for connecting users with clients (1) (default: 1)
+#proto     tcp       #type of the realm (which protocol it will forward (tcp|udp) (default: tcp)
+#pass   mypassword  #this is a password used for client identification
 
 # and now the second realm
 
 newrealm
-hostname	<yourhostname>
-listen		50125
-manage		50124
-users		5
-proto		tcp
+hostname  <yourhostname>
+listen    50125
+manage    50124
