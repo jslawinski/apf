@@ -25,45 +25,45 @@
 #ifndef _JS_FILE_H
 #define _JS_FILE_H
 
-#define	F_UNKNOWN	1
-#define F_IGNORE	2
-#define	F_ROPTION	3
-#define	F_RVALUE	4
-#define	F_MIDDLE	5
+#define  F_UNKNOWN  1
+#define  F_IGNORE   2
+#define  F_ROPTION  3
+#define  F_RVALUE   4
+#define  F_MIDDLE   5
 
 typedef struct {
-	char* hostname;
-	char* lisportnum;
-	char* manportnum;
-	char* users;
-	char* clients; 
-	char* usrpcli; 
-	char* clim; 
-	char* timeout;
-	unsigned char pass[4];
-	int usercon;
-	int usernum;
+  char* hostname;
+  char* lisportnum;
+  char* manportnum;
+  char* users;
+  char* clients; 
+  char* usrpcli; 
+  char* clim; 
+  char* timeout;
+  unsigned char pass[4];
+  int usercon;
+  int usernum;
   int clicon; 
   int clinum; 
   int upcnum; 
-	int tmout;
-	int listenfd;
-	int managefd;
-	int climode;
-	char type;
-	socklen_t addrlen;
-	struct sockaddr* cliaddr;
-  ConnectclientT* clitable; 
-	ConnectuserT* contable;
+  int tmout;
+  int listenfd;
+  int managefd;
+  int climode;
+  char type;
+  socklen_t addrlen;
+  struct sockaddr* cliaddr;
+  ConnectuserT* contable;
+  ConnectclientT* clitable;
 } RealmT;
 
 typedef struct {
-	char* certif;
-	char* keys;
-	char* logfnam;
-	char logging;
-	int size;
-	RealmT* realmtable;
+  char* certif;
+  char* keys;
+  char* logfnam;
+  char logging;
+  int size;
+  RealmT* realmtable;
 } ConfigurationT;
 
 ConfigurationT parsefile(char*, int*); /* parse the cfg file */

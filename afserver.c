@@ -28,7 +28,6 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <string.h>
-#include <sys/time.h>
 #include <getopt.h>
 
 static void usage(char* info);
@@ -840,29 +839,7 @@ main(int argc, char **argv)
                     buff[3] = n >> 8; /* high bits of message length */
                     buff[4] = n;      /* low bits of message length */
                     sent = write(pointer->contable[numofcon].connfd, buff, n+5);
-                    if ((sent > 0) && (sent != n)) {
-                      insertblnode(&(pointer->contable[numofcon].head), sent, n, buff);
-                      pointer->contable[numofcon].state = S_STATE_STOPPED;
-                      FD_SET(pointer->contable[numofcon].connfd, &wset);
-                      buff[0] = AF_S_DONT_SEND; /* stopping transfer */
-                      buff[1] = numofcon >> 8;	/* high bits of user number */
-                      buff[2] = numofcon;		/* low bits of user number */
-                      aflog(3, "  realm[%d]: TO user[%d]: BUFFERING MESSAGE STARTED (%d/%d)", j, numofcon,
-                          sent, n);
-                      send_message(pointer->type, pointer->clitable[k].cliconn, buff, 5);
-                    }
-                    else if ((sent == -1) && (errno == EAGAIN)) {
-                      insertblnode(&(pointer->contable[numofcon].head), 0, n, buff);
-                      pointer->contable[numofcon].state = S_STATE_STOPPED;
-                      FD_SET(pointer->contable[numofcon].connfd, &wset);
-                      buff[0] = AF_S_DONT_SEND; /* stopping transfer */
-                      buff[1] = numofcon >> 8;	/* high bits of user number */
-                      buff[2] = numofcon;		/* low bits of user number */
-                      aflog(3, "  realm[%d]: TO user[%d]: BUFFERING MESSAGE STARTED (%d/%d)", j, numofcon,
-                          sent, n);
-                      send_message(pointer->type, pointer->clitable[k].cliconn, buff, 5);
-                    }
-                    else if (sent == -1) {
+                    if (sent == -1) {
                       aflog(1, "  realm[%d]: user[%d]: CLOSED (write-udp)", j, numofcon);
                       aflog(2, "   IP:%s PORT:%s", pointer->contable[numofcon].namebuf,
                           pointer->contable[numofcon].portbuf);

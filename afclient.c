@@ -404,13 +404,13 @@ main(int argc, char **argv)
 	}
         else {
           if (n > 0) {
-            aflog(2, "Sending %d bytes to service (w:%d/%d)", n,
+            aflog(2, "Sending %d bytes to service (w:%d/%d) (FROM:%s)", n,
 #ifdef SIOCOUTQ
 			notsent
 #else
 			buflength - notsent
 #endif
-			, buflength);
+			, buflength, sock_ntop(cliaddr, len, NULL, NULL));
             buff[0] = AF_S_MESSAGE;
             buff[1] = AF_S_LOGIN;
             buff[2] = AF_S_MESSAGE;
@@ -439,7 +439,7 @@ main(int argc, char **argv)
           aflog(0, "premature quit of the server -> exiting...");
           exit(1);
         }
-        aflog(2, "Sending %d bytes to user", n);
+        aflog(2, "Sending %d bytes to user (TO:%s)", n, sock_ntop(cliaddr, addrlen, NULL, NULL));
         sendto(contable[0].connfd, buff, n, 0, cliaddr, addrlen);
       } /* - FD_ISSET   MASTER.COMMFD   RSET */
     }

@@ -39,7 +39,7 @@
 #define S_STATE_OPEN	7
 #define S_STATE_STOPPED	11
 
-#define	AF_VER(info)	info" v0.5.5"
+#define	AF_VER(info)	info" v0.5.5 (+udp_patch)"
 
 #define TYPE_TCP	1
 #define TYPE_UDP	3

@@ -1,3 +1,7 @@
+19.11.2004 (udp_patch):
+  - Lightly Modified: verbose in client's udp reverse mode
+  - Fixed: major bug in udp protocol forwarding
+
 11.10.2004 (v0.5.5):
   - Added: rsa key generation by afclient
   - Modified: afclient is now generating keys by default
