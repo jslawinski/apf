@@ -1,0 +1,16 @@
+06.12.2003 (v0.5.2):
+	- Added: types of realm
+	- Added: logging to a file
+	- Fixed: major bug in communication between server and client
+	- Fixed: deformed packets in udp protocol forwarding
+	
+04.12.2003 (v0.5.1):
+	- Fixed: Some data transfer problems
+	- Added: udp protocol tunneling/forwarding
+	- Fixed: bug in parsing the config file
+	- Improved: making connection between server and client
+	- Lightly modified: verbose mode (added double v mode)
+
+23.11.2003 (v0.5):
+	- This is the first release
+	- There are no known major bugs

@@ -1,0 +1,39 @@
+# This is an example configuration file for active forwarder
+# Firstly, we have to declare our files with key and certificate
+
+certificate	cacert.pem
+
+# Please note, that we can place only blank characters between words
+
+key		server.rsa
+
+# when we want to log some information, we specify file for lightlog
+# when we want to log everything - we do this by using heavylog option
+
+# type		name of file
+
+lightlog	logfile
+#heavylog	logfile
+
+
+# And it's time for create forwarding targets (named realms here)
+
+#newrealm indicates a new set of commands to a server
+newrealm
+
+#options        values
+
+hostname	<yourhostname> #this is a name of the server (it's using it for choosing interface)
+listen		50127 	       #portnumber on which server is listening for users
+manage		50126          #portnumber on which server is listening for afclient
+users		5              #amount of users we are allowing to connect
+type		tcp	       #type of the realm (which protocol it will forward (tcp|udp)
+
+# and now the second realm
+
+newrealm
+hostname	<yourhostname>
+listen		50125
+manage		50124
+users		5
+type		tcp

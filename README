@@ -1,0 +1,89 @@
+AF - Active Port Forwarder v0.5.2 - README
+Copyright (C) 2003 jeremian - jeremian@poczta.fm
+===================
+
+================================================================================
+
+GRAY-WORLD.NET / Active Port Forwarder
+==========================
+
+  The Active Port Forwarder program is part of the Gray-World.net projects.
+
+  Our Gray-World Team presents on the http://gray-world.net website the projects
+  and publications we are working on which  are  related  to  the  NACS (Network
+  Access Control System)  bypassing  research  field  and  to  the  computer and
+  network security topics.
+
+================================================================================
+
+
+Active port forwarder is a software for secure port forwarding.
+It uses ssl for increasing security of communication between server and client.
+
+Af is dedicated for people, who don't have external ip number and want to
+make some services available across the net.
+
+
+EXAMPLE 1:
+
+The use of it is extremely simple. Let's suppose we want to create http server on
+our computer and we are behind masquerade or firewall:
+
+1) We have to find some machine on the net with external ip and shell account.
+
+2) Use make to compile everything on that machine. (you can freely remove afclient
+   and client.rsa files)
+
+3) You can edit config file or just type from the console: (to use config type -f <cfgfile>)
+	$ ./afserver
+   This will work, if you want to use default values:
+   - hostname will be taken from hostname function (it would be ideally, if there is
+     appropriate registration in /etc/hosts)
+   - server will be listening for users on port 50127
+   - server will be listening for client on port 50126
+   - server will be for maximum 5 users
+   - server will forward tcp packets
+   - there will be no logging and no verbose messages
+
+4) We use make on our machine (we can delete everything apart afclient and client.rsa)
+
+5) We are typing from the console:
+	$ ./afclient -n <name of the server> -p 80
+   Where <name of the server> is a string like : 'bastion.univ.gda.pl' or '153.19.7.200'
+
+6) We can now enter with webbrowser to : <name of the server>:50127 and we will enter to our
+   computer in the fact.
+
+EXAMPLE 2:
+
+Let's see how to use af to forward udp packets. Suppose we want to create a game server
+on our computer (udp port 27960 on our machine):
+
+1) - 4) is the same like in example 1. (but we add option: -t udp)
+
+5) We are typing from the console:
+	$ ./afclient -u -n <name of the server> -p 27960
+   Where <name of the server> is a name (or ip) of a host where our server is running.
+
+6) Connecting to our game is more complicated. User must use afclient to do this.
+   He has to specify server he is connecting to and port which his program will be listening on:
+        $ ./afclient -U -d <hostname> -p <portnum> -n <name of the server> -m <server port>
+   Where <hostname> is name of user machine (who wants to connect to our game). <portnum>
+   is a port he will be connecting to. <name of the server> is a name of a host where our server
+   is running. <server port> is a port on which server is listening for users.
+   In order to connect to our game, user have to connect to <hostname>:<portnum>.
+
+
+Active port forwarder is still under development, so please sent me any comments, bugs notices
+and suggestions about it to jeremian@poczta.fm
+
+
+And thanks for using this software!
+
+LICENSE
+-------
+
+  Active Port Forwarder is distributed under the terms of the  GNU  General  Public  License
+  v2.0 and is copyright (c) 2003 jeremian <jeremian [at] poczta.fm>.
+  See the file COPYING for details.
+
