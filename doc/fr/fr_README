@@ -7,34 +7,35 @@ Copyright (C) 2003,2004,2005 jeremian - <jeremian [at] poczta.fm>
 GRAY-WORLD.NET / Active Port Forwarder
 ======================================
 
-  The Active Port Forwarder program is  part  of  the  Gray-World.net  projects.
+  Le  programme  Active  Port  Forwarder  est  partie  intégrante  des   projets
+  Gray-World.net.
 
-  Our Gray-World Team presents on the http://gray-world.net website the projects
-  and publications we are working on which are  related  to  the  NACS  (Network
-  Access Control System) bypassing  research  field  and  to  the  computer  and
-  network security topics.
+  Notre équipe  présente  sur  le  site  http://gray-world.net  les  projets  et
+  publications sur lesquels nous travaillons. Ces projets et  publications  sont
+  relatifs au contournement  des  systèmes  de  contrôle  d'accès  réseau  (NACS
+  bypassing) ainsi qu'à la sécurité des systèmes et réseaux.
 
 ================================================================================
 
-=======
-SUMMARY
-=======
+========
+SOMMAIRE
+========
 
 INTRO
 
 1. INSTALLATION
   1.1 Instructions
-  1.2 Required libs
-  1.3 Tested platforms
+  1.2 Librairies requises
+  1.3 Plate-formes testées
 2. USAGE
   2.1 afserver
   2.2 afclient
-3. REMOTE ADMINISTRATION
+3. ADMINISTRATION DISTANTE
 4. MODULES
-5. EXAMPLES
+5. EXEMPLES
   5.1 tcp mode
   5.2 reverse udp mode
-6. BUGS/PROBLEMS
+6. BUGS/PROBLEMES
 
 NOTES
 
@@ -46,21 +47,24 @@ THANKS
 INTRO
 =====
 
-Active  port  forwarder  is  a  software  tool  for  secure   port   forwarding.
-It uses ssl to increase security of communication between a server and a client.
-Originally, it was developed to forward data point to point.  However, the  need
-for bypassing firewalls in order to  connect  to  internally  located  computers
-influenced the further development of the project.
+Active port forwarder est un programme permettant de réaliser du  forwarding  de
+port sécurisé. Il utilise le protocole SSL pour augmenter le niveau de  sécurité
+des communications entre serveur et  client.  Son  développement  initial  comme
+outil de communication point à point a été influencé de  façon  à  permettre  le
+contournement de firewalls et les  communications  à  destination  d'équipements
+localisés sur le réseau interne.
 
-AF is dedicated for people, who don't have an external ip  number  and  want  to
-make some services available across the net.
+Af est destiné aux personnes sans  adresse  IP  publique  externe  qui  désirent
+offrir des services accessibles depuis le net.
 
-Moreover, zlib is used to compress the transferred data.
+La librairie Zlib est de plus employée pour compresser les données transférées.
 
-Using one, permanent data/control channel with flow control /  packet  buffering
-provides good performance and reasonably small latency.
+L'utilisation d'un canal contrôle/données permanent avec une gestion de flux  et
+une mise en cache des paquets fournit de bonnes  performances  et  un  temps  de
+latence raisonnablement court.
 
-Multiple clients allow to create more sophisticated tunneling scheme.
+L'emploi de clients multiples permet la création de schémas  de  tunneling  plus
+sophistiqués.
 
 ================================================================================
 
@@ -71,27 +75,27 @@ Multiple clients allow to create more sophisticated tunneling scheme.
   1.1 Instructions
   ----------------
 
-1. Download the compressed sources from http://www.gray-world.net/pr_af.shtml
-2. Unpack them with tar zxvf
-3. Type "./configure"
-4. Type "make"
-5. Type "make install" while logged as root
-6. If something goes wrong - mail the author or post a message on
-   http://gray-world.net/board/
+1. Télécharger les sources compressées depuis www.gray-world.net/pr_af.shtml
+2. Décompresser avec tar zxvf
+3. Entrer "./configure"
+4. Entrer "make"
+5. Entrer "make install" sous l'identité root
+6. Si un problème survient - envoyez un mail à l'auteur ou postez un message
+   sur http://gray-world.net/board/
 
-  1.2 Required libs
-  -----------------
+  1.2 Librairies requises
+  -----------------------
 
 1. openssl   -   http://www.openssl.org/
 2. zlib      -   http://www.gzip.org/zlib/
 
-  1.3 Tested platforms
-  --------------------
+  1.3 Plate-formes testées
+  ------------------------
   
 1. Linux:
-  Gentoo, Slackware, Mandrake - built without any problems
+  Gentoo, Slackware, Mandrake - Compilation sans problème
 2. Windows:
-  win32 - cygwin version is available on the project homepage
+  win32 - Version cygwin disponible sur la page du projet
   
 ================================================================================
 
@@ -224,17 +228,17 @@ Multiple clients allow to create more sophisticated tunneling scheme.
 
 ================================================================================
 
-========================
-3. REMOTE ADMINISTRATION
-========================
+==========================
+3. ADMINISTRATION DISTANTE
+==========================
 
-Afclient can be started in remote administration  mode  by  '-r,  --remoteadmin'
-option. Required option: '-n, --servername NAME'.
+Afclient peut être démarré en mode d'administration distante avec l'option  '-r,
+--remoteadmin'. L'option requise est: '-n, --servername NAME'.
 
-After successful authorization stdin/stdout is used to  communicate  with  user.
-All the commands parsing is done by afserver.
+Après autorisation, les flux stdin/stdout sont utilisés  pour  communiquer  avec
+l'utilisateur. La prise en compte des commandes est effectuée par afserver.
 
-Currently available commands are:
+Les commandes disponibles sont:
 
        help
          display help
@@ -257,11 +261,12 @@ Currently available commands are:
        quit
          quit connection
 
-Afclient with '-p, --portnum PORT' option listens for connection  from  user  at
-NAME:PORT.  NAME is set by '-d, --hostname' option or hostname() function,  when
-the option is missing.
+Afclient se positionne en écoute sur NAME:PORT avec '-p, --portnum  PORT'.  NAME
+est positionné avec l'option '-d, --hostname' ou par la  fonction hostname()  si
+l'argument n'est pas fourni.
 
-When user quits (close the connection or send 'quit' command),  afclient  exits.
+Quand l'utilisateur quitte (termine la connexion ou envoie la commande  'quit'),
+afclient se termine.
 
 ================================================================================
 
@@ -269,9 +274,9 @@ When user quits (close the connection or send 'quit' command),  afclient  exits.
 4. MODULES
 ==========
 
-Afclient can use external modules for user's packets  filtering  ('-l,  --load')
-and service's packets filtering ('-L, --Load'). Module file has to declare three
-functions:
+Afclient peut utiliser des modules externes pour le filtrage des  paquets  ('-l,
+ --load') utilisateurs et pour le filtrage des paquets service  ('-L,  --Load').
+Le fichier contenant les modules doit déclarer trois fonctions :
 
 char* info(void);
   
@@ -338,12 +343,12 @@ int filter(char* host, unsigned char* message, int* length);
     return 0; /* allow to transfer */
   }
 
-Modules have to be compiled with '-fPIC -shared' options.
+Les modules doivent être compilés avec les options '-fPIC -shared'.
 
 ================================================================================
 
 ===========
-5. EXAMPLES
+5. EXEMPLES
 ===========
 
   5.1 tcp mode
@@ -361,39 +366,38 @@ Modules have to be compiled with '-fPIC -shared' options.
                                         ||
 
 
-The use of it is extremely simple. Let's suppose we want to create a http server
-on our computer and we are behind a masquerade or a firewall:
+L'utilisation de Af est extrèmement simple. Supposons que nous voulons mettre en
+place un serveur http sur notre station et que nous sommes masqueradés ou  placé
+derrière un firewall:
 
-1) We have to find some machine on the net with  an  external  ip  and  a  shell
-   account.
-   
-2) Use "make" to compile everything on that machine. (you can freely remove the
-   afclient and client.rsa files)
+1) Nous devons tout d'abord  trouver  une  station  sur  internet  avec  une  IP
+publique et un shell.
 
-3) You can edit the config file or just type from the console (to use the config
-   type -f <cfgfile>) :
-        $ ./afserver
-   This will work, if you want to use default values:
-   - hostname will be taken from hostname function  (it  would  be  ideally,  if
-     there is appropriate registration in /etc/hosts)
-   - server will be listening for users on port 50127
-   - server will be listening for client on port 50126
-   - server will be for maximum 5 users
-   - server will forward tcp packets
-   - there will be no logging and no verbose messages
-   - there will be no password identification
-   - ip protocol family will be unspecified
+2) Utilisez ensuite make pour compiler Af sur cette machine. (Vous pouvez par la
+suite supprimer les fichiers afclient et client.rsa)
 
-4) We use "make" on our machine (we can delete everything apart from afclient
-   and client.rsa)
+3) Editez le fichier de configuration ou entrez sur la  console: (pour  utiliser
+la configuration, entrez type -f <cfgfile>)
+	$ ./afserver
+   Si vous voulez utiliser les valeurs par défaut:
+   - Le nom d'hôte sera pris en compte par la fonction hostname (Il serait idéal
+     qu'il soit référencé dans le fichier /etc/hosts)
+   - Le serveur sera en écoute pour les utilisateurs sur le port 50127
+   - Le serveur sera en écoute pour le client sur le port 50126
+   - Le serveur sera limité à 5 utilisateurs
+   - Le serveur retransmettra les paquets tcp
+   - Aucun log ou message verbeux ne sera activé
 
-5) We are typing from the console:
-        $ ./afclient -n <name of the server> -p 80
-   Where <name of the server>  is  a  string  like  :  'bastion.univ.gda.pl'  or
+4) Nous utilisons make sur notre propre station (Nous pouvons ensuite  supprimer
+tous les fichiers sauf afclient et client.rsa)
+
+5) Nous entrons sur la console:
+	$ ./afclient -n <name of the server> -p 80
+   Où <name of the server> est une chaîne du  type  :  'bastion.univ.gda.pl'  ou
    '153.19.7.200'
 
-6) We can now enter with a web-browser to: <name of  the  server>:50127  and  we
-   will enter to our computer in the fact.
+6) Nous pouvons ensuite utiliser notre navigateur web avec : 
+   <name of the server>:50127 et nous atteindrons notre propre station.
 
   5.2 reverse udp mode
   --------------------
@@ -410,26 +414,29 @@ on our computer and we are behind a masquerade or a firewall:
                                         ||                         (udp)
 
 
-Let's see how to use af to forward udp packets. Suppose we want to create a game
-server on our computer (udp port 27960 on our machine):
+Regardons comment nous pouvons utiliser  af  pour  forwarder  des  paquets  udp.
+Supposez que nous voulons mettre en place un serveur de jeu  sur  notre  station
+(port udp 27960 sur notre station):
 
-1) - 4)  is  the  same  like  in  example  1.  (but  we  add  option:  -p  udp)
+1) - 4) sont les mêmes que pour  l'exemple  1.
 
-5) We are typing from the console:
-  $ ./afclient -u -n <name of the server> -p 27960
-   Where <name of the server> is a name (or ip) of a host where  our  server  is
-   running.
+5) Nous entrons sur la console:
+	$ ./afclient -u -n <name of the server> -p 27960
+   Où <name of the server> est un nom (ou une ip) d'un  hôte  sur  lequel  notre
+   serveur tourne.
 
-6) Connecting to our game is more complicated. The user must use afclient to do
-   this.  He has to specify the server he is connecting to and the  port,  which
-   his program will be listening on:
-       $ ./afclient -U -d <hostname> -p <portnum> -n <name of the server>  \
-         -m <server port>
-   Where <hostname> is the name of the user machine (who wants to connect to our
-   game). <portnum> is the port he will be connecting to. <name of the server>
-   is the name of the host where our server is running.  <server  port>  is  the
-   port on which the server is listening for users.  In order to connect to  our
-   game, the user has to connect to <hostname>:<portnum>.
+6) Nous connecter à notre jeu est un peu plus compliqué. L'utilisateur  doit  se
+   servir de afclient pour cela.
+   Il doit spécifier le serveur auquel il veut  se  connecter  et  le  port  sur
+   lequel son programme sera en écoute:
+        $ ./afclient -U -d <hostname> -p <portnum> -n <name of the server> -m\
+          <server port>
+   Où <hostname> est le nom de la station utilisateur (qui veut se  connecter  à
+   notre jeu). <portnum> est le port auquel  il  se  connectera.  <name  of  the
+   server> est le nom de l'hôte sur lequel notre serveur tourne.  <server  port>
+   est le port sur lequel notre serveur est en écoute pour les utilisateurs.
+   Pour se connecter à notre jeu, l'utilisateur doit se connecter à  <hostname>:
+   <portnum>.
 
 ================================================================================
 
@@ -437,7 +444,7 @@ server on our computer (udp port 27960 on our machine):
 6. BUGS/PROBLEMS
 ================
 
-There are no known/open bugs at the moment.
+Aucun bug n'est connu ou en cours de résolution à ce moment.
 
 ================================================================================
 
@@ -445,11 +452,12 @@ There are no known/open bugs at the moment.
 NOTES
 =====
 
-Active port forwarder is still under development, so please sent  any  comments,
-bugs notices and suggestions about it to <jeremian [at] poczta.fm>
+Active port forwarder est toujours en phase en développement, alors envoyez  moi
+vos commentaires, les bugs que vous rencontrez et vos suggestions à
+<jeremian [at] poczta.fm>
 
-If you have some problems or want to share your opinions with others, feel  free
-to post a message at http://gray-world.net/board/
+Si vous rencontrez des problèmes ou voulez partager vos opinions ,  vous  pouvez
+poster un message sur le forum http://gray-world.net/board/.
 
 ================================================================================
 
@@ -457,23 +465,24 @@ to post a message at http://gray-world.net/board/
 THANKS
 ======
 
- Big thanks to the GW Team:
+ Remerciements à l'équipe GW:
 
- to Alex <alex [at] gray-world.net>
- and Simon <scastro [at] entreelibre.com> for testing AF and a lot of advices.
+ à Alex <alex [at] gray-world.net>
+ et Simon <scastro [at] entreelibre.com> pour les tests de  AF  et  de  nombreux
+conseils.
 
- Thanks to Ilia Perevezentsev <iliaper [at] mail.ru> who read and corrected the
-README file.
+ Merci à Ilia  Perevezentsev <iliaper [at] mail.ru>  qui  a  lu  et  corrigé  le
+fichier README.
 
- Thanks to Marco Solari <marco.solari [at] koinesistemi.it> for a lot of
-requests, suggestions and ideas.
+ Merci à Marco  Solari <marco.solari [at] koinesistemi.it>  pour  de  nombreuses
+requêtes, suggestions et idées.
 
- And thanks for using this software!
+ Et merci à vous pour l'utilisation de cet outil.
 
-LICENSE
+LICENCE
 -------
 
-  Active Port Forwarder is distributed  under  the  terms  of  the  GNU  General
-  Public License v2.0  and is copyright (C)  2003,2004,2005  jeremian  <jeremian
-  [at] poczta.fm>. See the file COPYING for details.
-
+  Active Port Forwarder est distribué sous  les  termes  de  la  licence  GNU  -
+  General Public Licence version 2.0 et est copyright (c)2003,2004,2005 jeremian
+  <jeremian [at] poczta.fm>.
+  Consultez le fichier COPYING pour plus de details.
