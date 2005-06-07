@@ -18,8 +18,12 @@
  *
  */
 
+#include <config.h>
+
 #include "file.h"
 #include "activefor.h"
+#include "logging.h"
+#include "network.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -110,6 +114,7 @@ parsefile(char* name, int* status)
   char buff[256];
   char helpbuf1[256];
   char helpbuf2[256];
+  char* tmpbuf;
 
   *status = 1;
 
@@ -119,10 +124,6 @@ parsefile(char* name, int* status)
   cfg.keys = NULL;
   cfg.size = 0;
   cfg.realmtable = NULL;
-  cfg.logging = 0;
-  cfg.socklogging = 0;
-  cfg.logfnam = NULL;
-  cfg.logsport = NULL;
   cfg.dateformat = NULL;
 
   state = F_UNKNOWN;
@@ -220,9 +221,23 @@ parsefile(char* name, int* status)
       else if (strcmp(helpbuf1, "baseport")==0) {
         cfg.realmtable[cfg.size-1].baseport = 1;
       }
+      else if (strcmp(helpbuf1, "audit")==0) {
+        cfg.realmtable[cfg.size-1].audit = 1;
+      }
       else if (strcmp(helpbuf1, "dnslookups")==0) {
         cfg.realmtable[cfg.size-1].dnslookups = 1;
       }
+#ifdef HAVE_LIBPTHREAD
+      else if (strcmp(helpbuf1, "enableproxy")==0) {
+        if (cfg.realmtable[cfg.size-1].tunneltype == 0) {
+          cfg.realmtable[cfg.size-1].tunneltype = 1;
+        }
+        else {
+          return cfg;
+        }
+      }
+#endif
+#ifdef AF_INET6
       else if (strcmp(helpbuf1, "ipv4")==0) {
         if (TYPE_IS_UNSPEC(cfg.realmtable[cfg.size-1].type)) {
           TYPE_SET_IPV4(cfg.realmtable[cfg.size-1].type);
@@ -239,6 +254,7 @@ parsefile(char* name, int* status)
           return cfg;
         }
       }
+#endif
       else {
         return cfg;
       }
@@ -260,37 +276,10 @@ parsefile(char* name, int* status)
         cfg.keys = calloc(strlen(helpbuf2)+1, sizeof(char));
         strcpy(cfg.keys, helpbuf2);
       }
-      else if (strcmp(helpbuf1, "heavylog")==0) {
-        if (cfg.logging) {
-          return cfg;
-        }
-        cfg.logging = 3;
-        cfg.logfnam = calloc(strlen(helpbuf2)+1, sizeof(char));
-        strcpy(cfg.logfnam, helpbuf2);
-      }
-      else if (strcmp(helpbuf1, "lightlog")==0) {
-        if (cfg.logging) {
-          return cfg;
-        }
-        cfg.logging = 1;
-        cfg.logfnam = calloc(strlen(helpbuf2)+1, sizeof(char));
-        strcpy(cfg.logfnam, helpbuf2);
-      }
-      else if (strcmp(helpbuf1, "heavysocklog")==0) {
-        if (cfg.socklogging) {
-          return cfg;
-        }
-        cfg.socklogging = 3;
-        cfg.logsport = calloc(strlen(helpbuf2)+1, sizeof(char));
-        strcpy(cfg.logsport, helpbuf2);
-      }
-      else if (strcmp(helpbuf1, "lightsocklog")==0) {
-        if (cfg.socklogging) {
-          return cfg;
-        }
-        cfg.socklogging = 1;
-        cfg.logsport = calloc(strlen(helpbuf2)+1, sizeof(char));
-        strcpy(cfg.logsport, helpbuf2);
+      else if (strcmp(helpbuf1, "log")==0) {
+        tmpbuf = calloc(strlen(helpbuf2)+1, sizeof(char));
+        strcpy(tmpbuf, helpbuf2);
+        addlogtarget(tmpbuf);
       }
       else if (strcmp(helpbuf1, "dateformat")==0) {
         cfg.dateformat = calloc(strlen(helpbuf2)+1, sizeof(char));

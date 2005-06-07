@@ -18,12 +18,38 @@
  *
  */
 
-#ifndef _JS_SERVER_CHECK_H
-#define _JS_SERVER_CHECK_H
+#include <config.h>
 
-void check_value(int* where, char* what, char* info);
-int check_value_liberal(char* what, char* info);
-int check_long(char* text, long* number);
+#include "server_get.h"
+#include <stdlib.h>
 
-#endif
-
+int
+get_new_socket(int sockfd, char type, struct sockaddr *addr, socklen_t *addrlen, char* tunneltype)
+{
+  int tmp;
+  switch (type) {
+    case 0: {
+              return accept(sockfd, addr, addrlen);
+              break;
+            }
+    case 1: {
+              if (read(sockfd, &tmp, 4) != 4) {
+                return -1;
+              }
+              if (read(sockfd, tunneltype, 1) != 1) {
+                return -1;
+              }
+              if (read(sockfd, addrlen, 4) != 4) {
+                return -1;
+              }
+              if (read(sockfd, addr, *addrlen) != *addrlen) {
+                return -1;
+              }
+              return tmp;
+              break;
+            }
+    default: {
+               return -1;
+             }
+  }
+}

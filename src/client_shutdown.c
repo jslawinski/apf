@@ -18,12 +18,31 @@
  *
  */
 
-#ifndef _JS_SERVER_CHECK_H
-#define _JS_SERVER_CHECK_H
+#include <config.h>
 
-void check_value(int* where, char* what, char* info);
-int check_value_liberal(char* what, char* info);
-int check_long(char* text, long* number);
+#include "client_shutdown.h"
 
-#endif
+void
+close_connections(int usernum, ConnectuserT** contable)
+{
+  int i;
+  if (*contable) {
+    for (i = 0; i < usernum; ++i) {
+      if (((*contable)[i].state==S_STATE_OPEN) || ((*contable)[i].state==S_STATE_STOPPED)) {
+        close((*contable)[i].connfd);
+        freebuflist(&(*contable)[i].head);
+      }
+    }
+    free(*contable);
+    (*contable) = NULL;
+  }
+}
 
+void
+clear_master_connection(clifd* master)
+{
+  if (master->ssl) {
+    SSL_free(master->ssl);
+    master->ssl = NULL;
+  }
+}

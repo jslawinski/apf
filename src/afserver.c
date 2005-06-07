@@ -39,10 +39,8 @@ static struct option long_options[] = {
 	{"keyfile", 1, 0, 'k'},
 	{"cfgfile", 1, 0, 'f'},
 	{"proto", 1, 0, 'p'},
-	{"lightlog", 1, 0, 'o'},
-	{"heavylog", 1, 0, 'O'},
-  {"heavysocklog", 1, 0, 'S'},
-  {"lightsocklog", 1, 0, 's'},
+	{"log", 1, 0, 'o'},
+	{"audit", 0, 0, 'a'},
 	{"nossl", 0, 0, 301},
 	{"nozlib", 0, 0, 302},
 	{"pass", 1, 0, 303},
@@ -53,10 +51,14 @@ static struct option long_options[] = {
 	{"baseport", 0, 0, 'b'},
 	{"dnslookups", 0, 0, 311},
 	{"dateformat", 1, 0, 'D'},
+#ifdef HAVE_LIBPTHREAD
+	{"enableproxy", 0, 0, 'P'},
+#endif
+	{"version", 0, 0, 'V'},
 	{0, 0, 0, 0}
 };
 
-static ConfigurationT config;
+ConfigurationT config;
 
 int
 main(int argc, char **argv)
@@ -84,19 +86,20 @@ main(int argc, char **argv)
 	unsigned char pass[4] = {1, 2, 3, 4};
 	char verbose = 0;
 	char mode = 0;
+#ifdef HAVE_LIBPTHREAD
+  char tunneltype = 0;
+#endif
 	char ipfam = 0;
   char baseport = 0;
+  char audit = 0;
   char dnslookups = 0;
 	RealmT* pointer = NULL;
 	struct sigaction act;
+  time_t now;
 
   char* certif = NULL;
   char* keys = NULL;
-  char* logfnam = NULL;
-  char* logsport = NULL;
   char* dateformat = NULL;
-  char logging = 0;
-  char socklogging = 0;
 
 	SSL_METHOD* method;
 	SSL_CTX* ctx;
@@ -107,30 +110,41 @@ main(int argc, char **argv)
 	
 	act.sa_handler = SIG_IGN;
 	sigaction(SIGPIPE, &act, NULL);
-	act.sa_handler = sig_int;
+	act.sa_handler = server_sig_int;
 	sigaction(SIGINT, &act, NULL);
 	
 	TYPE_SET_SSL(mode);
 	TYPE_SET_ZLIB(mode);
 
+  memset(&config, 0, sizeof(config));
+  
 	config.certif = NULL;
 	config.keys = NULL;
 	config.size = 0;
 	config.realmtable = NULL;
-	config.logging = 0;
-  config.socklogging = 0;
-	config.logfnam = NULL;
-  config.logsport = NULL;
   config.dateformat = NULL;
+  
+#ifdef HAVE_LIBPTHREAD
+  remember_mainthread();
+#endif
 
 #ifdef AF_INET6
-	while ((n = getopt_long(argc, argv, "hn:l:m:vu:c:k:f:p:o:O:46t:C:U:M:bD:S:s:R:r:", long_options, 0)) != -1) {
+#define GETOPT_LONG_AF_INET6(x) "46"x
 #else
-	while ((n = getopt_long(argc, argv, "hn:l:m:vu:c:k:f:p:o:O:t:C:U:M:bD:S:s:R:r:", long_options, 0)) != -1) {
+#define GETOPT_LONG_AF_INET6(x) x
 #endif
+#ifdef HAVE_LIBPTHREAD
+#define GETOPT_LONG_LIBPTHREAD(x) "P"x
+#else
+#define GETOPT_LONG_LIBPTHREAD(x) x
+#endif
+  
+	while ((n = getopt_long(argc, argv,
+          GETOPT_LONG_LIBPTHREAD(GETOPT_LONG_AF_INET6("hn:l:m:vu:c:k:f:p:o:t:C:U:M:abD:R:r:V"))
+          , long_options, 0)) != -1) {
 		switch (n) {
 		  case 'h': {
-				    usage(AF_VER("Active port forwarder (server)"));
+				    server_long_usage(AF_VER("Active port forwarder (server)"));
 				  break;
 			    }
 		  case 'n': {
@@ -197,26 +211,10 @@ main(int argc, char **argv)
 				    filenam = optarg;
 				    break;
 			    }
-		  case 'O': {
-				    logfnam = optarg;
-				    logging = 3;
-				    break;
-			    }
 		  case 'o': {
-				    logfnam = optarg;
-				    logging = 1;
+            addlogtarget(optarg);
 				    break;
 			    }
-      case 'S': {
-        logsport = optarg;
-        socklogging = 3;
-        break;
-      }
-      case 's': {
-        logsport = optarg;
-        socklogging = 1;
-        break;
-      }
 		  case 301: {
 				    TYPE_UNSET_SSL(mode);
 				    break;
@@ -258,6 +256,10 @@ main(int argc, char **argv)
             baseport = 1;
             break;
           }
+      case 'a': {
+            audit = 1;
+            break;
+          }
       case 311: {
             dnslookups = 1;
             break;
@@ -266,15 +268,31 @@ main(int argc, char **argv)
 				    dateformat = optarg;
 				    break;
 			    }
+#ifdef HAVE_LIBPTHREAD
+		  case 'P': {
+            if (tunneltype != 0) {
+              tunneltype = -1;
+            }
+            else {
+              tunneltype = 1;
+            }
+				    break;
+			    }
+#endif
+		  case 'V': {
+				    printf("%s\n", (AF_VER("Active port forwarder (server)")));
+            exit(0);
+				  break;
+			    }
 		  case '?': {
-				    usage("");
+				    server_short_usage("");
 				    break;
 			    }
 		}
 	}
 
 	if (optind < argc) {
-	    usage("Unrecognized non-option elements");
+	    server_short_usage("Unrecognized non-option elements");
 	}
 
 	if (filenam != NULL) {
@@ -296,76 +314,38 @@ main(int argc, char **argv)
       else {
         config.keys = keys;
       }
-      if (logfnam != NULL) {
-        config.logfnam = logfnam;
-      }
-      if (logsport != NULL) {
-        config.logsport = logsport;
-      }
       if (dateformat != NULL) {
         config.dateformat = dateformat;
       }
-      if (logging != 0) {
-        config.logging = logging;
-      }
-      if (socklogging != 0) {
-        config.socklogging = socklogging;
-      }
+     
+      initializelogging(verbose, config.dateformat);
       
-      if ((k = loginit(verbose, config.logging, config.socklogging,
-              config.logfnam, config.logsport, config.dateformat))) {
-        switch (k) {
-          case 1:
-            printf("Can't open file to log to... exiting\n");
-            break;
-          case 2:
-            printf("Can't connect to localhost:%s... exiting\n", logsport);
-            break;
-          case 3:
-            printf("Can't open socket to log to... exiting\n");
-            break;
-        }
-        exit(1);
-      }
-      
-      aflog(1, "cfg file OK! (readed realms: %d)", config.size);
+      aflog(LOG_T_INIT, LOG_I_INFO,
+          "cfg file OK! (readed realms: %d)", config.size);
       if (name != NULL)
-        aflog(1, "Warning: hostname=%s will be ignored", name);
+        aflog(LOG_T_INIT, LOG_I_WARNING,
+            "Warning: hostname=%s will be ignored", name);
       if (listen != NULL)
-        aflog(1, "Warning: listenport will be ignored");
+        aflog(LOG_T_INIT, LOG_I_WARNING,
+            "Warning: listenport will be ignored");
       if (manage != NULL)
-        aflog(1, "Warning: manageport will be ignored");
+        aflog(LOG_T_INIT, LOG_I_WARNING,
+            "Warning: manageport will be ignored");
       if (realmname != NULL)
-        aflog(1, "Warning: realmname=%s will be ignored", realmname);
+        aflog(LOG_T_INIT, LOG_I_WARNING,
+            "Warning: realmname=%s will be ignored", realmname);
       if (sent == 1)
-        aflog(1, "Warning: password from command line will be ignored");
+        aflog(LOG_T_INIT, LOG_I_WARNING,
+            "Warning: password from command line will be ignored");
 		}
 	}
 	else {
     config.certif = certif;
     config.keys = keys;
-    config.logfnam = logfnam;
-    config.logsport = logsport;
     config.dateformat = dateformat;
-    config.logging = logging;
-    config.socklogging = socklogging;
     
-    if ((k = loginit(verbose, config.logging, config.socklogging,
-            config.logfnam, config.logsport, config.dateformat))) {
-      switch (k) {
-        case 1:
-          printf("Can't open file to log to... exiting\n");
-          break;
-        case 2:
-          printf("Can't connect to localhost:%s... exiting\n", logsport);
-          break;
-        case 3:
-          printf("Can't open socket to log to... exiting\n");
-          break;
-      }
-      exit(1);
-    }
-
+    initializelogging(verbose, config.dateformat);
+    
 		if (listen == NULL) {
       listencount = 1;
       listen = calloc(1, sizeof(char*));
@@ -377,7 +357,8 @@ main(int argc, char **argv)
 			manage[0] = "50126";
 		}
     if (managecount != listencount) {
-      aflog(0, "Number of listen and manage options are not the same... exiting");
+      aflog(LOG_T_INIT, LOG_I_CRIT,
+          "Number of listen and manage options are not the same... exiting");
       exit(1);
     }
 		if (config.certif == NULL) {
@@ -405,6 +386,10 @@ main(int argc, char **argv)
 		config.realmtable[0].usrpcli = usrpcli;
 		config.realmtable[0].clim = clim;
 		config.realmtable[0].baseport = baseport;
+		config.realmtable[0].audit = audit;
+#ifdef HAVE_LIBPTHREAD
+		config.realmtable[0].tunneltype = tunneltype;
+#endif
 		config.realmtable[0].dnslookups = dnslookups;
     config.realmtable[0].realmname = realmname;
 		memcpy(config.realmtable[0].pass, pass, 4);
@@ -419,7 +404,8 @@ main(int argc, char **argv)
 		}
 #ifdef AF_INET6
 		if (ipfam == -1) {
-			aflog(0, "Conflicting types of ip protocol family... exiting");
+			aflog(LOG_T_INIT, LOG_I_CRIT,
+          "Conflicting types of ip protocol family... exiting");
 			exit(1);
 		}
 		else if (ipfam == 4) {
@@ -438,44 +424,56 @@ main(int argc, char **argv)
 	method = SSLv3_server_method();
 	ctx = SSL_CTX_new(method);
 	if (SSL_CTX_set_cipher_list(ctx, "ALL:@STRENGTH") == 0) {
-		aflog(0, "Setting ciphers list failed... exiting");
+		aflog(LOG_T_INIT, LOG_I_CRIT,
+        "Setting ciphers list failed... exiting");
 		exit(1);
 	}
   if ((flags = create_apf_dir())) {
-    aflog(1, "Warning: Creating ~/.apf directory failed (%d)", flags);
+    aflog(LOG_T_INIT, LOG_I_WARNING,
+        "Warning: Creating ~/.apf directory failed (%d)", flags);
   }
   if ((flags = generate_rsa_key(&config.keys))) {
-    aflog(1, "Warning: Something bad happened when generating rsa keys... (%d)", flags);
+    aflog(LOG_T_INIT, LOG_I_WARNING,
+        "Warning: Something bad happened when generating rsa keys... (%d)", flags);
   }
 	if (SSL_CTX_use_RSAPrivateKey_file(ctx, config.keys, SSL_FILETYPE_PEM) != 1) {
-    aflog(0, "Setting rsa key failed (%s)... exiting", config.keys);
+    aflog(LOG_T_INIT, LOG_I_CRIT,
+        "Setting rsa key failed (%s)... exiting", config.keys);
     exit(1);
   }
   if ((flags = generate_certificate(&config.certif, config.keys))) {
-    aflog(1, "Warning: Something bad happened when generating certificate... (%d)", flags);
+    aflog(LOG_T_INIT, LOG_I_WARNING,
+        "Warning: Something bad happened when generating certificate... (%d)", flags);
   }
 	if (SSL_CTX_use_certificate_file(ctx, config.certif, SSL_FILETYPE_PEM) != 1) {
-		aflog(0, "Setting certificate failed (%s)... exiting", config.certif);
+		aflog(LOG_T_INIT, LOG_I_CRIT,
+        "Setting certificate failed (%s)... exiting", config.certif);
 		exit(1);
 	}
 
 	if (config.size == 0) {
-		aflog(0, "Working without sense is really without sense...");
+		aflog(LOG_T_INIT, LOG_I_CRIT,
+        "Working without sense is really without sense...");
 		exit(1);
 	}
 	
 	FD_ZERO(&allset);
 	FD_ZERO(&wset);
 	
+	if (!verbose)
+		daemon(0, 0);
+
 	for (i = 0; i < config.size; ++i) {
     if (config.realmtable[i].usrclinum == 0) {
-      aflog(0, "You have to specify at least one listen port and one manage port in each realm");
+      aflog(LOG_T_INIT, LOG_I_CRIT,
+          "You have to specify at least one listen port and one manage port in each realm");
       exit(1);
     }
     for (j = 0; j < config.realmtable[i].usrclinum; ++j) {
   		if ((config.realmtable[i].usrclitable[j].lisportnum == NULL) ||
   			(config.realmtable[i].usrclitable[j].manportnum == NULL)) {
-  			aflog(0, "Missing some of the variables...\nRealm: %d\nlistenport[%d]: %s\nmanageport[%d]: %s",
+  			aflog(LOG_T_INIT, LOG_I_CRIT,
+            "Missing some of the variables...\nRealm: %d\nlistenport[%d]: %s\nmanageport[%d]: %s",
   					i, j, config.realmtable[i].usrclitable[j].lisportnum,
   					j, config.realmtable[i].usrclitable[j].manportnum);
   			exit(1);
@@ -502,7 +500,8 @@ main(int argc, char **argv)
     /* using user's value for ipfam*/
     if (TYPE_IS_UNSPEC(config.realmtable[i].type)) {
       if (ipfam == -1) {
-        aflog(0, "Conflicting types of ip protocol family... exiting");
+        aflog(LOG_T_INIT, LOG_I_CRIT,
+            "Conflicting types of ip protocol family... exiting");
         exit(1);
       }
       else if (ipfam == 4) {
@@ -524,6 +523,21 @@ main(int argc, char **argv)
     if (config.realmtable[i].baseport == 0) {
       config.realmtable[i].baseport = baseport;
     }
+    /* using user's audit value*/
+    if (config.realmtable[i].audit == 0) {
+      config.realmtable[i].audit = audit;
+    }
+#ifdef HAVE_LIBPTHREAD
+    /* using user's tunneltype value*/
+    if (config.realmtable[i].tunneltype == 0) {
+      if (tunneltype == -1) {
+        aflog(LOG_T_INIT, LOG_I_CRIT,
+            "Conflicting types of tunnel type... exiting");
+        exit(1);
+      }
+      config.realmtable[i].tunneltype = tunneltype;
+    }
+#endif
     /* using user's dnslookups value*/
     if (config.realmtable[i].dnslookups == 0) {
       config.realmtable[i].dnslookups = dnslookups;
@@ -549,17 +563,20 @@ main(int argc, char **argv)
     /* allocating memory*/
 		config.realmtable[i].contable = calloc( config.realmtable[i].usernum, sizeof(ConnectuserT));
 		if (config.realmtable[i].contable == NULL) {
-			aflog(0, "Calloc error - try define smaller amount of users");
+			aflog(LOG_T_INIT, LOG_I_CRIT,
+          "Calloc error - try define smaller amount of users");
 			exit(1);
 		}
 		config.realmtable[i].clitable = calloc( config.realmtable[i].clinum, sizeof(ConnectclientT));
 		if (config.realmtable[i].clitable == NULL) {
-			aflog(0, "Calloc error - try define smaller amount of clients");
+			aflog(LOG_T_INIT, LOG_I_CRIT,
+          "Calloc error - try define smaller amount of clients");
 			exit(1);
 		}
 		config.realmtable[i].raclitable = calloc( config.realmtable[i].raclinum, sizeof(ConnectclientT));
 		if (config.realmtable[i].raclitable == NULL) {
-			aflog(0, "Calloc error - try define smaller amount of raclients");
+			aflog(LOG_T_INIT, LOG_I_CRIT,
+          "Calloc error - try define smaller amount of raclients");
 			exit(1);
 		}
 		ipfam = 0x01;
@@ -575,7 +592,7 @@ main(int argc, char **argv)
       for (j = 0; j < config.realmtable[i].usrclinum; ++j) {
     		if (ip_listen(&(config.realmtable[i].usrclitable[j].listenfd), config.realmtable[i].hostname,
     			config.realmtable[i].usrclitable[j].lisportnum, (&(config.realmtable[i].addrlen)), ipfam)) {
-          aflog(0,
+          aflog(LOG_T_INIT, LOG_I_CRIT,
 #ifdef AF_INET6
     			       "tcp_listen_%s error for %s, %s",
     					(ipfam & 0x02)?"ipv4":(ipfam & 0x04)?"ipv6":"unspec",
@@ -585,28 +602,65 @@ main(int argc, char **argv)
     					config.realmtable[i].hostname, config.realmtable[i].usrclitable[j].lisportnum);
     			exit(1);
     		}
+        flags = fcntl(config.realmtable[i].usrclitable[j].listenfd, F_GETFL, 0);
+        fcntl(config.realmtable[i].usrclitable[j].listenfd, F_SETFL, flags | O_NONBLOCK);
       }
     }
     for (j = 0; j < config.realmtable[i].usrclinum; ++j) {
-  		if (ip_listen(&(config.realmtable[i].usrclitable[j].managefd), config.realmtable[i].hostname,
-  			config.realmtable[i].usrclitable[j].manportnum, (&(config.realmtable[i].addrlen)), ipfam)) {
-          aflog(0,
+      switch (config.realmtable[i].tunneltype) {
+        case 0: {
+      		if (ip_listen(&(config.realmtable[i].usrclitable[j].managefd), config.realmtable[i].hostname,
+      			config.realmtable[i].usrclitable[j].manportnum, (&(config.realmtable[i].addrlen)), ipfam)) {
+              aflog(LOG_T_INIT, LOG_I_CRIT,
 #ifdef AF_INET6
-    			       "tcp_listen_%s error for %s, %s",
-    					(ipfam & 0x02)?"ipv4":(ipfam & 0x04)?"ipv6":"unspec",
+        			       "tcp_listen_%s error for %s, %s",
+        					(ipfam & 0x02)?"ipv4":(ipfam & 0x04)?"ipv6":"unspec",
 #else
-    			       "tcp_listen error for %s, %s",
+        			       "tcp_listen error for %s, %s",
 #endif
-  					config.realmtable[i].hostname, config.realmtable[i].usrclitable[j].manportnum);
-  			exit(1);
-  		}
+      					config.realmtable[i].hostname, config.realmtable[i].usrclitable[j].manportnum);
+      			exit(1);
+      		}
+          flags = fcntl(config.realmtable[i].usrclitable[j].managefd, F_GETFL, 0);
+          fcntl(config.realmtable[i].usrclitable[j].managefd, F_SETFL, flags | O_NONBLOCK);
+          break;
+                }
+#ifdef HAVE_LIBPTHREAD
+        case 1: {
+      		if (initialize_http_proxy_server(&(config.realmtable[i].usrclitable[j].managefd),
+                config.realmtable[i].hostname, config.realmtable[i].usrclitable[j].manportnum,
+                (&(config.realmtable[i].addrlen)), ipfam,
+                config.realmtable[i].clinum + config.realmtable[i].raclinum)) {
+              aflog(LOG_T_INIT, LOG_I_CRIT,
+#ifdef AF_INET6
+        			       "http_proxy_listen_%s error for %s, %s",
+        					(ipfam & 0x02)?"ipv4":(ipfam & 0x04)?"ipv6":"unspec",
+#else
+        			       "http_proxy_listen error for %s, %s",
+#endif
+      					config.realmtable[i].hostname, config.realmtable[i].usrclitable[j].manportnum);
+      			exit(1);
+      		}
+          flags = fcntl(config.realmtable[i].usrclitable[j].managefd, F_GETFL, 0);
+          fcntl(config.realmtable[i].usrclitable[j].managefd, F_SETFL, flags | O_NONBLOCK);
+          break;
+                }
+#endif
+        default: {
+                   aflog(LOG_T_INIT, LOG_I_CRIT,
+                       "Unknown tunnel type");
+                   exit(1);
+                   break;
+                 }
+      }
     }
 		config.realmtable[i].cliaddr = malloc(config.realmtable[i].addrlen);
 		
     for (j=0; j<config.realmtable[i].clinum; ++j) {
   		config.realmtable[i].clitable[j].cliconn.ssl = SSL_new(ctx);
   		if (config.realmtable[i].clitable[j].cliconn.ssl == NULL) {
-  			aflog(0, "Creating of ssl object failed... exiting");
+  			aflog(LOG_T_INIT, LOG_I_CRIT,
+            "Creating of ssl object failed... exiting");
   			exit(1);
   		}
     }
@@ -614,7 +668,8 @@ main(int argc, char **argv)
     for (j=0; j<config.realmtable[i].raclinum; ++j) {
   		config.realmtable[i].raclitable[j].cliconn.ssl = SSL_new(ctx);
   		if (config.realmtable[i].raclitable[j].cliconn.ssl == NULL) {
-  			aflog(0, "Creating of ssl object failed... exiting");
+  			aflog(LOG_T_INIT, LOG_I_CRIT,
+            "Creating of ssl object failed... exiting");
   			exit(1);
   		}
     }
@@ -639,7 +694,8 @@ main(int argc, char **argv)
       config.realmtable[i].clitable[j].usernum = config.realmtable[i].upcnum;
       config.realmtable[i].clitable[j].users = malloc( config.realmtable[i].clitable[j].usernum * sizeof(int));
       if (config.realmtable[i].clitable[j].users == NULL) {
-        aflog(0, "Calloc error - try define smaller amount of usrpcli (or users)");
+        aflog(LOG_T_INIT, LOG_I_CRIT,
+            "Calloc error - try define smaller amount of usrpcli (or users)");
         exit(1);
       }
       for (k=0; k<config.realmtable[i].clitable[j].usernum; ++k) {
@@ -651,16 +707,15 @@ main(int argc, char **argv)
     }
   }
 
-	if (!verbose)
-		daemon(0, 0);
-
-	aflog(1, "SERVER STARTED realms: %d", config.size);
+	aflog(LOG_T_MAIN, LOG_I_INFO,
+      "SERVER STARTED realms: %d", config.size);
   time(&config.starttime);
 	
 	for ( ; ; ) {
 		rset = allset;
 		tmpset = wset;
-			aflog(3, ">select, maxfdp1: %d", maxfdp1);
+			aflog(LOG_T_MAIN, LOG_I_DDEBUG,
+          "select, maxfdp1: %d", maxfdp1);
 		if (manconnecting) {
 			/* find out, in what realm client is trying to connect */
       l = -1;
@@ -692,7 +747,8 @@ main(int argc, char **argv)
   				  config.realmtable[i].clitable[j].ready = 0;
   				  manconnecting--;
             config.realmtable[i].clicon--;
-  				  aflog(1, "  realm[%s]: Client[%s]: SSL_accept failed (timeout)",
+  				  aflog(LOG_T_CLIENT, LOG_I_WARNING,
+                "realm[%s]: Client[%s]: SSL_accept failed (timeout)",
                 get_realmname(&config, i), get_clientname(pointer, j));
   			}
       }
@@ -704,7 +760,8 @@ main(int argc, char **argv)
   				  config.realmtable[i].raclitable[j].ready = 0;
   				  manconnecting--;
             config.realmtable[i].clicon--;
-  				  aflog(1, "  realm[%s]: Client[%s] (ra): SSL_accept failed (timeout)",
+  				  aflog(LOG_T_CLIENT, LOG_I_WARNING,
+                "realm[%s]: Client[%s] (ra): SSL_accept failed (timeout)",
                 get_realmname(&config, i), get_raclientname(pointer, j));
   			}
       }
@@ -712,7 +769,8 @@ main(int argc, char **argv)
 		else {
 			select(maxfdp1, &rset, &tmpset, NULL, NULL);
 		}
-		aflog(3, " >>after select...");
+		aflog(LOG_T_MAIN, LOG_I_DDEBUG,
+        "after select...");
 
 	for (j = 0; j < config.size; ++j) {
 		pointer = (&(config.realmtable[j]));
@@ -720,23 +778,27 @@ main(int argc, char **argv)
 		  if ((pointer->contable[i].state == S_STATE_OPEN) || (pointer->contable[i].state == S_STATE_STOPPED))
         if (FD_ISSET(pointer->contable[i].connfd, &rset)) {
           k = eval_usernum(&(pointer->clitable[pointer->contable[i].whatcli]), i);
-          aflog(3, " realm[%s]: Client[%s]: user[%d]: FD_ISSET", get_realmname(&config, j),
-              get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, k));
+          aflog(LOG_T_USER, LOG_I_DDEBUG,
+              "realm[%s]: Client[%s]: user[%d]: FD_ISSET", get_realmname(&config, j),
+              get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, i));
           if (TYPE_IS_TCP(pointer->type)) { /* forwarding tcp packets */
             n = read(pointer->contable[i].connfd, &buff[5], 8091);
             if (n == -1) {
               if (errno == EAGAIN) {
                 continue;
               }
-              aflog(3, "  realm[%s]: Client[%s]: user[%d]: READ ERROR (%d)", get_realmname(&config, j),
-                  get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, k), errno);
+              aflog(LOG_T_USER, LOG_I_ERR,
+                  "realm[%s]: Client[%s]: user[%d]: READ ERROR (%d)", get_realmname(&config, j),
+                  get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, i), errno);
               n = 0;
             }
             if (n) {
-              aflog(2, "  realm[%s]: Client[%s]: FROM user[%d]: MESSAGE length=%d", get_realmname(&config, j),
-                  get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, k), n);
+              aflog(LOG_T_USER, LOG_I_DEBUG,
+                  "realm[%s]: Client[%s]: FROM user[%d]: MESSAGE length=%d", get_realmname(&config, j),
+                  get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, i), n);
               if ((buff[5] == AF_S_MESSAGE) && (buff[6] == AF_S_LOGIN) && (buff[7] == AF_S_MESSAGE)) {
-                aflog(2, "  WARNING: got packet similiar to udp");
+                aflog(LOG_T_USER, LOG_I_WARNING,
+                    "WARNING: got packet similiar to udp");
               }
               buff[0] = AF_S_MESSAGE; /* sending message */
               buff[1] = k >> 8;	/* high bits of user number */
@@ -746,10 +808,26 @@ main(int argc, char **argv)
               send_message(pointer->type, pointer->clitable[pointer->contable[i].whatcli].cliconn, buff, n+5);
             }
             else {
-              aflog(1, "  realm[%s]: Client[%s]: user[%d]: CLOSED", get_realmname(&config, j),
-                  get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, k));
-              aflog(2, "   IP:%s PORT:%s", pointer->contable[i].namebuf,
-							pointer->contable[i].portbuf);
+              aflog(LOG_T_USER, LOG_I_INFO,
+                  "realm[%s]: Client[%s]: user[%d]: CLOSED", get_realmname(&config, j),
+                  get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, i));
+              time(&now);
+              aflog(LOG_T_USER, LOG_I_NOTICE,
+                  "REALM: %s CLIENT: %s USER: %d IP: %s PORT: %s DURATION: %s",
+                  get_realmname(&config, j),
+                  get_clientname(pointer, pointer->contable[i].whatcli),
+                  get_username(pointer, i),
+                  pointer->contable[i].namebuf,
+                  pointer->contable[i].portbuf,
+                  timeperiod(now - pointer->contable[i].connecttime));
+              if (pointer->audit) {
+                insertalnode(&(pointer->clitable[pointer->contable[i].whatcli].head),
+                    get_username(pointer, i),
+                    pointer->contable[i].namebuf,
+                    pointer->contable[i].portbuf,
+                    pointer->contable[i].connecttime,
+                    now - pointer->contable[i].connecttime);
+              }
               close(pointer->contable[i].connfd);
               FD_CLR(pointer->contable[i].connfd, &allset);
               FD_CLR(pointer->contable[i].connfd, &wset);
@@ -772,9 +850,10 @@ main(int argc, char **argv)
                 length = length << 8;
                 length += buff[4]; /* this is length of message */
                 if ((n = readn(pointer->contable[i].connfd, &buff[5], length)) != 0) {
-                  aflog(2, "  realm[%s]: Client[%s]: FROM user[%d]: MESSAGE length=%d",
+                  aflog(LOG_T_USER, LOG_I_DEBUG,
+                      "realm[%s]: Client[%s]: FROM user[%d]: MESSAGE length=%d",
                       get_realmname(&config, j), get_clientname(pointer, pointer->contable[i].whatcli),
-                      get_username(pointer, k), n);
+                      get_username(pointer, i), n);
                   buff[1] = k >> 8;	/* high bits of user number */
                   buff[2] = k;		/* low bits of user number */
                   send_message(pointer->type, pointer->clitable[pointer->contable[i].whatcli].cliconn,
@@ -787,10 +866,18 @@ main(int argc, char **argv)
             }
             
             if (n == 0) {
-              aflog(1, "  realm[%s]: Client[%s]: user[%d]: CLOSED (udp mode)", get_realmname(&config, j),
-                  get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, k));
-              aflog(2, "   IP:%s PORT:%s", pointer->contable[i].namebuf,
-							pointer->contable[i].portbuf);
+              aflog(LOG_T_USER, LOG_I_INFO,
+                  "realm[%s]: Client[%s]: user[%d]: CLOSED (udp mode)", get_realmname(&config, j),
+                  get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, i));
+              time(&now);
+              aflog(LOG_T_USER, LOG_I_NOTICE,
+                  "REALM: %s CLIENT: %s USER: %d IP: %s PORT: %s DURATION: %s",
+                  get_realmname(&config, j),
+                  get_clientname(pointer, pointer->contable[i].whatcli),
+                  get_username(pointer, i),
+                  pointer->contable[i].namebuf,
+                  pointer->contable[i].portbuf,
+                  timeperiod(now - pointer->contable[i].connecttime));
               close(pointer->contable[i].connfd);
               FD_CLR(pointer->contable[i].connfd, &allset);
               FD_CLR(pointer->contable[i].connfd, &wset);
@@ -810,24 +897,36 @@ main(int argc, char **argv)
       if (pointer->contable[i].state == S_STATE_STOPPED)
         if (FD_ISSET(pointer->contable[i].connfd, &tmpset)) {
           k = eval_usernum(&(pointer->clitable[pointer->contable[i].whatcli]), i);
-            aflog(3, " realm[%s]: Client[%s]: user[%d]: FD_ISSET - WRITE", get_realmname(&config, j),
-                get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, k));
+            aflog(LOG_T_USER, LOG_I_DDEBUG,
+                "realm[%s]: Client[%s]: user[%d]: FD_ISSET - WRITE", get_realmname(&config, j),
+                get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, i));
           n = pointer->contable[i].head->msglen - pointer->contable[i].head->actptr;
           sent = write(pointer->contable[i].connfd,
               &(pointer->contable[i].head->buff[pointer->contable[i].head->actptr]), n);
           if ((sent > 0) && (sent != n)) {
             pointer->contable[i].head->actptr+=sent;
-            aflog(3, " realm[%s]: Client[%s]: user[%d]: (%d/%d)", get_realmname(&config, j),
-                get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, k), sent, n);
+            aflog(LOG_T_USER, LOG_I_DDEBUG,
+                "realm[%s]: Client[%s]: user[%d]: (%d/%d)", get_realmname(&config, j),
+                get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, i), sent, n);
           }
           else if ((sent == -1) && (errno == EAGAIN)) {
-            aflog(3, " realm[%s]: Client[%s]: user[%d]: EAGAIN", get_realmname(&config, j),
-                get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, k));
+            aflog(LOG_T_USER, LOG_I_DDEBUG,
+                "realm[%s]: Client[%s]: user[%d]: EAGAIN", get_realmname(&config, j),
+                get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, i));
           }
           else if (sent == -1) {
-            aflog(1, "  realm[%s]: Client[%s]: user[%d]: CLOSED", get_realmname(&config, j),
-                get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, k));
-            aflog(2, "   IP:%s PORT:%s", pointer->contable[i].namebuf, pointer->contable[i].portbuf);
+            aflog(LOG_T_USER, LOG_I_INFO,
+                "realm[%s]: Client[%s]: user[%d]: CLOSED", get_realmname(&config, j),
+                get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, i));
+            time(&now);
+            aflog(LOG_T_USER, LOG_I_NOTICE,
+                "REALM: %s CLIENT: %s USER: %d IP: %s PORT: %s DURATION: %s",
+                get_realmname(&config, j),
+                get_clientname(pointer, pointer->contable[i].whatcli),
+                get_username(pointer, i),
+                pointer->contable[i].namebuf,
+                pointer->contable[i].portbuf,
+                timeperiod(now - pointer->contable[i].connecttime));
             close(pointer->contable[i].connfd);
             FD_CLR(pointer->contable[i].connfd, &allset);
             FD_CLR(pointer->contable[i].connfd, &wset);
@@ -839,8 +938,9 @@ main(int argc, char **argv)
             send_message(pointer->type, pointer->clitable[pointer->contable[i].whatcli].cliconn, buff, 5);
           }
           else {
-            aflog(3, " realm[%s]: Client[%s]: user[%d]: (%d/%d)", get_realmname(&config, j),
-                get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, k), sent, n);
+            aflog(LOG_T_USER, LOG_I_DDEBUG,
+                "realm[%s]: Client[%s]: user[%d]: (%d/%d)", get_realmname(&config, j),
+                get_clientname(pointer, pointer->contable[i].whatcli), get_username(pointer, i), sent, n);
             deleteblnode(&pointer->contable[i].head);
             if (pointer->contable[i].head == NULL) {
               pointer->contable[i].state = S_STATE_OPEN;
@@ -848,9 +948,10 @@ main(int argc, char **argv)
               buff[0] = AF_S_CAN_SEND; /* stopping transfer */
               buff[1] = k >> 8;	/* high bits of user number */
               buff[2] = k;		/* low bits of user number */
-              aflog(3, "  realm[%s]: Client[%s]: TO user[%d]: BUFFERING MESSAGE ENDED",
+              aflog(LOG_T_USER, LOG_I_DDEBUG,
+                  "realm[%s]: Client[%s]: TO user[%d]: BUFFERING MESSAGE ENDED",
                   get_realmname(&config, j), get_clientname(pointer, pointer->contable[i].whatcli),
-                  get_username(pointer, k));
+                  get_username(pointer, i));
               send_message(pointer->type, pointer->clitable[pointer->contable[i].whatcli].cliconn, buff, 5);
             }
           }
@@ -862,18 +963,26 @@ main(int argc, char **argv)
     		if (FD_ISSET(pointer->usrclitable[l].listenfd, &rset)) {
     			len = pointer->addrlen;
     			sent = accept(pointer->usrclitable[l].listenfd, pointer->cliaddr, &len);
+          if (sent == -1) {
+      			aflog(LOG_T_USER, LOG_I_DDEBUG,
+                "realm[%s]: listenfd: FD_ISSET --> EAGAIN", get_realmname(&config, j));
+            continue;
+          }
     			flags = fcntl(sent, F_GETFL, 0);
     			fcntl(sent, F_SETFL, flags | O_NONBLOCK);
-    			aflog(3, " realm[%s]: listenfd: FD_ISSET", get_realmname(&config, j));
+    			aflog(LOG_T_USER, LOG_I_DDEBUG,
+              "realm[%s]: listenfd: FD_ISSET", get_realmname(&config, j));
           k = find_client(pointer, pointer->climode, l);
     			if (pointer->clitable[k].ready == 3) {
     				if (pointer->usercon == pointer->usernum) {
     					close(sent);
-              aflog(3, " realm[%s]: user limit EXCEEDED", get_realmname(&config, j));
+              aflog(LOG_T_USER, LOG_I_WARNING,
+                  "realm[%s]: user limit EXCEEDED", get_realmname(&config, j));
             }
             else if(pointer->clitable[k].usercon == pointer->clitable[k].usernum) {
               close(sent);
-              aflog(3, " realm[%s]: Client[%s]: usrpcli limit EXCEEDED",
+              aflog(LOG_T_USER, LOG_I_WARNING,
+                  "realm[%s]: Client[%s]: usrpcli limit EXCEEDED",
                   get_realmname(&config, j), get_clientname(pointer, k));
             }
             else {
@@ -881,7 +990,8 @@ main(int argc, char **argv)
                 if (pointer->contable[i].state == S_STATE_CLEAR) {
                   pointer->contable[i].userid = pointer->usercounter;
                   ++(pointer->usercounter);
-                  aflog(1, "  realm[%s]: Client[%s]: new user: CONNECTING from IP: %s",
+                  aflog(LOG_T_USER, LOG_I_INFO,
+                      "realm[%s]: Client[%s]: new user: CONNECTING from IP: %s",
                       get_realmname(&config, j), get_clientname(pointer, k),
                       sock_ntop(pointer->cliaddr, len, pointer->contable[i].namebuf,
                         pointer->contable[i].portbuf, pointer->dnslookups));
@@ -908,7 +1018,8 @@ main(int argc, char **argv)
           }
           else {
             close(sent);
-            aflog(3, " realm[%s]: Client(%d) is NOT CONNECTED",
+            aflog(LOG_T_USER, LOG_I_ERR,
+                "realm[%s]: Client(%d) is NOT CONNECTED",
                 get_realmname(&config, j), k);
           }
         }
@@ -921,18 +1032,26 @@ main(int argc, char **argv)
 		if (FD_ISSET(pointer->clitable[k].listenfd, &rset)) {
 			len = pointer->addrlen;
 			sent = accept(pointer->clitable[k].listenfd, pointer->cliaddr, &len);
+      if (sent == -1) {
+  			aflog(LOG_T_USER, LOG_I_DDEBUG,
+            "realm[%s]: listenfd: FD_ISSET --> EAGAIN", get_realmname(&config, j));
+        continue;
+      }
 			flags = fcntl(sent, F_GETFL, 0);
 			fcntl(sent, F_SETFL, flags | O_NONBLOCK);
-			aflog(3, " realm[%s]: Client[%s]: listenfd: FD_ISSET",
+			aflog(LOG_T_USER, LOG_I_DDEBUG,
+          "realm[%s]: Client[%s]: listenfd: FD_ISSET",
           get_realmname(&config, j), get_clientname(pointer, k));
 			if (pointer->clitable[k].ready == 3) {
 				if (pointer->usercon == pointer->usernum) {
 					close(sent);
-          aflog(3, " realm[%s]: user limit EXCEEDED", get_realmname(&config, j));
+          aflog(LOG_T_USER, LOG_I_WARNING,
+              "realm[%s]: user limit EXCEEDED", get_realmname(&config, j));
         }
         else if(pointer->clitable[k].usercon == pointer->clitable[k].usernum) {
           close(sent);
-          aflog(3, " realm[%s]: Client[%s]: usrpcli limit EXCEEDED",
+          aflog(LOG_T_USER, LOG_I_WARNING,
+              "realm[%s]: Client[%s]: usrpcli limit EXCEEDED",
               get_realmname(&config, j), get_clientname(pointer, k));
         }
         else {
@@ -940,7 +1059,8 @@ main(int argc, char **argv)
             if (pointer->contable[i].state == S_STATE_CLEAR) {
               pointer->contable[i].userid = pointer->usercounter;
               ++(pointer->usercounter);
-              aflog(1, "  realm[%s]: Client[%s]: new user: CONNECTING from IP: %s",
+              aflog(LOG_T_USER, LOG_I_INFO,
+                  "realm[%s]: Client[%s]: new user: CONNECTING from IP: %s",
                   get_realmname(&config, j), get_clientname(pointer, k),
                   sock_ntop(pointer->cliaddr, len, pointer->contable[i].namebuf, pointer->contable[i].portbuf, pointer->dnslookups));
               pointer->contable[i].connfd = sent;
@@ -970,7 +1090,8 @@ main(int argc, char **argv)
 		if ((pointer->clitable[k].ready != 0) && (FD_ISSET(pointer->clitable[k].cliconn.commfd, &rset))) {
 			if (pointer->clitable[k].ready == 1) {
         make_ssl_initialize(&(pointer->clitable[k].cliconn));
-				aflog(2, "  realm[%s]: new Client[%s]: SSL_accept",
+				aflog(LOG_T_CLIENT, LOG_I_DDEBUG,
+            "realm[%s]: new Client[%s]: SSL_accept",
             get_realmname(&config, j), get_clientname(pointer, k));
         switch (make_ssl_accept(&(pointer->clitable[k].cliconn))) {
           case 2: {
@@ -980,21 +1101,24 @@ main(int argc, char **argv)
                     pointer->clitable[k].ready = 0;
                     manconnecting--;
                     pointer->clicon--;
-                    aflog(1, "  realm[%s]: new Client[%s]: DENIED by SSL_accept",
+                    aflog(LOG_T_CLIENT, LOG_I_ERR,
+                        "realm[%s]: new Client[%s]: DENIED by SSL_accept",
                         get_realmname(&config, j), get_clientname(pointer, k));
                   }
           case 1: {
                     continue;
                   }
           default: {
-                     aflog(1, "  realm[%s]: new Client[%s]: ACCEPTED by SSL_accept",
+                     aflog(LOG_T_CLIENT, LOG_I_DEBUG,
+                         "realm[%s]: new Client[%s]: ACCEPTED by SSL_accept",
                          get_realmname(&config, j), get_clientname(pointer, k));
                      pointer->clitable[k].ready = 2;
                      continue;
                    }
         }
 			}
-			aflog(3, " realm[%s]: Client[%s]: commfd: FD_ISSET",
+			aflog(LOG_T_CLIENT, LOG_I_DDEBUG,
+          "realm[%s]: Client[%s]: commfd: FD_ISSET",
           get_realmname(&config, j), get_clientname(pointer, k));
       if (pointer->clitable[k].ready == 2) {
 				n = get_message(pointer->type | TYPE_SSL | TYPE_ZLIB, pointer->clitable[k].cliconn, buff, -5);
@@ -1004,27 +1128,51 @@ main(int argc, char **argv)
 			}
 			if (n == -1) {
 				if (errno == EAGAIN) {
-				  aflog(4, "     realm[%s]: Client[%s]: commfd: EAGAIN",
+				  aflog(LOG_T_CLIENT, LOG_I_DDEBUG,
+              "realm[%s]: Client[%s]: commfd: EAGAIN",
               get_realmname(&config, j), get_clientname(pointer, k));
 					continue;
 				}
 				else {
-				  aflog(4, "     realm[%s]: Client[%s]: commfd: ERROR: %d",
+				  aflog(LOG_T_CLIENT, LOG_I_ERR,
+              "realm[%s]: Client[%s]: commfd: ERROR: %d",
               get_realmname(&config, j), get_clientname(pointer, k), errno);
 					n = 0;
 				}
 			}
 			else if (n != 5) {
         if (n != 0) {
-          aflog(4, "  realm[%s]: Client[%s]: header length = %d --> closing client",
+          aflog(LOG_T_CLIENT, LOG_I_ERR,
+              "realm[%s]: Client[%s]: header length = %d --> closing client",
               get_realmname(&config, j), get_clientname(pointer, k), n);
         }
 				n = 0;
 			}
 			if (n==0) { 
-        remove_client(pointer, k, &allset, &wset, &manconnecting);
-				aflog(1, "  realm[%s]: Client[%s]: commfd: CLOSED",
+				aflog(LOG_T_CLIENT, LOG_I_INFO,
+            "realm[%s]: Client[%s]: commfd: CLOSED",
             get_realmname(&config, j), get_clientname(pointer, k));
+        time(&now);
+        aflog(LOG_T_CLIENT, LOG_I_NOTICE,
+            "REALM: %s CLIENT: %s IP: %s PORT: %s DURATION: %s",
+            get_realmname(&config, j),
+            get_clientname(pointer, k),
+            pointer->clitable[k].namebuf,
+            pointer->clitable[k].portbuf,
+            timeperiod(now - pointer->clitable[k].connecttime));
+        if (pointer->audit) {
+          while (pointer->clitable[k].head) {
+            aflog(LOG_T_CLIENT, LOG_I_NOTICE,
+                "USERID: %d IP: %s PORT: %s CONNECTED: %s DURATION: %s",
+                pointer->clitable[k].head->userid,
+                pointer->clitable[k].head->namebuf,
+                pointer->clitable[k].head->portbuf,
+                localdate(&(pointer->clitable[k].head->connecttime)),
+                timeperiod(pointer->clitable[k].head->duration));
+            deletealnode(&(pointer->clitable[k].head));
+          }
+        }
+        remove_client(pointer, k, &allset, &wset, &manconnecting);
 				continue;
 			}
       
@@ -1040,7 +1188,8 @@ main(int argc, char **argv)
         buff[0] = AF_S_WRONG;
       }
       if (pointer->clitable[k].ready<2) {
-        aflog(1, "  realm[%s]: Client[%s]: Impossible behaviour --> ignoring",
+        aflog(LOG_T_CLIENT, LOG_I_WARNING,
+            "realm[%s]: Client[%s]: Impossible behaviour --> ignoring",
             get_realmname(&config, j), get_clientname(pointer, k));
         continue;
       }
@@ -1058,15 +1207,23 @@ main(int argc, char **argv)
                 pointer->clitable[k].users[n] = -1;
                 if (pointer->contable[numofcon].state == S_STATE_CLOSING) {
                   pointer->contable[numofcon].state = S_STATE_CLEAR; 
-                  aflog(3, "  realm[%s]: user[%d]: CLOSE CONFIRMED",
+                  aflog(LOG_T_USER, LOG_I_DEBUG,
+                      "realm[%s]: user[%d]: CLOSE CONFIRMED",
                       get_realmname(&config, j), get_username(pointer, numofcon));
                 }
                 else if ((pointer->contable[numofcon].state == S_STATE_OPEN) ||
     						      (pointer->contable[numofcon].state == S_STATE_STOPPED)) {
-                  aflog(1, "  realm[%s]: user[%d]: KICKED",
+                  aflog(LOG_T_USER, LOG_I_INFO,
+                      "realm[%s]: user[%d]: KICKED",
                       get_realmname(&config, j), get_username(pointer, numofcon));
-                  aflog(2, "   IP:%s PORT:%s", pointer->contable[numofcon].namebuf,
-    							pointer->contable[numofcon].portbuf);
+                  time(&now);
+                  aflog(LOG_T_USER, LOG_I_NOTICE,
+                      "REALM: %s USER: %d IP: %s PORT: %s DURATION: %s",
+                      get_realmname(&config, j),
+                      get_username(pointer, numofcon),
+                      pointer->contable[numofcon].namebuf,
+                      pointer->contable[numofcon].portbuf,
+                      timeperiod(now - pointer->contable[numofcon].connecttime));
                   close(pointer->contable[numofcon].connfd);
                   FD_CLR(pointer->contable[numofcon].connfd, &allset);
                   FD_CLR(pointer->contable[numofcon].connfd, &wset);
@@ -1087,7 +1244,8 @@ main(int argc, char **argv)
               numofcon = eval_numofcon(pointer, k, numofcon);
               if ((numofcon>=0) && (numofcon<(pointer->usernum)) && ((pointer->clitable[k].ready)==3)) {
                 if (pointer->contable[numofcon].state == S_STATE_OPENING) {
-                  aflog(2, "  realm[%s]: user[%d]: NEW",
+                  aflog(LOG_T_USER, LOG_I_INFO,
+                      "realm[%s]: user[%d]: NEW",
                       get_realmname(&config, j), get_username(pointer, numofcon));
                   FD_SET(pointer->contable[numofcon].connfd, &allset);
                   maxfdp1 = (maxfdp1 > (pointer->contable[numofcon].connfd+1)) ?
@@ -1105,7 +1263,8 @@ main(int argc, char **argv)
               numofcon = eval_numofcon(pointer, k, numofcon);
               if ((numofcon>=0) && (numofcon<(pointer->usernum)) && ((pointer->clitable[k].ready)==3)) {
                 if (pointer->contable[numofcon].state == S_STATE_OPENING) {
-                  aflog(2, "  realm[%s]: user[%d]: DROPPED",
+                  aflog(LOG_T_USER, LOG_I_INFO,
+                      "realm[%s]: user[%d]: DROPPED",
                       get_realmname(&config, j), get_username(pointer, numofcon));
                   pointer->usercon--;
                   pointer->clitable[k].usercon--;
@@ -1133,7 +1292,8 @@ main(int argc, char **argv)
               numofcon = eval_numofcon(pointer, k, numofcon);
               if ((numofcon>=0) && (numofcon<(pointer->usernum))) {
                 if (pointer->contable[numofcon].state == S_STATE_OPEN) {
-                  aflog(2, "  realm[%s]: TO user[%d]: MESSAGE length=%d",
+                  aflog(LOG_T_USER, LOG_I_DEBUG,
+                      "realm[%s]: TO user[%d]: MESSAGE length=%d",
                       get_realmname(&config, j), get_username(pointer, numofcon), n);
                   if (TYPE_IS_UDP(pointer->type)) { /* udp */
                     buff[1] = AF_S_LOGIN;
@@ -1142,10 +1302,17 @@ main(int argc, char **argv)
                     buff[4] = n;      /* low bits of message length */
                     sent = write(pointer->contable[numofcon].connfd, buff, n+5);
                     if (sent == -1) {
-                      aflog(1, "  realm[%s]: user[%d]: CLOSED (write-udp)",
+                      aflog(LOG_T_USER, LOG_I_INFO,
+                          "realm[%s]: user[%d]: CLOSED (write-udp)",
                           get_realmname(&config, j), get_username(pointer, numofcon));
-                      aflog(2, "   IP:%s PORT:%s", pointer->contable[numofcon].namebuf,
-                          pointer->contable[numofcon].portbuf);
+                      time(&now);
+                      aflog(LOG_T_USER, LOG_I_NOTICE,
+                          "REALM: %s USER: %d IP: %s PORT: %s DURATION: %s",
+                          get_realmname(&config, j),
+                          get_username(pointer, numofcon),
+                          pointer->contable[numofcon].namebuf,
+                          pointer->contable[numofcon].portbuf,
+                          timeperiod(now - pointer->contable[numofcon].connecttime));
                       close(pointer->contable[numofcon].connfd);
                       FD_CLR(pointer->contable[numofcon].connfd, &allset);
                       FD_CLR(pointer->contable[numofcon].connfd, &wset);
@@ -1166,7 +1333,8 @@ main(int argc, char **argv)
                       buff[0] = AF_S_DONT_SEND; /* stopping transfer */
                       buff[1] = numofcon >> 8;	/* high bits of user number */
                       buff[2] = numofcon;		/* low bits of user number */
-                      aflog(3, "  realm[%s]: TO user[%d]: BUFFERING MESSAGE STARTED (%d/%d)",
+                      aflog(LOG_T_USER, LOG_I_DDEBUG,
+                          "realm[%s]: TO user[%d]: BUFFERING MESSAGE STARTED (%d/%d)",
                           get_realmname(&config, j), get_username(pointer, numofcon), sent, n);
                       send_message(pointer->type, pointer->clitable[k].cliconn, buff, 5);
                     }
@@ -1177,15 +1345,23 @@ main(int argc, char **argv)
                       buff[0] = AF_S_DONT_SEND; /* stopping transfer */
                       buff[1] = numofcon >> 8;	/* high bits of user number */
                       buff[2] = numofcon;		/* low bits of user number */
-                      aflog(3, "  realm[%s]: TO user[%d]: BUFFERING MESSAGE STARTED (%d/%d)",
+                      aflog(LOG_T_USER, LOG_I_DDEBUG,
+                          "realm[%s]: TO user[%d]: BUFFERING MESSAGE STARTED (%d/%d)",
                           get_realmname(&config, j), get_username(pointer, numofcon), sent, n);
                       send_message(pointer->type, pointer->clitable[k].cliconn, buff, 5);
                     }
                     else if (sent == -1) {
-                      aflog(1, "  realm[%s]: user[%d]: CLOSED (write-tcp)",
+                      aflog(LOG_T_USER, LOG_I_INFO,
+                          "realm[%s]: user[%d]: CLOSED (write-tcp)",
                           get_realmname(&config, j), get_username(pointer, numofcon));
-                      aflog(2, "   IP:%s PORT:%s", pointer->contable[numofcon].namebuf,
-                          pointer->contable[numofcon].portbuf);
+                      time(&now);
+                      aflog(LOG_T_USER, LOG_I_NOTICE,
+                          "REALM: %s USER: %d IP: %s PORT: %s DURATION: %s",
+                          get_realmname(&config, j),
+                          get_username(pointer, numofcon),
+                          pointer->contable[numofcon].namebuf,
+                          pointer->contable[numofcon].portbuf,
+                          timeperiod(now - pointer->contable[numofcon].connecttime));
                       close(pointer->contable[numofcon].connfd);
                       FD_CLR(pointer->contable[numofcon].connfd, &allset);
                       FD_CLR(pointer->contable[numofcon].connfd, &wset);
@@ -1199,7 +1375,8 @@ main(int argc, char **argv)
                   }
                 }
                 else if (pointer->contable[numofcon].state == S_STATE_STOPPED) {
-                  aflog(3, "  realm[%s]: TO user[%d]: BUFFERING MESSAGE (%d)",
+                  aflog(LOG_T_USER, LOG_I_DDEBUG,
+                      "realm[%s]: TO user[%d]: BUFFERING MESSAGE (%d)",
                       get_realmname(&config, j), get_username(pointer, numofcon), n);
                   if (TYPE_IS_UDP(pointer->type)) { /* udp */
                     buff[1] = AF_S_LOGIN;
@@ -1213,7 +1390,8 @@ main(int argc, char **argv)
                   }
                 }
                 else if (pointer->contable[numofcon].state == S_STATE_CLOSING) {
-                  aflog(3, "  realm[%s]: TO user[%d]: IGNORED message length=%d",
+                  aflog(LOG_T_USER, LOG_I_WARNING,
+                      "realm[%s]: TO user[%d]: IGNORED message length=%d",
                       get_realmname(&config, j), get_username(pointer, numofcon), n);
                 }
               }
@@ -1224,7 +1402,8 @@ main(int argc, char **argv)
                   (length==(pointer->pass[2]*256+pointer->pass[3]))) {
                 if (k != pointer->clinum) {
                   pointer->clitable[k].ready = 3;
-                  aflog(1, "  realm[%s]: Client[%s]: pass ok - ACCESS GRANTED",
+                  aflog(LOG_T_CLIENT, LOG_I_INFO,
+                      "realm[%s]: Client[%s]: pass ok - ACCESS GRANTED",
                       get_realmname(&config, j), get_clientname(pointer, k));
                   buff[0] = AF_S_LOGIN; /* sending message */
                   buff[1] = pointer->clitable[k].usernum >> 8;/* high bits of user number */
@@ -1236,7 +1415,8 @@ main(int argc, char **argv)
                     long tmp_val;
                     char tmp_tab[6];
                     if (check_long(pointer->usrclitable[pointer->clitable[k].whatusrcli].lisportnum, &tmp_val)) {
-                      aflog(1, "  realm[%s]: INVALID listenport - removing Client[%s]",
+                      aflog(LOG_T_CLIENT, LOG_I_ERR,
+                          "realm[%s]: INVALID listenport - removing Client[%s]",
                           get_realmname(&config, j), get_clientname(pointer, k));
                       remove_client(pointer, k, &allset, &wset, &manconnecting);
                       break;
@@ -1262,12 +1442,14 @@ main(int argc, char **argv)
                     FD_SET(pointer->clitable[k].listenfd, &allset);
                     maxfdp1 = (maxfdp1 > (pointer->clitable[k].listenfd+1)) ?
                       maxfdp1 : (pointer->clitable[k].listenfd+1);
-                    aflog(1, "  realm[%s]: Client[%s]: listenport=%s",
+                    aflog(LOG_T_CLIENT, LOG_I_INFO,
+                        "realm[%s]: Client[%s]: listenport=%s",
                         get_realmname(&config, j), get_clientname(pointer, k), tmp_tab);
                   }
                 }
                 else {
-                  aflog(3, " realm[%s]: client limit EXCEEDED", get_realmname(&config, j));
+                  aflog(LOG_T_CLIENT, LOG_I_WARNING,
+                      "realm[%s]: client limit EXCEEDED", get_realmname(&config, j));
                   buff[0] = AF_S_CANT_OPEN; /* sending message */
                   send_message(pointer->type | TYPE_SSL, pointer->clitable[k].cliconn, buff, 5);
                   remove_client(pointer, k, &allset, &wset, &manconnecting);
@@ -1276,7 +1458,8 @@ main(int argc, char **argv)
               else if ((pointer->clitable[k].ready == 3) && (numofcon == 0)) {
                 n = get_message(pointer->type, pointer->clitable[k].cliconn, buff, length);
                 buff[n] = 0;
-                aflog(1, "  realm[%s]: Client[%s]: ID received: %s",
+                aflog(LOG_T_CLIENT, LOG_I_INFO,
+                    "realm[%s]: Client[%s]: ID received: %s",
                     get_realmname(&config, j), get_clientname(pointer, k), buff);
                 if (pointer->clitable[k].clientid) {
                   free(pointer->clitable[k].clientid);
@@ -1287,26 +1470,32 @@ main(int argc, char **argv)
                 }
               }
               else {
-                aflog(1, "  realm[%s]: Client[%s]: Wrong password - CLOSING",
+                aflog(LOG_T_CLIENT, LOG_I_ERR,
+                    "realm[%s]: Client[%s]: Wrong password - CLOSING",
                     get_realmname(&config, j), get_clientname(pointer, k));
+                buff[0] = AF_S_WRONG; /* sending message */
+                send_message(pointer->type | TYPE_SSL, pointer->clitable[k].cliconn, buff, 5);
                 remove_client(pointer, k, &allset, &wset, &manconnecting);
               }
               break;
                           }
         case AF_S_DONT_SEND: {
-              aflog(3, "  realm[%s]: user[%d]: STOP READING",
+              aflog(LOG_T_CLIENT, LOG_I_DEBUG,
+                  "realm[%s]: user[%d]: STOP READING",
                   get_realmname(&config, j), get_username(pointer, numofcon));
               FD_CLR(pointer->contable[numofcon].connfd, &allset);
               break;
                              }
         case AF_S_CAN_SEND: {
-              aflog(3, "  realm[%s]: user[%d]: START READING",
+              aflog(LOG_T_CLIENT, LOG_I_DEBUG,
+                  "realm[%s]: user[%d]: START READING",
                   get_realmname(&config, j), get_username(pointer, numofcon));
               FD_SET(pointer->contable[numofcon].connfd, &allset);
               break;
                             }
         case AF_S_WRONG: {
-              aflog(1, "  realm[%s]: Client[%s]: Wrong message - CLOSING",
+              aflog(LOG_T_CLIENT, LOG_I_ERR,
+                  "realm[%s]: Client[%s]: Wrong message - CLOSING",
                   get_realmname(&config, j), get_clientname(pointer, k));
               remove_client(pointer, k, &allset, &wset, &manconnecting);
               break;
@@ -1314,12 +1503,16 @@ main(int argc, char **argv)
         case AF_S_ADMIN_LOGIN: {
               if ((pointer->clitable[k].ready == 2) && (numofcon==(pointer->pass[0]*256+pointer->pass[1])) &&
                   (length==(pointer->pass[2]*256+pointer->pass[3]))) {
-                aflog(1, "  realm[%s]: Client[%s]: NEW remote admin -- pass OK",
+                aflog(LOG_T_MANAGE, LOG_I_INFO,
+                    "realm[%s]: Client[%s]: NEW remote admin -- pass OK",
                     get_realmname(&config, j), get_clientname(pointer, k));
                 for (l = 0; l < pointer->raclinum; ++l) {
                   if (pointer->raclitable[l].ready == 0) {
                     pointer->raclitable[l].cliconn.commfd = pointer->clitable[k].cliconn.commfd;
                     pointer->raclitable[l].connecttime = pointer->clitable[k].connecttime;
+#ifdef HAVE_LIBPTHREAD
+                    pointer->raclitable[l].tunneltype = pointer->clitable[k].tunneltype;
+#endif
                     pointer->raclitable[l].clientnum = pointer->clitable[k].clientnum;
                     memcpy(pointer->raclitable[l].namebuf, pointer->clitable[k].namebuf, 128);
                     memcpy(pointer->raclitable[l].portbuf, pointer->clitable[k].portbuf, 7);
@@ -1344,7 +1537,8 @@ main(int argc, char **argv)
                   send_message(pointer->type | TYPE_SSL, pointer->raclitable[l].cliconn, buff, n+5);
                 }
                 else {
-                  aflog(1, "  realm[%s]: Client[%s]: remote admin -- limit EXCEEDED",
+                  aflog(LOG_T_MANAGE, LOG_I_WARNING,
+                      "realm[%s]: Client[%s]: remote admin -- limit EXCEEDED",
                       get_realmname(&config, j), get_clientname(pointer, k));
                   buff[0] = AF_S_CANT_OPEN; /* sending message */
                   send_message(pointer->type | TYPE_SSL | TYPE_ZLIB, pointer->clitable[k].cliconn, buff, 5);
@@ -1353,8 +1547,15 @@ main(int argc, char **argv)
               }
               break;
                          }
+        case AF_S_KEEP_ALIVE: {
+              aflog(LOG_T_CLIENT, LOG_I_DEBUG,
+                  "realm[%s]: Client[%s]: Keep alive packet",
+                  get_realmname(&config, j), get_clientname(pointer, k));
+              break;
+                         }
 				default : {
-              aflog(1, "  realm[%s]: Client[%s]: Unrecognized message - CLOSING",
+              aflog(LOG_T_CLIENT, LOG_I_ERR,
+                  "realm[%s]: Client[%s]: Unrecognized message - CLOSING",
                   get_realmname(&config, j), get_clientname(pointer, k));
               remove_client(pointer, k, &allset, &wset, &manconnecting);
                   }
@@ -1365,7 +1566,8 @@ main(int argc, char **argv)
 		if ((pointer->raclitable[k].ready != 0) && (FD_ISSET(pointer->raclitable[k].cliconn.commfd, &rset))) {
 			if (pointer->raclitable[k].ready == 1) {
         make_ssl_initialize(&(pointer->raclitable[k].cliconn));
-				aflog(2, "  realm[%s]: new Client[%s] (ra): SSL_accept",
+				aflog(LOG_T_MANAGE, LOG_I_DDEBUG,
+            "realm[%s]: new Client[%s] (ra): SSL_accept",
             get_realmname(&config, j), get_raclientname(pointer, k));
         switch (make_ssl_accept(&(pointer->raclitable[k].cliconn))) {
           case 2: {
@@ -1375,45 +1577,52 @@ main(int argc, char **argv)
                     pointer->raclitable[k].ready = 0;
                     manconnecting--;
                     pointer->clicon--;
-                    aflog(1, "  realm[%s]: new Client[%s] (ra): DENIED by SSL_accept",
+                    aflog(LOG_T_MANAGE, LOG_I_ERR,
+                        "realm[%s]: new Client[%s] (ra): DENIED by SSL_accept",
                         get_realmname(&config, j), get_raclientname(pointer, k));
                   }
           case 1: {
                     continue;
                   }
           default: {
-                     aflog(1, "  realm[%s]: new Client[%s] (ra): ACCEPTED by SSL_accept",
+                     aflog(LOG_T_MANAGE, LOG_I_DEBUG,
+                         "realm[%s]: new Client[%s] (ra): ACCEPTED by SSL_accept",
                          get_realmname(&config, j), get_raclientname(pointer, k));
                      pointer->raclitable[k].ready = 2;
                      continue;
                    }
         }
 			}
-			aflog(3, " realm[%s]: Client[%s] (ra): commfd: FD_ISSET",
+			aflog(LOG_T_MANAGE, LOG_I_DDEBUG,
+          "realm[%s]: Client[%s] (ra): commfd: FD_ISSET",
           get_realmname(&config, j), get_raclientname(pointer, k));
 			n = get_message(pointer->type | TYPE_SSL | TYPE_ZLIB, pointer->raclitable[k].cliconn, buff, -5);
 			if (n == -1) {
 				if (errno == EAGAIN) {
-				  aflog(4, "     realm[%s]: Client[%s] (ra): commfd: EAGAIN",
+				  aflog(LOG_T_MANAGE, LOG_I_DDEBUG,
+              "realm[%s]: Client[%s] (ra): commfd: EAGAIN",
               get_realmname(&config, j), get_raclientname(pointer, k));
 					continue;
 				}
 				else {
-				  aflog(4, "     realm[%s]: Client[%s] (ra): commfd: ERROR: %d",
+				  aflog(LOG_T_MANAGE, LOG_I_ERR,
+              "realm[%s]: Client[%s] (ra): commfd: ERROR: %d",
               get_realmname(&config, j), get_raclientname(pointer, k), errno);
 					n = 0;
 				}
 			}
 			else if (n != 5) {
         if (n != 0) {
-          aflog(4, "  realm[%s]: Client[%s] (ra): header length = %d --> closing client",
+          aflog(LOG_T_MANAGE, LOG_I_ERR,
+              "realm[%s]: Client[%s] (ra): header length = %d --> closing client",
               get_realmname(&config, j), get_raclientname(pointer, k), n);
         }
 				n = 0;
 			}
 			if (n==0) { 
         remove_raclient(pointer, k, &allset, &wset, &manconnecting);
-				aflog(1, "  realm[%s]: Client[%s] (ra): commfd: CLOSED",
+				aflog(LOG_T_MANAGE, LOG_I_INFO,
+            "realm[%s]: Client[%s] (ra): commfd: CLOSED",
             get_realmname(&config, j), get_raclientname(pointer, k));
 				continue;
 			}
@@ -1426,7 +1635,8 @@ main(int argc, char **argv)
       length += buff[4]; /* this is length of message */ 
      
       if (pointer->raclitable[k].ready<2) {
-        aflog(1, "  realm[%s]: Client[%s] (ra): Impossible behaviour --> ignoring",
+        aflog(LOG_T_MANAGE, LOG_I_WARNING,
+            "realm[%s]: Client[%s] (ra): Impossible behaviour --> ignoring",
             get_realmname(&config, j), get_raclientname(pointer, k));
         continue;
       }
@@ -1440,10 +1650,14 @@ main(int argc, char **argv)
                   (length==(pointer->pass[2]*256+pointer->pass[3]))) {
                 for (l = 0; l < pointer->clinum; ++l) {
                   if (!(pointer->clitable[l].ready)) {
-                    aflog(1, "  realm[%s]: Client[%s] (ra) --> Client[%s]",
+                    aflog(LOG_T_MANAGE | LOG_T_CLIENT, LOG_I_INFO,
+                        "realm[%s]: Client[%s] (ra) --> Client[%s]",
                         get_realmname(&config, j), get_raclientname(pointer, k), get_clientname(pointer, l));
                     pointer->clitable[l].cliconn.commfd = pointer->raclitable[k].cliconn.commfd;
                     pointer->clitable[l].connecttime = pointer->raclitable[k].connecttime;
+#ifdef HAVE_LIBPTHREAD
+                    pointer->clitable[l].tunneltype = pointer->raclitable[k].tunneltype;
+#endif
                     pointer->clitable[l].clientnum = pointer->raclitable[k].clientnum;
                     memcpy(pointer->clitable[l].namebuf, pointer->raclitable[k].namebuf, 128);
                     memcpy(pointer->clitable[l].portbuf, pointer->raclitable[k].portbuf, 7);
@@ -1457,7 +1671,8 @@ main(int argc, char **argv)
                 }
                 if (l != pointer->clinum) {
                   pointer->clitable[l].ready = 3;
-                  aflog(1, "  realm[%s]: Client[%s]: pass ok - ACCESS GRANTED",
+                  aflog(LOG_T_CLIENT, LOG_I_INFO,
+                      "realm[%s]: Client[%s]: pass ok - ACCESS GRANTED",
                       get_realmname(&config, j), get_clientname(pointer, l));
                   buff[0] = AF_S_LOGIN; /* sending message */
                   buff[1] = pointer->clitable[l].usernum >> 8;/* high bits of user number */
@@ -1469,7 +1684,8 @@ main(int argc, char **argv)
                     long tmp_val;
                     char tmp_tab[6];
                     if (check_long(pointer->usrclitable[pointer->clitable[l].whatusrcli].lisportnum, &tmp_val)) {
-                      aflog(1, "  realm[%s]: INVALID listenport - removing Client[%s]",
+                      aflog(LOG_T_CLIENT, LOG_I_ERR,
+                          "realm[%s]: INVALID listenport - removing Client[%s]",
                           get_realmname(&config, j), get_clientname(pointer, l));
                       remove_client(pointer, l, &allset, &wset, &manconnecting);
                       break;
@@ -1495,12 +1711,14 @@ main(int argc, char **argv)
                     FD_SET(pointer->clitable[l].listenfd, &allset);
                     maxfdp1 = (maxfdp1 > (pointer->clitable[l].listenfd+1)) ?
                       maxfdp1 : (pointer->clitable[l].listenfd+1);
-                    aflog(1, "  realm[%s]: Client[%s]: listenport=%s",
+                    aflog(LOG_T_CLIENT, LOG_I_INFO,
+                        "realm[%s]: Client[%s]: listenport=%s",
                         get_realmname(&config, j), get_clientname(pointer, l), tmp_tab);
                   }
                 }
                 else {
-                  aflog(3, " realm[%s]: client limit EXCEEDED", get_realmname(&config, j));
+                  aflog(LOG_T_CLIENT, LOG_I_WARNING,
+                      "realm[%s]: client limit EXCEEDED", get_realmname(&config, j));
                   buff[0] = AF_S_CANT_OPEN; /* sending message */
                   send_message(pointer->type | TYPE_SSL | TYPE_ZLIB, pointer->raclitable[k].cliconn, buff, 5);
                   remove_raclient(pointer, k, &allset, &wset, &manconnecting);
@@ -1509,7 +1727,8 @@ main(int argc, char **argv)
               else if ((pointer->raclitable[k].ready == 3) && (numofcon == 0)) {
                 n = get_message(pointer->type, pointer->raclitable[k].cliconn, buff, length);
                 buff[n] = 0;
-                aflog(1, "  realm[%s]: Client[%s] (ra): ID received: %s",
+                aflog(LOG_T_MANAGE, LOG_I_INFO,
+                    "realm[%s]: Client[%s] (ra): ID received: %s",
                     get_realmname(&config, j), get_raclientname(pointer, k), buff);
                 if (pointer->raclitable[k].clientid) {
                   free(pointer->raclitable[k].clientid);
@@ -1520,14 +1739,16 @@ main(int argc, char **argv)
                 }
               }
               else {
-                aflog(1, "  realm[%s]: Client[%s] (ra): Wrong password - CLOSING",
+                aflog(LOG_T_MANAGE, LOG_I_ERR,
+                    "realm[%s]: Client[%s] (ra): Wrong password - CLOSING",
                     get_realmname(&config, j), get_raclientname(pointer, k));
                 remove_raclient(pointer, k, &allset, &wset, &manconnecting);
               }
               break;
                           }
         case AF_S_WRONG: {
-              aflog(1, "  realm[%s]: Client[%s] (ra): Wrong message - CLOSING",
+              aflog(LOG_T_MANAGE, LOG_I_ERR,
+                  "realm[%s]: Client[%s] (ra): Wrong message - CLOSING",
                   get_realmname(&config, j), get_raclientname(pointer, k));
               remove_raclient(pointer, k, &allset, &wset, &manconnecting);
               break;
@@ -1535,7 +1756,8 @@ main(int argc, char **argv)
         case AF_S_ADMIN_LOGIN: {
               if ((pointer->raclitable[k].ready == 2) && (numofcon==(pointer->pass[0]*256+pointer->pass[1])) &&
                   (length==(pointer->pass[2]*256+pointer->pass[3]))) {
-                aflog(1, "  realm[%s]: Client[%s] (ra): NEW remote admin -- pass OK",
+                aflog(LOG_T_MANAGE, LOG_I_INFO,
+                    "realm[%s]: Client[%s] (ra): NEW remote admin -- pass OK",
                     get_realmname(&config, j), get_raclientname(pointer, k));
                 pointer->raclitable[k].ready = 3;
                 pointer->raclicon++;
@@ -1553,19 +1775,67 @@ main(int argc, char **argv)
                          }
         case AF_S_ADMIN_CMD: {
               if (pointer->raclitable[k].ready == 3) {
-                if (serve_admin(&config, j, k, buff)) {
-                  remove_raclient(pointer, k, &allset, &wset, &manconnecting);
+                if ((n = serve_admin(&config, j, k, buff))) {
+                  if (n == 1) {
+                    aflog(LOG_T_MANAGE, LOG_I_NOTICE,
+                        "realm[%s]: Client[%s] (ra): remote admin -- closing",
+                        get_realmname(&config, j), get_raclientname(pointer, k));
+                    remove_raclient(pointer, k, &allset, &wset, &manconnecting);
+                  }
+                  else {
+                    for (i = 0; i < config.size; ++i) {
+                      l = get_clientnumber(&(config.realmtable[i]), n-2);
+                      if (l != -1) {
+                        aflog(LOG_T_MANAGE, LOG_I_NOTICE,
+                            "realm[%s]: Client[%s] (ra): remote admin: KICKING realm[%s]: Client[%s]",
+                            get_realmname(&config, j), get_raclientname(pointer, k),
+                            get_realmname(&config, i), get_clientname(&(config.realmtable[i]), l));
+                        buff[0] = AF_S_CLOSING; /* closing */
+                        send_message(config.realmtable[i].type,config.realmtable[i].clitable[l].cliconn,buff,5);
+                        time(&now);
+                        aflog(LOG_T_CLIENT, LOG_I_NOTICE,
+                            "REALM: %s CLIENT: %s IP: %s PORT: %s DURATION: %s",
+                            get_realmname(&config, j),
+                            get_clientname(&(config.realmtable[i]), l),
+                            config.realmtable[i].clitable[l].namebuf,
+                            config.realmtable[i].clitable[l].portbuf,
+                            timeperiod(now - config.realmtable[i].clitable[l].connecttime));
+                        if (config.realmtable[i].audit) {
+                          while (config.realmtable[i].clitable[l].head) {
+                            aflog(LOG_T_CLIENT, LOG_I_NOTICE,
+                                "USERID: %d IP: %s PORT: %s CONNECTED: %s DURATION: %s",
+                                config.realmtable[i].clitable[l].head->userid,
+                                config.realmtable[i].clitable[l].head->namebuf,
+                                config.realmtable[i].clitable[l].head->portbuf,
+                                localdate(&(config.realmtable[i].clitable[l].head->connecttime)),
+                                timeperiod(config.realmtable[i].clitable[l].head->duration));
+                            deletealnode(&(config.realmtable[i].clitable[l].head));
+                          }
+                        }
+                        remove_client(&(config.realmtable[i]), l, &allset, &wset, &manconnecting);
+                        break;
+                      }
+                    }
+                  }
                 }
               }
               else {
-                aflog(1, "  realm[%s]: Client[%s] (ra): remote admin -- security VIOLATION",
+                aflog(LOG_T_MANAGE, LOG_I_ERR,
+                    "realm[%s]: Client[%s] (ra): remote admin -- security VIOLATION",
                     get_realmname(&config, j), get_raclientname(pointer, k));
                 remove_raclient(pointer, k, &allset, &wset, &manconnecting);
               }
               break;
                              }
+        case AF_S_KEEP_ALIVE: {
+              aflog(LOG_T_MANAGE, LOG_I_DEBUG,
+                  "realm[%s]: Client[%s] (ra): Keep alive packet",
+                  get_realmname(&config, j), get_raclientname(pointer, k));
+              break;
+                         }
 				default : {
-              aflog(1, "  realm[%s]: Client[%s] (ra): Unrecognized message - CLOSING",
+              aflog(LOG_T_MANAGE, LOG_I_ERR,
+                  "realm[%s]: Client[%s] (ra): Unrecognized message - CLOSING",
                   get_realmname(&config, j), get_raclientname(pointer, k));
               remove_raclient(pointer, k, &allset, &wset, &manconnecting);
                   }
@@ -1574,21 +1844,37 @@ main(int argc, char **argv)
 		/* ------------------------------------ */    
     for (l = 0; l < pointer->usrclinum; ++l) {
       if (FD_ISSET(pointer->usrclitable[l].managefd, &rset)) {
-        aflog(3, " realm[%s]: managefd: FD_ISSET", get_realmname(&config, j));
+        aflog(LOG_T_CLIENT, LOG_I_DDEBUG,
+            "realm[%s]: managefd: FD_ISSET", get_realmname(&config, j));
         len = pointer->addrlen;
-        sent = accept(pointer->usrclitable[l].managefd,pointer->cliaddr,&len);
+#ifdef HAVE_LIBPTHREAD
+        sent = get_new_socket(pointer->usrclitable[l].managefd,pointer->tunneltype,pointer->cliaddr,
+            &len,&tunneltype); 
+#else
+        sent = accept(pointer->usrclitable[l].managefd, pointer->cliaddr, &len);
+#endif
+        if (sent == -1) {
+          aflog(LOG_T_USER, LOG_I_DDEBUG,
+              "realm[%s]: listenfd: FD_ISSET --> EAGAIN", get_realmname(&config, j));
+          continue;
+        }
         flags = fcntl(sent, F_GETFL, 0);
         fcntl(sent, F_SETFL, flags | O_NONBLOCK);
         for (k = 0; k < pointer->clinum; ++k) {
           if (!(pointer->clitable[k].ready)) {
             pointer->clitable[k].clientnum = pointer->clientcounter;
             ++(pointer->clientcounter);
-            aflog(2, "  realm[%s]: new Client[%s]: CONNECTING",
+            aflog(LOG_T_CLIENT, LOG_I_INFO,
+                "realm[%s]: new Client[%s]: CONNECTING",
                 get_realmname(&config, j), get_clientname(pointer, k));
             pointer->clitable[k].cliconn.commfd = sent;
             pointer->clitable[k].whatusrcli = l;
             time(&pointer->clitable[k].connecttime);
-            aflog(1, "  realm[%s]: new Client[%s] IP:%s", get_realmname(&config, j), get_clientname(pointer, k),
+#ifdef HAVE_LIBPTHREAD
+            pointer->clitable[k].tunneltype = tunneltype;
+#endif
+            aflog(LOG_T_CLIENT, LOG_I_INFO,
+                "realm[%s]: new Client[%s] IP:%s", get_realmname(&config, j), get_clientname(pointer, k),
                 sock_ntop(pointer->cliaddr, len, pointer->clitable[k].namebuf,
                   pointer->clitable[k].portbuf, pointer->dnslookups));
             FD_SET(pointer->clitable[k].cliconn.commfd, &allset);
@@ -1606,12 +1892,17 @@ main(int argc, char **argv)
             if ((!pointer->raclitable[k].ready)) {
               pointer->raclitable[k].clientnum = pointer->clientcounter;
               ++(pointer->clientcounter);
-              aflog(2, "  realm[%s]: new Client[%s] (ra): CONNECTING",
+              aflog(LOG_T_MANAGE, LOG_I_INFO,
+                  "realm[%s]: new Client[%s] (ra): CONNECTING",
                   get_realmname(&config, j), get_raclientname(pointer, k));
               pointer->raclitable[k].cliconn.commfd = sent;
               pointer->raclitable[k].whatusrcli = l;
               time(&pointer->raclitable[k].connecttime);
-              aflog(1, "  realm[%s]: new Client[%s] (ra) IP:%s",
+#ifdef HAVE_LIBPTHREAD
+              pointer->raclitable[k].tunneltype = tunneltype;
+#endif
+              aflog(LOG_T_MANAGE, LOG_I_INFO,
+                  "realm[%s]: new Client[%s] (ra) IP:%s",
                   get_realmname(&config, j), get_raclientname(pointer, k),
                   sock_ntop(pointer->cliaddr, len, pointer->raclitable[k].namebuf,
                     pointer->raclitable[k].portbuf, pointer->dnslookups));
@@ -1626,7 +1917,8 @@ main(int argc, char **argv)
             }
           }
           if (k == pointer->raclinum) {
-            aflog(3, " realm[%s]: client limit EXCEEDED", get_realmname(&config, j));
+            aflog(LOG_T_CLIENT | LOG_T_MANAGE, LOG_I_WARNING,
+                "realm[%s]: client limit EXCEEDED", get_realmname(&config, j));
             close(sent);
           }
         }
@@ -1635,86 +1927,3 @@ main(int argc, char **argv)
   } /* realms loop */
   }
 }
-
-static void
-usage(char* info)
-{	
-   printf("\n%s\n\n\n", info);
-   printf(" Basic options:\n\n");
-   printf("  -n, --hostname      - it's used when creating listening sockets\n");
-   printf("                        (default: '')\n");
-   printf("  -l, --listenport    - listening port number - users connect\n");
-   printf("                        to it (default: 50127)\n");
-   printf("  -m, --manageport    - manage port number - second part of the active\n");
-   printf("                        port forwarder connects to it (default: 50126)\n");
-   printf("  -h, --help          - prints this help\n\n");
-   printf(" Authorization:\n\n");
-   printf("  --pass              - set the password used for client identification\n");
-   printf("                        (default: no password)\n\n");
-   printf(" Configuration:\n\n");
-   printf("  -c, --cerfile       - the name of the file with certificate\n");
-   printf("                        (default: cacert.pem)\n");
-   printf("  -k, --keyfile       - the name of the file with RSA key (default: server.rsa)\n");
-   printf("  -f, --cfgfile       - the name of the file with the configuration for the\n");
-   printf("                        active forwarder (server)\n");
-   printf("  -D, --dateformat    - format of the date printed in logs (see 'man strftime'\n");
-   printf("                        for details) (default: %%d.%%m.%%Y %%H:%%M:%%S)\n\n");
-   printf("  -t, --timeout       - the timeout value for the client's connection\n");
-   printf("                        (default: 5)\n");
-   printf("  -u, --users         - the amount of users allowed to use this server\n");
-   printf("                        (default: 5)\n");
-   printf("  -C, --clients       - the number of allowed clients to use this server\n");
-   printf("                        (default: 1)\n");
-   printf("  -r, --realm         - set the realm name (default: none)\n");
-   printf("  -R, --raclients     - the number of allowed clients in remote administration\n");
-   printf("                        mode to use this server (default: 1)\n");
-   printf("  -U, --usrpcli       - the number of allowed users per client (default: $users)\n");
-   printf("  -M, --climode       - strategy used to connect users with clients (default: 1)\n");
-   printf("                      Available strategies:\n");
-   printf("                        1. fill first client before go to next\n\n");
-   printf("  -p, --proto         - type of server (tcp|udp) - what protocol it will be\n");
-   printf("                        operating for (default: tcp)\n");
-   printf("  -b, --baseport      - listenports are temporary and differ for each client\n");
-   printf("  --nossl             - ssl is not used to transfer data (but it's still used\n");
-   printf("                        to establish a connection) (default: ssl is used)\n");
-   printf("  --nozlib            - zlib is not used to compress data (default: zlib is\n");
-   printf("                        used)\n");
-   printf("  --dnslookups        - try to obtain dns names of the computers rather than\n");
-   printf("                        their numeric IP\n\n");
-   printf(" Logging:\n\n");
-   printf("  -O, --heavylog      - logging everything to a logfile\n");
-   printf("  -o, --lightlog      - logging some data to a logfile\n");
-   printf("  -S, --heavysocklog  - logging everything to a localport\n");
-   printf("  -s, --lightsocklog  - logging some data to a localport\n");
-   printf("  -v, --verbose       - to be verbose - program won't enter the daemon mode\n");
-   printf("                        (use several times for greater effect)\n\n");
-#ifdef AF_INET6
-   printf(" IP family:\n\n");
-   printf("  -4, --ipv4          - use ipv4 only\n");
-   printf("  -6, --ipv6          - use ipv6 only\n\n");
-#endif
-   exit(0);
-}
-
-static void
-sig_int(int signo)
-{
-	int i, j;
-	unsigned char buff[5];
-	for (j = 0; j < config.size; ++j) {
-		buff[0] = AF_S_CLOSING; /* closing */
-    for (i = 0; i < config.realmtable[j].clinum+1; ++i) {
-      if (config.realmtable[j].clitable[i].ready == 3) {
-        if (config.realmtable[j].clinum == i) {
-          send_message(config.realmtable[j].type | TYPE_SSL, config.realmtable[j].clitable[i].cliconn, buff, 5);
-        }
-        else {
-          send_message(config.realmtable[j].type, config.realmtable[j].clitable[i].cliconn, buff, 5);
-        }
-      }
-    }
-	}
-        aflog(1, "SERVER CLOSED cg: %ld bytes", getcg());
-        exit(0);
-}
-

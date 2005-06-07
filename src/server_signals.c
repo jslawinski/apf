@@ -18,41 +18,49 @@
  *
  */
 
+#include <config.h>
+
+#include "server_signals.h"
 #include "activefor.h"
-#include "network.h"
-#include "stats.h"
-#include "modules.h"
-#include "remoteadmin.h"
-#include "make_ssl_handshake.h"
-#include "first_run.h"
-#include "http_proxy_client.h"
 #include "thread_management.h"
-#include "client_reverse_udp.h"
-#include "server_check.h"
-#include "client_initialization.h"
 #include "http_proxy_functions.h"
-#include "client_shutdown.h"
-#include "client_signals.h"
-#include "usage.h"
+#include "stats.h"
 #include "logging.h"
-#include "audit.h"
 
-#include <openssl/rsa.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#include <sys/time.h>
-#include <sys/ioctl.h>
-#ifdef HAVE_LINUX_SOCKIOS_H
-#include <linux/sockios.h>
+extern ConfigurationT config;
+
+  void
+server_sig_int(int signo)
+{
+  int i, j;
+  unsigned char buff[5];
+  
+#ifdef HAVE_LIBPTHREAD
+  if (!is_this_a_mainthread()) {
+    return;
+  }
 #endif
-#include <signal.h>
-#include <string.h>
-#include <fcntl.h>
 
-#include <getopt.h>
+  for (j = 0; j < config.size; ++j) {
+    buff[0] = AF_S_CLOSING; /* closing */
+    for (i = 0; i < config.realmtable[j].clinum; ++i) {
+      if (config.realmtable[j].clitable[i].ready == 3) {
+        send_message(config.realmtable[j].type,config.realmtable[j].clitable[i].cliconn,buff,5);
+      }
+    }
+    for (i = 0; i < config.realmtable[j].raclinum; ++i) {
+      if (config.realmtable[j].raclitable[i].ready == 3) {
+        send_message(config.realmtable[j].type | TYPE_SSL, config.realmtable[j].raclitable[i].cliconn, buff, 5);
+      }
+    }
 
-#ifndef _JS_AFCLIENT_H
-#define _JS_AFCLIENT_H
+  }
 
-#endif
+  /* FIXME: give a time to close all connections */
+  mysleep(0.1);
+
+  aflog(LOG_T_MAIN, LOG_I_NOTICE,
+      "SERVER CLOSED cg: %ld bytes", getcg());
+  exit(0);
+}
 

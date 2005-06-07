@@ -18,6 +18,8 @@
  *
  */
 
+#include <config.h>
+
 #include <stdio.h>
 #include <string.h>
 #include "clientnames.h"
@@ -58,7 +60,6 @@ get_clientid(RealmT* pointer, char* clientname)
       }
     }
   }
-  
   return -1;
 }
 

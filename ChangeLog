@@ -1,3 +1,40 @@
+07.06.2005 (v0.7):
+  - Added: http proxy tunnels between afserver and afclient
+  - Fixed: sigint interception with threads enabled (in http proxy mode)
+  - Fixed: FATAL ERROR in afclient in some situations after close of afserver
+           when http proxy mode is enabled
+  - Added: afclients can connect directly to afserver with enabled proxy mode
+  - Fixed: timeout routine in http proxy tunnels
+  - Added: 'rshow' command in ra mode displays 'tunneltype'
+  - Fixed: printing IP of clients when http proxy mode is enabled
+  - Added: 'tunneltype' per client in ra mode after 'cshow' command
+  - Fixed: closing connection when http proxy mode is enabled
+  - Fixed: threads initialization
+  - Fixed: afserver closing after sigint
+  - Fixed: afclient threads initialization
+  - Added: 'version' option to display program version number
+  - Modified: establishing afclient<->afserver connection
+  - Added: 'keep-alive' option
+  - Fixed: using 'proxyport' without 'proxyname'
+  - Added: auto-reconnect feature to afclient
+  - Added: 'ar-tries' and 'ar-delay' options
+  - Modified: http proxy logging
+  - Fixed: closing connection with afclient after receiving id
+  - Fixed: thread closing due to wrong initialization sequence
+  - Fixed: small bug in initialization process
+  - Heavily Modified: logging routines
+  - Added: audit option
+  - Modified: default dateformat is now ISO 8601
+  - Modified: printing usage
+  - Fixed: bug in threads' initialization in afclient
+  - Added: 'timeout' and 'dateformat' options in ra mode
+  - Modified: empty dateformat disables printing '[] '
+  - Added: 'audit' and 'dnslookups' options in ra mode
+  - Fixed: afserver freeze bug
+  - Added: 'kuser' and 'kclient' options in ra mode
+  - Fixed: bug in starting afclient in ra mode
+  - Added: audit log printed also after kicking the client
+
 11.03.2005 (v0.6):
   - Fixed: default password incompatibilities from config file
   - Added: "client's id" option

@@ -1,4 +1,4 @@
-.TH afserver 1 "apf 0.6" Jeremian
+.TH afserver 1 "apf 0.7" Jeremian
 .SH NAME
 afserver \- active port forwarder server
 .SH SYNOPSIS
@@ -89,6 +89,9 @@ connects to it (default: 50126)
 .B -b, --baseport
   listenports are temporary and differ for each client
 
+.B -a, --audit
+  additional information about connections are logged
+
 .B --nossl
   ssl is not used to transfer data (but it's still used to establish a connection) (default: ssl is used)
 
@@ -100,17 +103,8 @@ connects to it (default: 50126)
 
 .I Logging
 
-.B -O, --heavylog
-  logging everything to a logfile
-  
-.B -o, --lightlog
-  logging some data to a logfile
-  
-.B -S, --heavysocklog
-  logging everything to a localport
-  
-.B -s, --lightsocklog
-  logging some data to a localport
+.B -o, --log LOGCMD
+  log choosen information to file/socket
   
 .B -v, --verbose
   to be verbose - program won't enter the daemon mode (use several times for greater effect)
@@ -122,6 +116,11 @@ connects to it (default: 50126)
   
 .B -6, --ipv6
   use ipv6 only
+
+.I HTTP PROXY
+
+.B -P, --enableproxy
+  enable http proxy mode
 
 .SH "REMOTE ADMINISTRATION"
 
@@ -147,6 +146,68 @@ Currently available commands are:
 
 .B quit
   quit connection
+
+.B timeout N X
+  set timeout value in X realm
+
+.B audit {0|1} X
+  set audit mode in X realm
+
+.B dnslookups {0|1} X
+  set dnslookups mode in X realm
+
+.B dateformat S
+  set dateformat
+
+.B kuser S
+  kick user named S
+
+.B kclient N
+  kick client with number N
+
+.SH "LOGCMD FORMAT"
+
+.B LOGCMD
+has the following synopsis:
+.B target,description,msgdesc
+
+Where
+.B target
+is
+.B file
+or
+.B sock
+
+.B description
+is
+.B filename
+or
+.B host,port
+
+and
+.B msgdesc
+is the subset of:
+
+.B LOG_T_ALL,
+.B LOG_T_USER,
+.B LOG_T_CLIENT,
+.B LOG_T_INIT,
+.B LOG_T_MANAGE,
+.B LOG_T_MAIN,
+.B LOG_I_ALL,
+.B LOG_I_CRIT,
+.B LOG_I_DEBUG,
+.B LOG_I_DDEBUG,
+.B LOG_I_INFO,
+.B LOG_I_NOTICE,
+.B LOG_I_WARNING,
+.B LOG_I_ERR
+
+written without spaces.
+
+  Example:
+
+  file,filename,LOG_T_ALL,LOG_I_CRIT,LOG_I_ERR,LOG_I_WARNING
 
 .SH "SEE ALSO"
 

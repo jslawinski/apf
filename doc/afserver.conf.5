@@ -1,4 +1,4 @@
-.TH afserver.conf 5 "apf 0.6" Jeremian
+.TH afserver.conf 5 "apf 0.7" Jeremian
 .SH NAME
 afserver.conf \- Configuration File for afserver
 .SH INTRODUCTION
@@ -22,9 +22,9 @@ uses configuration file, which name is supplied by the
 option. The
 .B afserver.conf
 file is composed of two sections which have to be in fixed order. In first section global values like certificates, keys and logging options are set. The second section starts with first
-.B newrealm
+.B realm
 command and includes options describing specific realms. There may be several
-.B newrealm
+.B realm
 commands.
 
 .SH "GLOBAL OPTIONS"
@@ -35,17 +35,8 @@ commands.
 .B key FILE
   the name of the file with RSA key (default: server.rsa)
 
-.B lightlog FILE
-  logging some data to a logfile
-
-.B heavylog FILE
-  logging everything to a logfile
-
-.B heavysocklog PORT
-  logging everything to a localport
-
-.B lightsocklog PORT
-  logging some data to a localport
+.B log LOGCMD
+  log choosen information to file/socket
 
 .B dateformat FORMAT
   format of the date printed in logs (see 'man strftime' for details) (default: %d.%m.%Y %H:%M:%S). Format string is trimmed. In order to include white characters into format string, use dots to mark beginning and end of the text. If the dot is first or last character, it's removed. Only one character from the beginning and one from the end can be removed.
@@ -98,6 +89,9 @@ commands.
   
 .B baseport
   listenports are temporary and differ for each client
+
+.B audit
+  additional information about connections are logged
   
 .B dnslookups
   try to obtain dns names of the computers rather than their numeric IP
@@ -107,6 +101,9 @@ commands.
   
 .B ipv6
   use ipv6 only
+
+.B enableproxy
+  enable http proxy mode
 
 .SH "SEE ALSO"
 

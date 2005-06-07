@@ -33,6 +33,12 @@
 #include "realmnames.h"
 #include "clientnames.h"
 #include "usernames.h"
+#include "server_get.h"
+#include "http_proxy_server.h"
+#include "thread_management.h"
+#include "server_signals.h"
+#include "usage.h"
+#include "logging.h"
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -43,9 +49,6 @@
 
 #ifndef _JS_AFSERVER_H
 #define _JS_AFSERVER_H
-
-static void usage(char* info);
-static void sig_int(int);
 
 #endif
 

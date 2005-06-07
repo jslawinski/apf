@@ -18,12 +18,22 @@
  *
  */
 
-#ifndef _JS_SERVER_CHECK_H
-#define _JS_SERVER_CHECK_H
+#include <time.h>
 
-void check_value(int* where, char* what, char* info);
-int check_value_liberal(char* what, char* info);
-int check_long(char* text, long* number);
+#ifndef _JS_AUDIT_H
+#define _JS_AUDIT_H
+
+typedef struct alnode {
+  int userid;
+  char namebuf[128];
+  char portbuf[7];
+  time_t connecttime;
+  time_t duration;
+	struct alnode* next;
+} alnodeT;
+
+int insertalnode(alnodeT** headRef, int uid, char* nbuf, char* pbuf, time_t ctime, time_t dur);
+int deletealnode(alnodeT** headRef);
+int freeauditlist(alnodeT** headRef);
 
 #endif
-

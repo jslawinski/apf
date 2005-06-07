@@ -18,12 +18,10 @@
  *
  */
 
-#ifndef _JS_SERVER_CHECK_H
-#define _JS_SERVER_CHECK_H
+#ifndef _JS_SERVER_SIGNALS_H
+#define _JS_SERVER_SIGNALS_H
 
-void check_value(int* where, char* what, char* info);
-int check_value_liberal(char* what, char* info);
-int check_long(char* text, long* number);
+void server_sig_int(int); /* INT signal handler for the afserver */
 
 #endif
 

@@ -18,12 +18,17 @@
  *
  */
 
-#ifndef _JS_SERVER_CHECK_H
-#define _JS_SERVER_CHECK_H
+#ifndef _JS_THREAD_MANAGEMENT_H
+#define _JS_THREAD_MANAGEMENT_H
 
-void check_value(int* where, char* what, char* info);
-int check_value_liberal(char* what, char* info);
-int check_long(char* text, long* number);
+#include <pthread.h>
+
+void remember_mainthread(void);
+int is_this_a_mainthread(void);
+void start_critical_section(void);
+void end_critical_section(void);
+void wait_for_condition(void);
+void broadcast_condition(void);
 
 #endif
 

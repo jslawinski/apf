@@ -1,2 +1,11 @@
+06.06.2005:
+           * apf 0.7 is ready for public release
+
+27.05.2005:
+           * check for pthread library has been included in configure script
+
+09.05.2005:
+           * source tree has been put into subversion
+
 18.02.2005:
            * source tree has been reorganized for automake/autoconf

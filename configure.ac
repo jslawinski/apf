@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([Active port forwarder], [0.6], [jeremian@poczta.fm], [apf])
-AM_INIT_AUTOMAKE([apf], [0.6])
+AC_INIT([Active port forwarder], [0.7], [jeremian@poczta.fm], [apf])
+AM_INIT_AUTOMAKE([apf], [0.7])
 AC_COPYRIGHT([
 Copyright (C) 2003,2004,2005 jeremian - <jeremian [[at]] poczta.fm>
 ===================
@@ -56,6 +56,15 @@ AC_CHECK_LIB([dl], [dlopen],
                ])
 AC_SUBST(LINKED_LDLIB)
 AC_SUBST(USE_RDYNAMIC)
+AC_CHECK_LIB([pthread], [pthread_create],
+             [
+              LINKED_PTHREADLIB="-lpthread"
+              AC_DEFINE(HAVE_LIBPTHREAD, 1, [Define to 1 if you have the `pthread' library (-lpthread).])
+              ],
+              [
+               LINKED_PTHREADLIB=""
+               ])
+AC_SUBST(LINKED_PTHREADLIB)
 
 # Checks for header files.
 AC_HEADER_STDC

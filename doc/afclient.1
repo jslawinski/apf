@@ -1,4 +1,4 @@
-.TH afclient 1 "apf 0.6" Jeremian
+.TH afclient 1 "apf 0.7" Jeremian
 .SH NAME
 afclient \- active port forwarder client
 .SH SYNOPSIS
@@ -41,6 +41,9 @@ is running (required)
 .B -p, --portnum PORT
   the port we are forwarding connection to (required)
 
+.B -V, --version
+  display version number
+
 .B -h, --help
   prints help screen
 
@@ -60,6 +63,15 @@ is running (required)
 .B -D, --dateformat FORMAT
   format of the date printed in logs (see 'man strftime' for details) (default: %d.%m.%Y %H:%M:%S)
 
+.B -K, --keep-alive N
+  send keepalive packets every N seconds (default: not send keepalive packets)
+
+.B -A, --ar-tries N
+  try N times to reconnect to afserver after its premature quit (default: unlimited)
+
+.B -T, --ar-delay N
+  wait N seconds between reconnect tries (default: 5)
+
 .I Modes
 
 .B -u, --udpmode
@@ -69,21 +81,12 @@ is running (required)
   reverse udp forwarding. Udp packets will be forwarded from hostname:portnum (-p) to the server name:portnum (-m)
   
 .B -r, --remoteadmin
-  remote administration mode. (using '-p PORT' will force afclient to use port rather then stdin-stdout)
+  remote administration mode. (using '-p PORT' will force afclient to use port rather than stdin-stdout)
 
 .I Logging
 
-.B -O, --heavylog
-  logging everything to a logfile
-
-.B -o, --lightlog
-  logging some data to a logfile
-
-.B -S, --heavysocklog
-  logging everything to a localport
-
-.B -s, --lightsocklog
-  logging some data to a localport
+.B -o, --log LOGCMD
+  log choosen information to file/socket
 
 .B -v, --verbose
   to be verbose - program won't enter the daemon mode (use several times for greater effect)
@@ -103,6 +106,14 @@ is running (required)
 
 .B -L, --Load
   load a module for service's packets filtering
+
+.I HTTP PROXY
+
+.B -P, --proxyname
+  the name of the machine with proxy server
+
+.B -X, --proxyport
+  the port used by proxy server (default: 8080)
 
 .SH "REMOTE ADMINISTRATION"
 
@@ -140,6 +151,50 @@ When user quits (close the connection or send
 command),
 .B afclient
 exits.
+
+.SH "LOGCMD FORMAT"
+
+.B LOGCMD
+has the following synopsis:
+.B target,description,msgdesc
+
+Where
+.B target
+is
+.B file
+or
+.B sock
+
+.B description
+is
+.B filename
+or
+.B host,port
+
+and
+.B msgdesc
+is the subset of:
+
+.B LOG_T_ALL,
+.B LOG_T_USER,
+.B LOG_T_CLIENT,
+.B LOG_T_INIT,
+.B LOG_T_MANAGE,
+.B LOG_T_MAIN,
+.B LOG_I_ALL,
+.B LOG_I_CRIT,
+.B LOG_I_DEBUG,
+.B LOG_I_DDEBUG,
+.B LOG_I_INFO,
+.B LOG_I_NOTICE,
+.B LOG_I_WARNING,
+.B LOG_I_ERR
+
+written without spaces.
+
+  Example:
+
+  file,logfile,LOG_T_USER,LOG_T_CLIENT,LOG_I_INFO,LOG_I_NOTICE
 
 .SH MODULES
 

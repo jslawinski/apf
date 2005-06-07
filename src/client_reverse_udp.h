@@ -18,12 +18,23 @@
  *
  */
 
-#ifndef _JS_SERVER_CHECK_H
-#define _JS_SERVER_CHECK_H
+#include <config.h>
 
-void check_value(int* where, char* what, char* info);
-int check_value_liberal(char* what, char* info);
-int check_long(char* text, long* number);
-
+#ifdef HAVE_LINUX_SOCKIOS_H
+#include <linux/sockios.h>
 #endif
 
+#ifndef _JS_CLIENT_REVERSE_UDP_H
+#define _JS_CLIENT_REVERSE_UDP_H
+
+#include <sys/ioctl.h>
+
+#include "activefor.h"
+#include "stats.h"
+#include "logging.h"
+
+void initialize_client_reverse_udp(int* usernum, clifd* master, char* name, char* manage, char ipfam);
+void client_reverse_udp(ConnectuserT* contable, clifd* master, char* desnam, char* despor, char type,
+        unsigned char* buff, int buflength);
+
+#endif

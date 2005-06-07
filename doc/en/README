@@ -1,4 +1,4 @@
-AF - Active Port Forwarder 0.6 - README
+AF - Active Port Forwarder 0.7 - README
 Copyright (C) 2003,2004,2005 jeremian - <jeremian [at] poczta.fm>
 =================================================================
 
@@ -30,11 +30,13 @@ INTRO
   2.1 afserver
   2.2 afclient
 3. REMOTE ADMINISTRATION
-4. MODULES
-5. EXAMPLES
-  5.1 tcp mode
-  5.2 reverse udp mode
-6. BUGS/PROBLEMS
+4. HTTP PROXY TUNNELS
+5. LOGGING
+6. MODULES
+7. EXAMPLES
+  7.1 tcp mode
+  7.2 reverse udp mode
+8. BUGS/PROBLEMS
 
 NOTES
 
@@ -110,6 +112,7 @@ Multiple clients allow to create more sophisticated tunneling scheme.
                         to it (default: 50127)
   -m, --manageport    - manage port number - second part of the active
                         port forwarder connects to it (default: 50126)
+  -V, --version       - display version number
   -h, --help          - prints this help
 
  Authorization:
@@ -137,27 +140,24 @@ Multiple clients allow to create more sophisticated tunneling scheme.
   -R, --raclients     - the number of allowed clients in remote administration
                         mode to use this server (default: 1)
   -U, --usrpcli       - the number of allowed users per client (default: $users)
-  -M, --climode       - strategy used for connecting users with clients
-                        (default: 1)
+  -M, --climode       - strategy used to connect users with clients (default: 1)
                       Available strategies:
                         1. fill first client before go to next
 
-  -p, --proto         - type of server (tcp|udp) - for which protocol it will
-                        be operating (default: tcp)
+  -p, --proto         - type of server (tcp|udp) - what protocol it will be
+                        operating for (default: tcp)
   -b, --baseport      - listenports are temporary and differ for each client
-  --nossl             - ssl is not used for transferring data (but it's still
-                        used to establish a connection) (default: ssl is used)
-  --nozlib            - zlib is not used for compressing data (default:
-                        zlib is used)
+  -a, --audit         - additional information about connections are logged
+  --nossl             - ssl is not used to transfer data (but it's still used
+                        to establish a connection) (default: ssl is used)
+  --nozlib            - zlib is not used to compress data (default: zlib is
+                        used)
   --dnslookups        - try to obtain dns names of the computers rather than
                         their numeric IP
 
  Logging:
 
-  -O, --heavylog      - logging everything to a logfile
-  -o, --lightlog      - logging some data to a logfile
-  -S, --heavysocklog  - logging everything to a localport
-  -s, --lightsocklog  - logging some data to a localport
+  -o, --log           - log choosen information to file/socket
   -v, --verbose       - to be verbose - program won't enter the daemon mode
                         (use several times for greater effect)
 
@@ -165,6 +165,11 @@ Multiple clients allow to create more sophisticated tunneling scheme.
 
   -4, --ipv4          - use ipv4 only
   -6, --ipv6          - use ipv6 only
+
+ HTTP PROXY:
+
+  -P, --enableproxy   - enable http proxy mode
+
 
   2.2 afclient
   ------------
@@ -179,11 +184,12 @@ Multiple clients allow to create more sophisticated tunneling scheme.
                         destination of the packets (default: the name
                         returned by hostname function)
   -p, --portnum       - the port we are forwarding connection to (required)
+  -V, --version       - display version number
   -h, --help          - prints this help
 
  Authorization:
 
-  -i, --id            - send the id string to afserver
+  -i, --id            - sends the id string to afserver
   --pass              - set the password used for client identification
                         (default: no password)
 
@@ -192,23 +198,25 @@ Multiple clients allow to create more sophisticated tunneling scheme.
   -k, --keyfile       - the name of the file with RSA key (default: client.rsa)
   -D, --dateformat    - format of the date printed in logs (see 'man strftime'
                         for details) (default: %d.%m.%Y %H:%M:%S)
+  -K, --keep-alive N  - send keepalive packets every N seconds
+                        (default: not send keepalive packets)
+  -A, --ar-tries N    - try N times to reconnect to afserver after
+                        its premature quit (default: unlimited)
+  -T, --ar-delay N    - wait N seconds between reconnect tries (default: 5)
 
  Modes:
 
   -u, --udpmode       - udp mode - client will use udp protocol to
-                        communicate with the hostname
+                        communicate with the hostname:portnum (-p)
   -U, --reverseudp    - reverse udp forwarding. Udp packets will be forwarded
                         from hostname:portnum (-p) to the server name:portnum
                         (-m)
   -r, --remoteadmin   - remote administration mode. (using '-p #port' will
-                        force afclient to use port rather then stdin-stdout)
+                        force afclient to use port rather than stdin-stdout)
 
  Logging:
 
-  -O, --heavylog      - logging everything to a logfile
-  -o, --lightlog      - logging some data to a logfile
-  -S, --heavysocklog  - logging everything to a localport
-  -s, --lightsocklog  - logging some data to a localport
+  -o, --log           - log choosen information to file/socket
   -v, --verbose       - to be verbose - program won't enter the daemon mode
                         (use several times for greater effect)
 
@@ -221,6 +229,12 @@ Multiple clients allow to create more sophisticated tunneling scheme.
 
   -l, --load          - load a module for user's packets filtering
   -L, --Load          - load a module for service's packets filtering
+
+ HTTP PROXY:
+
+  -P, --proxyname     - the name of the machine with proxy server
+  -X, --proxyport     - the port used by proxy server (default: 8080)
+
 
 ================================================================================
 
@@ -257,6 +271,25 @@ Currently available commands are:
        quit
          quit connection
 
+       timeout N X
+         set timeout value in X realm
+
+       audit {0|1} X
+         set audit mode in X realm
+
+       dnslookups {0|1} X
+         set dnslookups mode in X realm
+
+       dateformat S
+         set dateformat
+
+       kuser S
+         kick user named S
+
+       kclient N
+         kick client with number N
+
+
 Afclient with '-p, --portnum PORT' option listens for connection  from  user  at
 NAME:PORT.  NAME is set by '-d, --hostname' option or hostname() function,  when
 the option is missing.
@@ -265,8 +298,58 @@ When user quits (close the connection or send 'quit' command),  afclient  exits.
 
 ================================================================================
 
+=====================
+4. HTTP PROXY TUNNELS
+=====================
+
+Afclient can communicate with afserver via HTTP proxy. In order to use this
+feature, afserver must be started with '-P, --enableproxy' option. Afclient must
+specify the proxy host ('-P, --proxyname' option) and port ('-X, --proxyport'
+option).
+
+Afclient with HTTP proxy mode enabled can still accept connections from
+afclients, which don't use HTTP proxy mode.
+
+================================================================================
+
 ==========
-4. MODULES
+5. LOGGING
+==========
+
+Logging can be enabled by '-o, --log' option. The argument to this option must
+be in the form:
+  target,description,msgdesc
+
+Where
+  target is file or sock
+  description is filename or host,port
+  msgdesc is the subset of:
+    LOG_T_ALL,
+    LOG_T_USER,
+    LOG_T_CLIENT,
+    LOG_T_INIT,
+    LOG_T_MANAGE,
+    LOG_T_MAIN,
+    LOG_I_ALL,
+    LOG_I_CRIT,
+    LOG_I_DEBUG,
+    LOG_I_DDEBUG,
+    LOG_I_INFO,
+    LOG_I_NOTICE,
+    LOG_I_WARNING,
+    LOG_I_ERR
+
+    written without spaces.
+
+
+  Example:
+  
+  file,filename,LOG_T_MANAGE,LOG_I_ALL
+
+================================================================================
+
+==========
+6. MODULES
 ==========
 
 Afclient can use external modules for user's packets  filtering  ('-l,  --load')
@@ -343,10 +426,10 @@ Modules have to be compiled with '-fPIC -shared' options.
 ================================================================================
 
 ===========
-5. EXAMPLES
+7. EXAMPLES
 ===========
 
-  5.1 tcp mode
+  7.1 tcp mode
   ------------
 
                     local network   |FireWall|   Internet
@@ -395,7 +478,7 @@ on our computer and we are behind a masquerade or a firewall:
 6) We can now enter with a web-browser to: <name of  the  server>:50127  and  we
    will enter to our computer in the fact.
 
-  5.2 reverse udp mode
+  7.2 reverse udp mode
   --------------------
 
                     local network   |FireWall|   Internet
@@ -434,7 +517,7 @@ server on our computer (udp port 27960 on our machine):
 ================================================================================
 
 ================
-6. BUGS/PROBLEMS
+8. BUGS/PROBLEMS
 ================
 
 There are no known/open bugs at the moment.

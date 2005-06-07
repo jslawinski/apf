@@ -18,12 +18,14 @@
  *
  */
 
-#ifndef _JS_SERVER_CHECK_H
-#define _JS_SERVER_CHECK_H
+#ifndef _JS_SERVER_GET_H
+#define _JS_SERVER_GET_H
 
-void check_value(int* where, char* what, char* info);
-int check_value_liberal(char* what, char* info);
-int check_long(char* text, long* number);
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+
+int get_new_socket(int sockfd, char type, struct sockaddr *addr, socklen_t *addrlen, char* tunneltype);
 
 #endif
 

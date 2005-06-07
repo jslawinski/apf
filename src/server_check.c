@@ -18,30 +18,45 @@
  *
  */
 
+#include <config.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
 
+#include "server_check.h"
 #include "stats.h"
+#include "logging.h"
 
 void
 check_value(int* where, char* what, char* info)
 {
-  char* znak;
-  long tmp;
-  if ((tmp = strtol(what, &znak, 10)) >= INT_MAX) {
-    aflog(0, "%s: %s\n", info, what);
-    exit(1);
-  }
-  if (((*what) == '\0') || (*znak != '\0')) {
-    aflog(0, "%s: %s\n", info, what);
-    exit(1);
-  }
+  long tmp = check_value_liberal(what, info);
+  
   if (tmp <= 0) {
-    aflog(0, "%s: %d\n", info, *where);
+    aflog(LOG_T_INIT, LOG_I_CRIT,
+        "%s: %d\n", info, tmp);
     exit(1);
   }
   (*where) = tmp;
+}
+
+int
+check_value_liberal(char* what, char* info)
+{
+  char* znak;
+  long tmp;
+  if ((tmp = strtol(what, &znak, 10)) >= INT_MAX) {
+    aflog(LOG_T_INIT, LOG_I_CRIT,
+        "%s: %s\n", info, what);
+    exit(1);
+  }
+  if (((*what) == '\0') || (*znak != '\0')) {
+    aflog(LOG_T_INIT, LOG_I_CRIT,
+        "%s: %s\n", info, what);
+    exit(1);
+  }
+  return tmp;
 }
 
 int

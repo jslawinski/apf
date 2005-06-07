@@ -18,6 +18,8 @@
  *
  */
 
+#include <config.h>
+
 #include "server_eval.h"
 
 int

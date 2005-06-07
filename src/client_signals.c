@@ -18,12 +18,25 @@
  *
  */
 
-#ifndef _JS_SERVER_CHECK_H
-#define _JS_SERVER_CHECK_H
+#include <config.h>
 
-void check_value(int* where, char* what, char* info);
-int check_value_liberal(char* what, char* info);
-int check_long(char* text, long* number);
+#include "client_signals.h"
+#include "thread_management.h"
+#include "stats.h"
+#include "logging.h"
 
+#include <stdlib.h>
+
+  void
+client_sig_int(int signo)
+{
+#ifdef HAVE_LIBPTHREAD
+  if (!is_this_a_mainthread()) {
+    return;
+  }
 #endif
+  aflog(LOG_T_MAIN, LOG_I_NOTICE,
+      "CLIENT CLOSED cg: %ld bytes", getcg());
+  exit(0);
+}
 

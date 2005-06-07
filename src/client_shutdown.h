@@ -18,12 +18,14 @@
  *
  */
 
-#ifndef _JS_SERVER_CHECK_H
-#define _JS_SERVER_CHECK_H
+#include <config.h>
 
-void check_value(int* where, char* what, char* info);
-int check_value_liberal(char* what, char* info);
-int check_long(char* text, long* number);
+#ifndef _JS_CLIENT_SHUTDOWN_H
+#define _JS_CLIENT_SHUTDOWN_H
+
+#include "activefor.h"
+
+void close_connections(int usernum, ConnectuserT** contable);
+void clear_master_connection(clifd* master);
 
 #endif
-

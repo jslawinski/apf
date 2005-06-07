@@ -23,6 +23,7 @@
 
 #include "network.h"
 #include "buflist.h"
+#include "audit.h"
 
 #define AF_S_CONCLOSED	  1
 #define	AF_S_CONOPEN	    2
@@ -37,13 +38,15 @@
 #define AF_S_ADMIN_LOGIN 14
 #define AF_S_ADMIN_CMD   15
 
+#define AF_S_KEEP_ALIVE  16
+
 #define S_STATE_CLEAR	    0
 #define S_STATE_CLOSING	  5
 #define	S_STATE_OPENING	  6
 #define S_STATE_OPEN	    7
 #define S_STATE_STOPPED	 11
 
-#define	AF_VER(info)	info" v0.6"
+#define	AF_VER(info)	info" v0.7"
 
 #define TYPE_TCP	1
 #define TYPE_UDP	3
@@ -110,6 +113,8 @@ typedef struct {
   char* clientid;
 	char namebuf[128];
 	char portbuf[7];
+  char tunneltype;
+  alnodeT* head;
 } ConnectclientT;
 
 typedef struct {
@@ -135,8 +140,10 @@ typedef struct {
   int clientcounter;
   int usercounter;
   char type;
+  char tunneltype;
   char dnslookups;
   char baseport;
+  char audit;
   socklen_t addrlen;
   struct sockaddr* cliaddr;
   ConnectuserT* contable;
@@ -148,11 +155,7 @@ typedef struct {
 typedef struct {
   char* certif;
   char* keys;
-  char* logfnam;
-  char* logsport;
   char* dateformat;
-  char logging;
-  char socklogging;
   int size;
   time_t starttime;
   RealmT* realmtable;

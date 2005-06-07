@@ -18,13 +18,15 @@
  *
  */
 
+#include <time.h>
+#include <string.h>
+#include <stdio.h>
+
 #ifndef _JS_STATS_H
 #define _JS_STATS_H
 
-  /* initializing logging routine */
-int loginit(char verlev, char loglev, char logsocklev, const char* logfname, const char* port, char* dateformat);
-  /* log to a file or|and screen */
-void aflog(char type, const char* format, ...); 
+  /* return time period description */
+char* timeperiod(time_t period);
   /* add amount to compressgained value */
 void addtocg(int amount); 
   /* reset the compressgained value */

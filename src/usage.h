@@ -18,12 +18,13 @@
  *
  */
 
-#ifndef _JS_SERVER_CHECK_H
-#define _JS_SERVER_CHECK_H
+#ifndef _JS_USAGE_H
+#define _JS_USAGE_H
 
-void check_value(int* where, char* what, char* info);
-int check_value_liberal(char* what, char* info);
-int check_long(char* text, long* number);
+void server_short_usage(char* info); /* short usage info printed by afserver */
+void server_long_usage(char* info); /* long usage info printed by afserver */
+void client_short_usage(char* info); /* short usage info printed by afclient */
+void client_long_usage(char* info); /* long usage info printed by afclient */
 
 #endif
 

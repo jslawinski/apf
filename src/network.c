@@ -24,6 +24,7 @@
 #include "network.h"
 #include "activefor.h"
 #include "stats.h"
+#include "logging.h"
 #include <string.h>
 #include <errno.h>
 #include <zlib.h>
@@ -395,7 +396,8 @@ send_message(char type, clifd fd, unsigned char* buf, int amount)
 	unsigned long clen;
 	int length;
 	static unsigned char bufor[9000];
-  aflog(4, "   send_message: ssl:%s zlib:%s length:%d", (TYPE_IS_SSL(type))?"yes":"no",
+  aflog(LOG_T_MAIN, LOG_I_DEBUG,
+      "send_message: ssl:%s zlib:%s length:%d", (TYPE_IS_SSL(type))?"yes":"no",
       (TYPE_IS_ZLIB(type))?"yes":"no", amount);
 	clen = 8995;
 	length = amount - 5;
@@ -444,7 +446,8 @@ get_message(char type, clifd fd, unsigned char* buf, int amount)
 	int length;
 	unsigned long elen;
 	static unsigned char bufor[9000];
-  aflog(4, "   get_message: ssl:%s zlib:%s length:%d", (TYPE_IS_SSL(type))?"yes":"no",
+  aflog(LOG_T_MAIN, LOG_I_DEBUG,
+      "get_message: ssl:%s zlib:%s length:%d", (TYPE_IS_SSL(type))?"yes":"no",
       (TYPE_IS_ZLIB(type))?"yes":"no", amount);
 	if (amount == -5) {
 		if (TYPE_IS_SSL(type)) {

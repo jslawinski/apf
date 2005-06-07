@@ -20,6 +20,7 @@
 
 #include "file.h"
 #include "stats.h"
+#include "logging.h"
 #include "activefor.h"
 #include "realmnames.h"
 #include "clientnames.h"

@@ -18,12 +18,12 @@
  *
  */
 
-#ifndef _JS_SERVER_CHECK_H
-#define _JS_SERVER_CHECK_H
+#ifndef _JS_HTTP_PROXY_SERVER_H
+#define _JS_HTTP_PROXY_SERVER_H
 
-void check_value(int* where, char* what, char* info);
-int check_value_liberal(char* what, char* info);
-int check_long(char* text, long* number);
+#include "http_proxy_functions.h"
+#include "network.h"
+
+int initialize_http_proxy_server(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, const char type, int limit);
 
 #endif
-

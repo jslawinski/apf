@@ -18,12 +18,53 @@
  *
  */
 
-#ifndef _JS_SERVER_CHECK_H
-#define _JS_SERVER_CHECK_H
+#include <config.h>
 
-void check_value(int* where, char* what, char* info);
-int check_value_liberal(char* what, char* info);
-int check_long(char* text, long* number);
+#include "thread_management.h"
+
+#ifdef HAVE_LIBPTHREAD
+
+static pthread_t mainthread;
+static pthread_mutex_t mainmutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t maincond = PTHREAD_COND_INITIALIZER;
+
+void
+remember_mainthread(void)
+{
+  mainthread = pthread_self();
+}
+
+int
+is_this_a_mainthread(void)
+{
+  if (pthread_self() == mainthread) {
+    return 1;
+  }
+  return 0;
+}
+
+void
+start_critical_section(void)
+{
+  pthread_mutex_lock( &mainmutex);
+}
+
+void
+end_critical_section(void)
+{
+  pthread_mutex_unlock( &mainmutex);
+}
+
+void
+wait_for_condition(void)
+{
+  pthread_cond_wait(&maincond, &mainmutex);
+}
+
+void
+broadcast_condition(void)
+{
+  pthread_cond_broadcast(&maincond);
+}
 
 #endif
-

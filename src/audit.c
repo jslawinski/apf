@@ -20,24 +20,50 @@
 
 #include <config.h>
 
-#include "usernames.h"
+#include <stdlib.h>
+#include <string.h>
+
+#include "audit.h"
 
 int
-get_username(RealmT* pointer, int user)
+insertalnode(alnodeT** headRef, int uid, char* nbuf, char* pbuf, time_t ctime, time_t dur)
 {
-  return pointer->contable[user].userid;
+  alnodeT* newnode, *lastnode;
+	lastnode = newnode = *headRef;
+	while (newnode) {
+		lastnode = newnode;
+		newnode = newnode->next;
+	}
+  newnode = calloc(1, sizeof(alnodeT));
+  newnode->userid = uid;
+  memcpy(newnode->namebuf, nbuf, 128);
+  memcpy(newnode->portbuf, pbuf, 7);
+  newnode->connecttime = ctime;
+  newnode->duration = dur;
+  newnode->next = NULL;
+	if (lastnode)
+		lastnode->next = newnode;
+	else
+		*headRef = newnode;
+	return 0;
 }
 
 int
-get_usernumber(RealmT* pointer, int userid)
+deletealnode(alnodeT** headRef)
 {
-  int i;
-  
-  for (i = 0; i < pointer->usernum; ++i) {
-    if (userid == pointer->contable[i].userid) {
-      return i;
-    }
-  }
+	alnodeT* node = *headRef;
+	if (*headRef == NULL)
+		return 1;
+  *headRef = node->next;
+  free(node);
+	return 0;
+}
 
-  return -1;
+int
+freeauditlist(alnodeT** headRef)
+{
+	while (*headRef) {
+		deletealnode(headRef);
+	}
+	return 0;
 }
