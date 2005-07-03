@@ -21,14 +21,25 @@
 #include <config.h>
 
 #include "client_initialization.h"
+#include "first_run.h"
 #include "network.h"
+#include "base64.h"
+#include "ssl_routines.h"
 
 int
 initialize_client_stage1(char tunneltype, clifd* master, char* name, char* manage,
     char* proxyname, char* proxyport, char ipfam, SSL_CTX* ctx, unsigned char* buff, unsigned char* pass,
-    char wanttoexit)
+    char wanttoexit, char ignorepkeys)
 {
-  int n;
+  int n, nlen, elen, len;
+  unsigned int olen;
+  X509* server_cert;
+  const EVP_MD *md;
+  EVP_PKEY* pkey;
+  EVP_MD_CTX md_ctx;
+  unsigned char *encoded = NULL;
+  char b64_encoded[100];
+  unsigned char *key_buf = NULL;
   switch (tunneltype) {
     case 0: {
       if (ip_connect(&(master->commfd), name, manage, ipfam)) {
@@ -82,6 +93,7 @@ initialize_client_stage1(char tunneltype, clifd* master, char* name, char* manag
                break;
              }
   }
+  
   master->ssl = SSL_new(ctx);
   if (SSL_set_fd(master->ssl, master->commfd) != 1) {
     aflog(LOG_T_INIT, LOG_I_CRIT,
@@ -97,12 +109,80 @@ initialize_client_stage1(char tunneltype, clifd* master, char* name, char* manag
   aflog(LOG_T_INIT, LOG_I_INFO,
       "Trying SSL_connect");
   if ((n = SSL_connect(master->ssl)) == 1) {
+    if ((server_cert = SSL_get_peer_certificate(master->ssl)) == NULL) {
+      aflog(LOG_T_MAIN, LOG_I_CRIT,
+          "Server did not present a certificate... exiting");
+      exit(1);
+    }
+    /* FIXME: change almost everything here */
+    pkey = X509_get_pubkey(server_cert);
+    if (pkey == NULL) {
+      aflog(LOG_T_MAIN, LOG_I_CRIT,
+          "Server's public key is invalid... exiting");
+      exit(1);
+    }
+    nlen = BN_num_bytes(pkey->pkey.rsa->n);
+    elen = BN_num_bytes(pkey->pkey.rsa->e);
+    len = nlen + elen;
+    key_buf = malloc(len);
+    if (key_buf == NULL) {
+      aflog(LOG_T_MAIN, LOG_I_CRIT,
+          "Cannot allocate memory for server's public key checking... exiting");
+      exit(1);
+    }
+    BN_bn2bin(pkey->pkey.rsa->n, key_buf);
+    BN_bn2bin(pkey->pkey.rsa->e, key_buf + nlen);
+    md = EVP_md5();
+    EVP_DigestInit(&md_ctx, md);
+    EVP_DigestUpdate(&md_ctx, key_buf, len);
+    encoded = calloc(1, EVP_MAX_MD_SIZE+1);
+    if (encoded == NULL) {
+      aflog(LOG_T_MAIN, LOG_I_CRIT,
+          "Cannot allocate memory for server's public key checking... exiting");
+      exit(1);
+    }
+    EVP_DigestFinal(&md_ctx, encoded, &olen);
+
+    if (b64_ntop(encoded, olen, b64_encoded, 100) == -1) {
+      aflog(LOG_T_MAIN, LOG_I_CRIT,
+          "Problem with base64 encoding... exiting");
+      exit(1);
+    }
+    
+    switch (check_public_key(get_store_filename(), name, b64_encoded)) {
+      case SSL_PUBLIC_KEY_VALID:
+        /* public key is ok - do nothing */
+        break;
+      case SSL_PUBLIC_KEY_NOT_KNOWN:
+        aflog(LOG_T_MAIN, LOG_I_WARNING,
+            "WARNING: implicitly added new server's public key to the list of known hosts");
+        add_public_key(get_store_filename(), name, b64_encoded);
+        break;
+      default:
+        if (ignorepkeys) {
+          aflog(LOG_T_MAIN, LOG_I_WARNING,
+              "WARNING: Invalid server's public key... ignoring");
+        }
+        else {
+          aflog(LOG_T_MAIN, LOG_I_CRIT,
+              "Invalid server's public key... exiting");
+          aflog(LOG_T_MAIN, LOG_I_CRIT,
+              "Please delete conflicting entry in %s or use '--ignorepkeys' option",
+              get_store_filename());
+          exit(1);
+        }
+    }
+
+    memset(key_buf, 0, len);
+    free(key_buf);
+    free(encoded);
+
     aflog(LOG_T_INIT, LOG_I_INFO,
         "SSL_connect successful");
   }
   else {
     aflog(LOG_T_INIT, LOG_I_CRIT,
-        "SSL_connect has failed (%d)... exiting", n);
+        "SSL_connect has failed (%d | %d)... exiting", n, SSL_get_error(master->ssl, n));
     if (wanttoexit) {
       exit(1);
     }

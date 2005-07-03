@@ -18,42 +18,17 @@
  *
  */
 
-#include "activefor.h"
-#include "network.h"
-#include "stats.h"
-#include "modules.h"
-#include "remoteadmin.h"
-#include "make_ssl_handshake.h"
-#include "first_run.h"
-#include "http_proxy_client.h"
-#include "thread_management.h"
-#include "client_reverse_udp.h"
-#include "server_check.h"
-#include "client_initialization.h"
-#include "http_proxy_functions.h"
-#include "client_shutdown.h"
-#include "client_signals.h"
-#include "usage.h"
-#include "logging.h"
-#include "audit.h"
-#include "daemon.h"
+#define SSL_PUBLIC_KEY_INVALID 0
+#define SSL_PUBLIC_KEY_VALID 1
+#define SSL_PUBLIC_KEY_NOT_KNOWN 2
 
-#include <openssl/rsa.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#include <sys/time.h>
-#include <sys/ioctl.h>
-#ifdef HAVE_LINUX_SOCKIOS_H
-#include <linux/sockios.h>
-#endif
-#include <signal.h>
-#include <string.h>
-#include <fcntl.h>
+#ifndef _JS_SSL_ROUTINES_H
+#define _JS_SSL_ROUTINES_H
 
-#include <getopt.h>
-
-#ifndef _JS_AFCLIENT_H
-#define _JS_AFCLIENT_H
+/* check if hostname and keyhash is known */
+int check_public_key(char* filename, char* hostname, char* keyhash);
+/* add hostname and keyhash to known_hosts file */
+void add_public_key(char* filename, char* hostname, char* keyhash);
 
 #endif
 

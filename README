@@ -1,4 +1,4 @@
-AF - Active Port Forwarder 0.7 - README
+AF - Active Port Forwarder 0.7.1 - README
 Copyright (C) 2003,2004,2005 jeremian - <jeremian [at] poczta.fm>
 =================================================================
 
@@ -192,10 +192,13 @@ Multiple clients allow to create more sophisticated tunneling scheme.
   -i, --id            - sends the id string to afserver
   --pass              - set the password used for client identification
                         (default: no password)
+  --ignorepkeys       - ignore invalid server's public keys
 
  Configuration:
 
   -k, --keyfile       - the name of the file with RSA key (default: client.rsa)
+  -s, --storefile     - the name of the file with stored public keys
+                        (default: known_hosts)
   -D, --dateformat    - format of the date printed in logs (see 'man strftime'
                         for details) (default: %d.%m.%Y %H:%M:%S)
   -K, --keep-alive N  - send keepalive packets every N seconds

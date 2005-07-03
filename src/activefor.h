@@ -46,7 +46,7 @@
 #define S_STATE_OPEN	    7
 #define S_STATE_STOPPED	 11
 
-#define	AF_VER(info)	info" v0.7"
+#define	AF_VER(info)	info" v0.7.1"
 
 #define TYPE_TCP	1
 #define TYPE_UDP	3

@@ -1,3 +1,9 @@
+03.07.2005 (v0.7.1):
+  - Added: afserver certificate storing and checking
+  - Modified: generating keys and certificate
+  - Fixed: creating apf directory
+  - Fixed: some bugs in proxy tunnel initialization
+
 07.06.2005 (v0.7):
   - Added: http proxy tunnels between afserver and afclient
   - Fixed: sigint interception with threads enabled (in http proxy mode)

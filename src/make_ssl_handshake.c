@@ -108,7 +108,7 @@ get_ssl_error(clifd *cliconn, char* info, int result)
                    "%s(%d): unrecognized error (%d)", info, result, errno);
              }
   }
-  if (merror == SSL_ERROR_WANT_READ) {
+  if ((merror == SSL_ERROR_WANT_READ) || (merror == SSL_ERROR_WANT_WRITE)) {
     return 1;
   }
   return 2;

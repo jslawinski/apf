@@ -18,42 +18,22 @@
  *
  */
 
-#include "activefor.h"
-#include "network.h"
-#include "stats.h"
-#include "modules.h"
-#include "remoteadmin.h"
-#include "make_ssl_handshake.h"
-#include "first_run.h"
-#include "http_proxy_client.h"
-#include "thread_management.h"
-#include "client_reverse_udp.h"
-#include "server_check.h"
-#include "client_initialization.h"
-#include "http_proxy_functions.h"
-#include "client_shutdown.h"
-#include "client_signals.h"
-#include "usage.h"
-#include "logging.h"
-#include "audit.h"
-#include "daemon.h"
-
-#include <openssl/rsa.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#include <sys/time.h>
-#include <sys/ioctl.h>
-#ifdef HAVE_LINUX_SOCKIOS_H
-#include <linux/sockios.h>
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
 #endif
-#include <signal.h>
-#include <string.h>
+
+#ifndef HAVE_DAEMON
+
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 
-#include <getopt.h>
+#  ifndef _JS_DAEMON_H
+#  define _JS_DAEMON_H
 
-#ifndef _JS_AFCLIENT_H
-#define _JS_AFCLIENT_H
+int daemon(int nochdir, int noclose);
+
+#  endif
 
 #endif
-

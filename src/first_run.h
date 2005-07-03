@@ -21,9 +21,13 @@
 #ifndef _JS_FIRST_RUN_H
 #define _JS_FIRST_RUN_H
 
-int create_apf_dir();
+int create_apf_dir(char type);
+int create_publickey_store(char**);
 int generate_rsa_key(char**);
 int generate_certificate(char**, char*);
+char* get_store_filename();
+char* get_key_filename();
+char* get_cer_filename();
 
 #endif
 

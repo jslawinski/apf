@@ -38,6 +38,8 @@
 
 #include "inet_ntop.h"
 
+#ifndef HAVE_INET_NTOP
+
 #ifndef HAVE_THIS_INET_NTOP
 #define HAVE_THIS_INET_NTOP
 
@@ -222,6 +224,8 @@ inet_ntop6(src, dst, size)
 	strcpy(dst, tmp);
 	return (dst);
 }
+#endif
+
 #endif
 
 #endif

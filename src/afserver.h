@@ -39,6 +39,7 @@
 #include "server_signals.h"
 #include "usage.h"
 #include "logging.h"
+#include "daemon.h"
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>

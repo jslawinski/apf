@@ -22,28 +22,79 @@
 
 #include "server_get.h"
 #include <stdlib.h>
+#include <errno.h>
 
 int
 get_new_socket(int sockfd, char type, struct sockaddr *addr, socklen_t *addrlen, char* tunneltype)
 {
   int tmp;
+  int n, i;
   switch (type) {
     case 0: {
               return accept(sockfd, addr, addrlen);
               break;
             }
     case 1: {
-              if (read(sockfd, &tmp, 4) != 4) {
-                return -1;
+              i = 0;
+              while (i < 4) {
+                if ((n = read(sockfd, &tmp+i, 4-i)) != (4-i)) {
+                  sleep(2);
+                  if ((n > 0) && (n < 4)) {
+                    i += n;
+                    continue;
+                  }
+                  if ((n == -1) && (errno == EAGAIN)) {
+                    continue;
+                  }
+                  return -1;
+                }
+                else {
+                  break;
+                }
               }
-              if (read(sockfd, tunneltype, 1) != 1) {
-                return -1;
+              i = 0;
+              while (i < 1) {
+                if ((n = read(sockfd, tunneltype+i, 1-i)) != (1-i)) {
+                  if ((n == -1) && (errno == EAGAIN)) {
+                    continue;
+                  }
+                  return -1;
+                }
+                else {
+                  break;
+                }
               }
-              if (read(sockfd, addrlen, 4) != 4) {
-                return -1;
+              i = 0;
+              while (i < 4) {
+                if ((n = read(sockfd, addrlen+i, 4-i)) != (4-i)) {
+                  if ((n > 0) && (n < 4)) {
+                    i += n;
+                    continue;
+                  }
+                  if ((n == -1) && (errno == EAGAIN)) {
+                    continue;
+                  }
+                  return -1;
+                }
+                else {
+                  break;
+                }
               }
-              if (read(sockfd, addr, *addrlen) != *addrlen) {
-                return -1;
+              i = 0;
+              while (i < *addrlen) {
+                if ((n = read(sockfd, addr+i, (*addrlen)-i)) != ((*addrlen)-i)) {
+                  if ((n > 0) && (n < *addrlen)) {
+                    i += n;
+                    continue;
+                  }
+                  if ((n == -1) && (errno == EAGAIN)) {
+                    continue;
+                  }
+                  return -1;
+                }
+                else {
+                  break;
+                }
               }
               return tmp;
               break;

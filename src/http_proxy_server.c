@@ -258,6 +258,7 @@ http_proxy_server(void *vptr)
       else {
         aflog(LOG_T_MAIN, LOG_I_DEBUG,
             "http proxy: New connection --> EAGAIN");
+        continue;
       }
       memset(tab, 0, 9000);
       nothttp = 0;

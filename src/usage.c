@@ -126,9 +126,12 @@ client_long_usage(char* info)
   printf(" Authorization:\n\n");
   printf("  -i, --id            - sends the id string to afserver\n");
   printf("  --pass              - set the password used for client identification\n");
-  printf("                        (default: no password)\n\n");
+  printf("                        (default: no password)\n");
+  printf("  --ignorepkeys       - ignore invalid server's public keys\n\n");
   printf(" Configuration:\n\n");
   printf("  -k, --keyfile       - the name of the file with RSA key (default: client.rsa)\n");
+  printf("  -s, --storefile     - the name of the file with stored public keys\n");
+  printf("                        (default: known_hosts)\n");
   printf("  -D, --dateformat    - format of the date printed in logs (see 'man strftime'\n");
   printf("                        for details) (default: %%d.%%m.%%Y %%H:%%M:%%S)\n");
   printf("  -K, --keep-alive N  - send keepalive packets every N seconds\n");

@@ -32,8 +32,10 @@ static struct option long_options[] = {
   {"portnum", 1, 0, 'p'},
   {"verbose", 0, 0, 'v'},
   {"keyfile", 1, 0, 'k'},
+  {"storefile", 1, 0, 's'},
   {"log", 1, 0, 'o'},
   {"pass", 1, 0, 301},
+  {"ignorepkeys", 0, 0, 302},
 #ifdef AF_INET6
   {"ipv4", 0, 0, '4'},
   {"ipv6", 0, 0, '6'},
@@ -85,6 +87,7 @@ main(int argc, char **argv)
   char* desnam = NULL;
   char* despor = NULL;
   char* keys = NULL;
+  char* store = NULL;
   char* dateformat = NULL;
   char* katimeout = NULL;
   char* artries = NULL;
@@ -95,6 +98,7 @@ main(int argc, char **argv)
   char reverse = 0;
   char tunneltype = 0;
   char type = 0;
+  char ignorepkeys = 0;
   struct sigaction act;
 #ifdef HAVE_LIBDL
   moduleT module = {0, NULL, NULL, NULL, NULL}, secmodule = {0, NULL, NULL, NULL, NULL};
@@ -132,7 +136,7 @@ main(int argc, char **argv)
 #endif
   
   while ((n = getopt_long(argc, argv,
-          GETOPT_LONG_LIBDL(GETOPT_LONG_LIBPTHREAD(GETOPT_LONG_AF_INET6("huUn:m:d:p:vk:o:i:D:rP:X:VK:A:T:")))
+          GETOPT_LONG_LIBDL(GETOPT_LONG_LIBPTHREAD(GETOPT_LONG_AF_INET6("huUn:m:d:p:vk:s:o:i:D:rP:X:VK:A:T:")))
           , long_options, 0)) != -1) {
     switch (n) {
       case 'h': {
@@ -185,6 +189,10 @@ main(int argc, char **argv)
         keys = optarg;
         break;
       }
+      case 's': {
+        store = optarg;
+        break;
+      }
       case 'o': {
         addlogtarget(optarg);
         break;
@@ -195,6 +203,10 @@ main(int argc, char **argv)
         for (i = 0; i < n; ++i) {
           pass[i%4] += optarg[i];
         }
+        break;
+      }
+      case 302: {
+        ignorepkeys = 1;
         break;
       }
 #ifdef AF_INET6
@@ -290,6 +302,9 @@ main(int argc, char **argv)
   if (keys == NULL) {
     keys = "client.rsa";
   }
+  if (store == NULL) {
+    store = "known_hosts";
+  }
   if ((reverse == 0) && (remote == 0) && (desnam == NULL)) {
     gethostname(hostname, 100);
     desnam = hostname;
@@ -360,9 +375,17 @@ main(int argc, char **argv)
           "Setting cipher list failed... exiting");
       exit(1);
     }
-    if ((temp2 = create_apf_dir())) {
+    if ((temp2 = create_apf_dir(0))) {
       aflog(LOG_T_INIT, LOG_I_WARNING,
           "Warning: Creating ~/.apf directory failed (%d)", temp2);
+      if ((temp2 = create_apf_dir(1))) {
+        aflog(LOG_T_INIT, LOG_I_WARNING,
+            "Warning: Creating ./apf directory failed (%d)", temp2);
+      }
+    }
+    if ((temp2 = create_publickey_store(&store))) {
+      aflog(LOG_T_INIT, LOG_I_WARNING,
+          "Warning: Something bad happened when creating public key store... (%d)", temp2);
     }
     if ((temp2 = generate_rsa_key(&keys))) {
       aflog(LOG_T_INIT, LOG_I_WARNING,
@@ -397,9 +420,11 @@ main(int argc, char **argv)
     }
     
 #ifdef HAVE_LIBPTHREAD
-    initialize_client_stage1(tunneltype, &master, name, manage, proxyname, proxyport, ipfam, ctx, buff, pass, 1);
+    initialize_client_stage1(tunneltype, &master, name, manage, proxyname, proxyport,
+        ipfam, ctx, buff, pass, 1, ignorepkeys);
 #else
-    initialize_client_stage1(tunneltype, &master, name, manage, NULL, NULL, ipfam, ctx, buff, pass, 1);
+    initialize_client_stage1(tunneltype, &master, name, manage, NULL, NULL,
+        ipfam, ctx, buff, pass, 1, ignorepkeys);
 #endif
     
     if (remote) {
@@ -678,10 +703,10 @@ main(int argc, char **argv)
           if (temp2 == 0) {
 #ifdef HAVE_LIBPTHREAD
             if (initialize_client_stage1(tunneltype, &master, name, manage, proxyname, proxyport,
-                ipfam, ctx, buff, pass, 0)) {
+                ipfam, ctx, buff, pass, 0, ignorepkeys)) {
 #else
             if (initialize_client_stage1(tunneltype, &master, name, manage, NULL, NULL,
-                ipfam, ctx, buff, pass, 0)) {
+                ipfam, ctx, buff, pass, 0, ignorepkeys)) {
 #endif
               temp2 = 1;
             }

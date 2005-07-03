@@ -428,9 +428,13 @@ main(int argc, char **argv)
         "Setting ciphers list failed... exiting");
 		exit(1);
 	}
-  if ((flags = create_apf_dir())) {
+  if ((flags = create_apf_dir(0))) {
     aflog(LOG_T_INIT, LOG_I_WARNING,
         "Warning: Creating ~/.apf directory failed (%d)", flags);
+    if ((flags = create_apf_dir(1))) {
+      aflog(LOG_T_INIT, LOG_I_WARNING,
+          "Warning: Creating ./apf directory failed (%d)", flags);
+    }
   }
   if ((flags = generate_rsa_key(&config.keys))) {
     aflog(LOG_T_INIT, LOG_I_WARNING,
@@ -450,7 +454,6 @@ main(int argc, char **argv)
         "Setting certificate failed (%s)... exiting", config.certif);
 		exit(1);
 	}
-
 	if (config.size == 0) {
 		aflog(LOG_T_INIT, LOG_I_CRIT,
         "Working without sense is really without sense...");
@@ -964,8 +967,14 @@ main(int argc, char **argv)
     			len = pointer->addrlen;
     			sent = accept(pointer->usrclitable[l].listenfd, pointer->cliaddr, &len);
           if (sent == -1) {
-      			aflog(LOG_T_USER, LOG_I_DDEBUG,
-                "realm[%s]: listenfd: FD_ISSET --> EAGAIN", get_realmname(&config, j));
+            if (errno == EAGAIN) {
+              aflog(LOG_T_USER, LOG_I_DDEBUG,
+                  "realm[%s]: listenfd: FD_ISSET --> EAGAIN", get_realmname(&config, j));
+            }
+            else {
+              aflog(LOG_T_USER, LOG_I_DDEBUG,
+                  "realm[%s]: listenfd: FD_ISSET --> errno=%d", get_realmname(&config, j), errno);
+            }
             continue;
           }
     			flags = fcntl(sent, F_GETFL, 0);
@@ -1033,8 +1042,14 @@ main(int argc, char **argv)
 			len = pointer->addrlen;
 			sent = accept(pointer->clitable[k].listenfd, pointer->cliaddr, &len);
       if (sent == -1) {
-  			aflog(LOG_T_USER, LOG_I_DDEBUG,
-            "realm[%s]: listenfd: FD_ISSET --> EAGAIN", get_realmname(&config, j));
+        if (errno == EAGAIN) {
+          aflog(LOG_T_USER, LOG_I_DDEBUG,
+              "realm[%s]: listenfd: FD_ISSET --> EAGAIN", get_realmname(&config, j));
+        }
+        else {
+          aflog(LOG_T_USER, LOG_I_DDEBUG,
+              "realm[%s]: listenfd: FD_ISSET --> errno=%d", get_realmname(&config, j), errno);
+        }
         continue;
       }
 			flags = fcntl(sent, F_GETFL, 0);
@@ -1854,8 +1869,14 @@ main(int argc, char **argv)
         sent = accept(pointer->usrclitable[l].managefd, pointer->cliaddr, &len);
 #endif
         if (sent == -1) {
-          aflog(LOG_T_USER, LOG_I_DDEBUG,
-              "realm[%s]: listenfd: FD_ISSET --> EAGAIN", get_realmname(&config, j));
+          if (errno == EAGAIN) {
+            aflog(LOG_T_USER, LOG_I_DDEBUG,
+                "realm[%s]: managefd: FD_ISSET --> EAGAIN", get_realmname(&config, j));
+          }
+          else {
+            aflog(LOG_T_USER, LOG_I_DDEBUG,
+                "realm[%s]: managefd: FD_ISSET --> errno=%d", get_realmname(&config, j), errno);
+          }
           continue;
         }
         flags = fcntl(sent, F_GETFL, 0);

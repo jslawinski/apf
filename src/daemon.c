@@ -18,42 +18,44 @@
  *
  */
 
-#include "activefor.h"
-#include "network.h"
-#include "stats.h"
-#include "modules.h"
-#include "remoteadmin.h"
-#include "make_ssl_handshake.h"
-#include "first_run.h"
-#include "http_proxy_client.h"
-#include "thread_management.h"
-#include "client_reverse_udp.h"
-#include "server_check.h"
-#include "client_initialization.h"
-#include "http_proxy_functions.h"
-#include "client_shutdown.h"
-#include "client_signals.h"
-#include "usage.h"
-#include "logging.h"
-#include "audit.h"
 #include "daemon.h"
 
-#include <openssl/rsa.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#include <sys/time.h>
-#include <sys/ioctl.h>
-#ifdef HAVE_LINUX_SOCKIOS_H
-#include <linux/sockios.h>
+#ifndef HAVE_DAEMON
+
+#ifndef HAVE_THIS_DAEMON
+#define HAVE_THIS_DAEMON
+
+int
+daemon(int nochdir, int noclose)
+{
+  int retval;
+  if ((retval = fork()) == 0) {
+    /* child process */
+    setsid();
+    if (nochdir == 0) {
+      chdir("/");
+    }
+    if (noclose == 0) {
+      retval = open("/dev/null", O_RDWR);
+      if (retval == -1) {
+        return retval;
+      }
+      dup2(retval, STDIN_FILENO);
+      dup2(retval, STDOUT_FILENO);
+      dup2(retval, STDERR_FILENO);
+      close(retval);
+    }
+  }
+  else {
+    /* parent process */
+    if (retval == -1) {
+      return retval;
+    }
+    _exit(0);
+  }
+  return 0;
+}
+
 #endif
-#include <signal.h>
-#include <string.h>
-#include <fcntl.h>
-
-#include <getopt.h>
-
-#ifndef _JS_AFCLIENT_H
-#define _JS_AFCLIENT_H
 
 #endif
-

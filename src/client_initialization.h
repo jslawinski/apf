@@ -32,7 +32,7 @@
 
 int initialize_client_stage1(char tunneltype, clifd* master, char* name, char* manage,
     char* proxyname, char* proxyport, char ipfam, SSL_CTX* ctx, unsigned char* buff, unsigned char* pass,
-    char wanttoexit);
+    char wanttoexit, char ignorepkeys);
 int initialize_client_stage2(char *type, clifd* master, int* usernum, unsigned char* buff, char wanttoexit);
 int initialize_client_stage3(ConnectuserT** contable, clifd* master, int usernum, int* buflength,
     socklen_t* len, fd_set* allset, fd_set* wset, int* maxfdp1, char wanttoexit);

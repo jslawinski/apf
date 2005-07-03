@@ -18,42 +18,24 @@
  *
  */
 
-#include "activefor.h"
-#include "network.h"
-#include "stats.h"
-#include "modules.h"
-#include "remoteadmin.h"
-#include "make_ssl_handshake.h"
-#include "first_run.h"
-#include "http_proxy_client.h"
-#include "thread_management.h"
-#include "client_reverse_udp.h"
-#include "server_check.h"
-#include "client_initialization.h"
-#include "http_proxy_functions.h"
-#include "client_shutdown.h"
-#include "client_signals.h"
-#include "usage.h"
-#include "logging.h"
-#include "audit.h"
-#include "daemon.h"
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/socket.h>
 
-#include <openssl/rsa.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#include <sys/time.h>
-#include <sys/ioctl.h>
-#ifdef HAVE_LINUX_SOCKIOS_H
-#include <linux/sockios.h>
-#endif
-#include <signal.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
 
-#include <getopt.h>
+#ifndef _JS_BASE64_H
+#define _JS_BASE64_H
 
-#ifndef _JS_AFCLIENT_H
-#define _JS_AFCLIENT_H
+/* routine to encode src with base64 algorithm */
+int b64_ntop(uint8_t const *src, size_t srclength, char *target, size_t targsize);
+/* routine to decode src with base64 algorithm */
+int b64_pton(char const *src, uint8_t *target, size_t targsize);
 
 #endif
-

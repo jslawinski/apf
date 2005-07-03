@@ -1,4 +1,4 @@
-.TH afclient 1 "apf 0.7" Jeremian
+.TH afclient 1 "apf 0.7.1" Jeremian
 .SH NAME
 afclient \- active port forwarder client
 .SH SYNOPSIS
@@ -55,10 +55,16 @@ is running (required)
 .B --pass PASSWORD
   set the password used for client identification (default: no password)
 
+.B --ignorepkeys
+  ignore invalid server's public keys
+
 .I Configuration
 
 .B -k, --keyfile FILE
   the name of the file with RSA key (default: client.rsa)
+
+.B -s, --storefile
+  the name of the file with stored public keys (default: known_hosts)
   
 .B -D, --dateformat FORMAT
   format of the date printed in logs (see 'man strftime' for details) (default: %d.%m.%Y %H:%M:%S)
