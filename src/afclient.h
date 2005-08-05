@@ -22,7 +22,7 @@
 #include "network.h"
 #include "stats.h"
 #include "modules.h"
-#include "remoteadmin.h"
+#include "client_remoteadmin.h"
 #include "make_ssl_handshake.h"
 #include "first_run.h"
 #include "http_proxy_client.h"
@@ -31,12 +31,14 @@
 #include "server_check.h"
 #include "client_initialization.h"
 #include "http_proxy_functions.h"
+#include "http_proxy_options_struct.h"
 #include "client_shutdown.h"
 #include "client_signals.h"
 #include "usage.h"
 #include "logging.h"
-#include "audit.h"
+#include "audit_list_struct.h"
 #include "daemon.h"
+#include "ar_options_struct.h"
 
 #include <openssl/rsa.h>
 #include <openssl/ssl.h>

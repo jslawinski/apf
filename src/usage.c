@@ -42,10 +42,10 @@ server_long_usage(char* info)
   printf(" Basic options:\n\n");
   printf("  -n, --hostname      - it's used when creating listening sockets\n");
   printf("                        (default: '')\n");
-  printf("  -l, --listenport    - listening port number - users connect\n");
-  printf("                        to it (default: 50127)\n");
-  printf("  -m, --manageport    - manage port number - second part of the active\n");
-  printf("                        port forwarder connects to it (default: 50126)\n");
+  printf("  -l, --listenport    - listening [host:]port - users connect to it\n");
+  printf("                        (default: 50127)\n");
+  printf("  -m, --manageport    - manage [host:]port - afclient connects to it\n");
+  printf("                        (default: 50126)\n");
   printf("  -V, --version       - display version number\n");
   printf("  -h, --help          - prints this help\n\n");
   printf(" Authorization:\n\n");
@@ -94,6 +94,10 @@ server_long_usage(char* info)
 #ifdef HAVE_LIBPTHREAD
   printf(" HTTP PROXY:\n\n");
   printf("  -P, --enableproxy   - enable http proxy mode\n\n");
+  /* FIXME: afclient is always trying to get http page, so this option is not needed now
+  printf("  -S, --use-https     - use https proxy instead of http proxy. '-P' option\n");
+  printf("                        will be set implicitly\n\n");
+  */
 #endif
   
   exit(0);
@@ -135,9 +139,15 @@ client_long_usage(char* info)
   printf("  -D, --dateformat    - format of the date printed in logs (see 'man strftime'\n");
   printf("                        for details) (default: %%d.%%m.%%Y %%H:%%M:%%S)\n");
   printf("  -K, --keep-alive N  - send keepalive packets every N seconds\n");
-  printf("                        (default: not send keepalive packets)\n");
-  printf("  -A, --ar-tries N    - try N times to reconnect to afserver after\n");
-  printf("                        its premature quit (default: unlimited)\n");
+  printf("                        (default: not send keepalive packets)\n\n");
+  printf(" Auto-reconnection:\n\n");
+  printf("  --ar-start          - enable auto-reconnection when afserver is not\n");
+  printf("                        reachable on start (default: disabled)\n");
+  printf("  --ar-quit           - enable auto-reconnection after normal afserver quit\n");
+  printf("                        (default: disabled)\n");
+  printf("  --noar              - disable auto-reconnection after premature afserver\n");
+  printf("                        quit (default: enabled)\n");
+  printf("  -A, --ar-tries N    - try N times to reconnect (default: unlimited)\n");
   printf("  -T, --ar-delay N    - wait N seconds between reconnect tries (default: 5)\n\n");
   printf(" Modes:\n\n");
   printf("  -u, --udpmode       - udp mode - client will use udp protocol to\n");
@@ -162,9 +172,13 @@ client_long_usage(char* info)
   printf("  -L, --Load          - load a module for service's packets filtering\n\n");
 #endif
 #ifdef HAVE_LIBPTHREAD
-  printf(" HTTP PROXY:\n\n");
+  printf(" HTTP/HTTPS PROXY:\n\n");
+  printf("  -S, --use-https     - use https proxy instead of http proxy\n");
   printf("  -P, --proxyname     - the name of the machine with proxy server\n");
-  printf("  -X, --proxyport     - the port used by proxy server (default: 8080)\n\n");
+  printf("  -X, --proxyport     - the port used by proxy server (default: 8080)\n");
+  printf("  -C, --pa-cred  U:P  - the user (U) and password (P) used in proxy\n");
+  printf("                        authorization\n");
+  printf("  -B, --pa-t-basic    - the Basic type of proxy authorization (default)\n\n");
 #endif
   
   exit(0);

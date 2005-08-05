@@ -23,26 +23,19 @@
 #include "client_shutdown.h"
 
 void
-close_connections(int usernum, ConnectuserT** contable)
+close_connections(int usernum, ConnectUser*** contable)
 {
   int i;
   if (*contable) {
     for (i = 0; i < usernum; ++i) {
-      if (((*contable)[i].state==S_STATE_OPEN) || ((*contable)[i].state==S_STATE_STOPPED)) {
-        close((*contable)[i].connfd);
-        freebuflist(&(*contable)[i].head);
+      if ((ConnectUser_get_state((*contable)[i]) == S_STATE_OPEN) ||
+          (ConnectUser_get_state((*contable)[i]) == S_STATE_STOPPED)) {
+        close(ConnectUser_get_connFd((*contable)[i]));
       }
+      ConnectUser_free(&(*contable)[i]);
     }
     free(*contable);
     (*contable) = NULL;
   }
 }
 
-void
-clear_master_connection(clifd* master)
-{
-  if (master->ssl) {
-    SSL_free(master->ssl);
-    master->ssl = NULL;
-  }
-}

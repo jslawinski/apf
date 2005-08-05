@@ -27,11 +27,11 @@
 #include "ssl_routines.h"
 
 int
-initialize_client_stage1(char tunneltype, clifd* master, char* name, char* manage,
-    char* proxyname, char* proxyport, char ipfam, SSL_CTX* ctx, unsigned char* buff, unsigned char* pass,
+initialize_client_stage1(char tunneltype, SslFd* master, char* name, char* manage,
+    HttpProxyOptions* hpo, char ipfam, SSL_CTX* ctx, unsigned char* buff, unsigned char* pass,
     char wanttoexit, char ignorepkeys)
 {
-  int n, nlen, elen, len;
+  int n, nlen, elen, len, tmp;
   unsigned int olen;
   X509* server_cert;
   const EVP_MD *md;
@@ -42,7 +42,7 @@ initialize_client_stage1(char tunneltype, clifd* master, char* name, char* manag
   unsigned char *key_buf = NULL;
   switch (tunneltype) {
     case 0: {
-      if (ip_connect(&(master->commfd), name, manage, ipfam)) {
+      if (ip_connect(&tmp, name, manage, ipfam)) {
 #ifdef AF_INET6
         aflog(LOG_T_INIT, LOG_I_CRIT,
             "tcp_connect_%s error for %s, %s",
@@ -58,18 +58,21 @@ initialize_client_stage1(char tunneltype, clifd* master, char* name, char* manag
           return 1;
         }
       } 
+      SslFd_set_fd(master, tmp);
       break;
             }
 #ifdef HAVE_LIBPTHREAD 
     case 1: {
-      if (initialize_http_proxy_client(&(master->commfd), name, manage, proxyname, proxyport, ipfam)) {
+      if (initialize_http_proxy_client(&tmp, name, manage, hpo, ipfam, ctx)) {
 #ifdef AF_INET6
         aflog(LOG_T_INIT, LOG_I_CRIT,
             "http_proxy_connect_%s error for %s, %s (proxy: %s, %s)",
-            (ipfam & 0x02)?"ipv4":(ipfam & 0x04)?"ipv6":"unspec", name, manage, proxyname, proxyport);
+            (ipfam & 0x02)?"ipv4":(ipfam & 0x04)?"ipv6":"unspec", name, manage,
+            HttpProxyOptions_get_proxyname(hpo), HttpProxyOptions_get_proxyport(hpo));
 #else 
         aflog(LOG_T_INIT, LOG_I_CRIT,
-            "http_proxy_connect error for %s, %s (proxy: %s, %s)", name, manage, proxyname, proxyport);
+            "http_proxy_connect error for %s, %s (proxy: %s, %s)", name, manage,
+            HttpProxyOptions_get_proxyname(hpo), HttpProxyOptions_get_proxyport(hpo));
 #endif 
         if (wanttoexit) {
           exit(1);
@@ -78,6 +81,7 @@ initialize_client_stage1(char tunneltype, clifd* master, char* name, char* manag
           return 1;
         }
       }
+      SslFd_set_fd(master, tmp);
       break;
             }
 #endif
@@ -95,7 +99,7 @@ initialize_client_stage1(char tunneltype, clifd* master, char* name, char* manag
   }
   
   master->ssl = SSL_new(ctx);
-  if (SSL_set_fd(master->ssl, master->commfd) != 1) {
+  if (SSL_set_fd(SslFd_get_ssl(master), SslFd_get_fd(master)) != 1) {
     aflog(LOG_T_INIT, LOG_I_CRIT,
         "Problem with initializing ssl... exiting");
     if (wanttoexit) {
@@ -201,11 +205,11 @@ initialize_client_stage1(char tunneltype, clifd* master, char* name, char* manag
 }
 
 int
-initialize_client_stage2(char *type, clifd* master, int* usernum, unsigned char* buff, char wanttoexit)
+initialize_client_stage2(char *type, SslFd* master, int* usernum, unsigned char* buff, char wanttoexit)
 {
-  send_message(*type, *master, buff, 5);
+  SslFd_send_message(*type | TYPE_SSL | TYPE_ZLIB, master, buff, 5);
   buff[0] = 0;
-  get_message(*type, *master, buff, -5);
+  SslFd_get_message(*type | TYPE_SSL | TYPE_ZLIB, master, buff, -5);
 
   if ( buff[0] == 0 ) {
     aflog(LOG_T_INIT, LOG_I_CRIT,
@@ -256,10 +260,11 @@ initialize_client_stage2(char *type, clifd* master, int* usernum, unsigned char*
 }
 
 int
-initialize_client_stage3(ConnectuserT** contable, clifd* master, int usernum, int* buflength, socklen_t* len,
+initialize_client_stage3(ConnectUser*** contable, SslFd* master, int usernum, int* buflength, socklen_t* len,
     fd_set* allset, fd_set* wset, int* maxfdp1, char wanttoexit)
 {
-  (*contable) = calloc( usernum, sizeof(ConnectuserT));
+  int i;
+  (*contable) = calloc(usernum, sizeof(ConnectUser*));
   if ((*contable) == NULL) {
     aflog(LOG_T_INIT, LOG_I_CRIT,
         "Calloc error - unable to successfully communicate with server");
@@ -270,9 +275,22 @@ initialize_client_stage3(ConnectuserT** contable, clifd* master, int usernum, in
       return 1;
     }
   }
+  for (i = 0; i < usernum; ++i) {
+    (*contable)[i] = ConnectUser_new();
+    if ((*contable)[i] == NULL) {
+      aflog(LOG_T_INIT, LOG_I_CRIT,
+          "Calloc error - unable to successfully communicate with server");
+      if (wanttoexit) {
+        exit(1);
+      }
+      else {
+        return 1;
+      }
+    }
+  }
 
   (*len) = 4;
-  if (getsockopt(master->commfd, SOL_SOCKET, SO_SNDBUF, buflength, len) == -1) {
+  if (getsockopt(SslFd_get_fd(master), SOL_SOCKET, SO_SNDBUF, buflength, len) == -1) {
     aflog(LOG_T_INIT, LOG_I_CRIT,
         "Can't get socket send buffer size - exiting...");
     if (wanttoexit) {
@@ -286,7 +304,7 @@ initialize_client_stage3(ConnectuserT** contable, clifd* master, int usernum, in
   FD_ZERO(allset);
   FD_ZERO(wset);
 
-  FD_SET(master->commfd, allset);
-  (*maxfdp1) = master->commfd + 1;
+  FD_SET(SslFd_get_fd(master), allset);
+  (*maxfdp1) = SslFd_get_fd(master) + 1;
   return 0;
 }

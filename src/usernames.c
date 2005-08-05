@@ -25,7 +25,7 @@
 int
 get_username(RealmT* pointer, int user)
 {
-  return pointer->contable[user].userid;
+  return ConnectUser_get_userId(pointer->contable[user]);
 }
 
 int
@@ -34,7 +34,7 @@ get_usernumber(RealmT* pointer, int userid)
   int i;
   
   for (i = 0; i < pointer->usernum; ++i) {
-    if (userid == pointer->contable[i].userid) {
+    if (userid == ConnectUser_get_userId(pointer->contable[i])) {
       return i;
     }
   }

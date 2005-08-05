@@ -48,22 +48,32 @@ static struct option long_options[] = {
   {"dateformat", 1, 0, 'D'},
   {"remoteadmin", 0, 0, 'r'},
 #ifdef HAVE_LIBPTHREAD
+  {"use-https", 0, 0, 'S'},
   {"proxyname", 1, 0, 'P'},
   {"proxyport", 1, 0, 'X'},
+  {"pa-t-basic", 0, 0, 'B'},
+  {"pa-cred", 1, 0, 'C'},
 #endif
   {"version", 0, 0, 'V'},
   {"keep-alive", 1, 0, 'K'},
   {"ar-tries", 1, 0, 'A'},
   {"ar-delay", 1, 0, 'T'},
+  {"ar-start", 0, 0, 305},
+  {"ar-quit", 0, 0, 306},
+  {"noar", 0, 0, 307},
   {0, 0, 0, 0}
 };
 
 int
 main(int argc, char **argv)
 {
-  int i, n, numofcon, length, buflength, notsent, temp2; 
-  ConnectuserT* contable = NULL;
-  clifd master;
+  /*
+   * variables
+   */
+  
+  int i, n, numofcon, length, buflength, notsent, temp, temp2; 
+  ConnectUser** contable = NULL;
+  SslFd* master = SslFd_new();
   unsigned char buff[9000];
   char hostname[100];
   int maxfdp1, usernum, usercon;
@@ -72,16 +82,14 @@ main(int argc, char **argv)
   fd_set rset, allset, wset, tmpset;
   struct timeval keepalive;
   int timeout = 0;
-  int delay = 5;
-  int tries = -1;
   char verbose = 0;
   char remote = 0;
   char sendkapackets = 0;
   char* name = NULL;
 #ifdef HAVE_LIBPTHREAD
-  char* proxyname = NULL;
-  char* proxyport = NULL;
+  HttpProxyOptions* hpo = HttpProxyOptions_new();
 #endif
+  ArOptions* ao = ArOptions_new();
   char* id = NULL;
   char* manage = NULL;
   char* desnam = NULL;
@@ -90,8 +98,6 @@ main(int argc, char **argv)
   char* store = NULL;
   char* dateformat = NULL;
   char* katimeout = NULL;
-  char* artries = NULL;
-  char* ardelay = NULL;
   char ipfam = 0;
   unsigned char pass[4] = {1, 2, 3, 4};
   char udp = 0;
@@ -103,10 +109,30 @@ main(int argc, char **argv)
 #ifdef HAVE_LIBDL
   moduleT module = {0, NULL, NULL, NULL, NULL}, secmodule = {0, NULL, NULL, NULL, NULL};
 #endif
-
   SSL_METHOD* method;
   SSL_CTX* ctx = NULL;
 
+  /*
+   * initialization
+   */
+
+#ifdef HAVE_LIBPTHREAD
+  if (hpo == NULL) {
+    printf("Problems with memory allocation... exiting\n");
+    exit(1);
+  }
+#endif
+
+  if (ao == NULL) {
+    printf("Problems with memory allocation... exiting\n");
+    exit(1);
+  }
+  
+  if (master == NULL) {
+    printf("Problems with memory allocation... exiting\n");
+    exit(1);
+  }
+  
   sigfillset(&(act.sa_mask));
   act.sa_flags = 0;
 	
@@ -125,7 +151,7 @@ main(int argc, char **argv)
 #define GETOPT_LONG_AF_INET6(x) x
 #endif
 #ifdef HAVE_LIBPTHREAD
-#define GETOPT_LONG_LIBPTHREAD(x) "P:X:"x
+#define GETOPT_LONG_LIBPTHREAD(x) "SP:X:BC:"x
 #else
 #define GETOPT_LONG_LIBPTHREAD(x) x
 #endif
@@ -136,7 +162,8 @@ main(int argc, char **argv)
 #endif
   
   while ((n = getopt_long(argc, argv,
-          GETOPT_LONG_LIBDL(GETOPT_LONG_LIBPTHREAD(GETOPT_LONG_AF_INET6("huUn:m:d:p:vk:s:o:i:D:rP:X:VK:A:T:")))
+          GETOPT_LONG_LIBDL(GETOPT_LONG_LIBPTHREAD(
+              GETOPT_LONG_AF_INET6("huUn:m:d:p:vk:s:o:i:D:rP:X:VK:A:T:")))
           , long_options, 0)) != -1) {
     switch (n) {
       case 'h': {
@@ -148,12 +175,24 @@ main(int argc, char **argv)
         break;
       }
 #ifdef HAVE_LIBPTHREAD
+      case 'S': {
+        HttpProxyOptions_use_https(hpo);
+        break;
+      }
       case 'P': {
-        proxyname = optarg;
+        HttpProxyOptions_set_proxyname(hpo, optarg);
         break;
       }
       case 'X': {
-        proxyport = optarg;
+        HttpProxyOptions_set_proxyport(hpo, optarg);
+        break;
+      }
+      case 'B': {
+        HttpProxyOptions_set_proxyauth_type(hpo, PROXYAUTH_TYPE_BASIC);
+        break;
+      }
+      case 'C': {
+        HttpProxyOptions_set_proxyauth_cred(hpo, optarg);
         break;
       }
 #endif
@@ -209,6 +248,18 @@ main(int argc, char **argv)
         ignorepkeys = 1;
         break;
       }
+      case 305: {
+        ArOptions_set_arStart(ao, AR_OPTION_ENABLED);
+        break;
+      }
+      case 306: {
+        ArOptions_set_arQuit(ao, AR_OPTION_ENABLED);
+        break;
+      }
+      case 307: {
+        ArOptions_set_arPremature(ao, AR_OPTION_DISABLED);
+        break;
+      }
 #ifdef AF_INET6
       case '4': {
         if (ipfam != 0) {
@@ -258,11 +309,11 @@ main(int argc, char **argv)
         break;
       }
       case 'A': {
-        artries = optarg;
+        ArOptions_set_s_arTries(ao, optarg);
         break;
       }
       case 'T': {
-        ardelay = optarg;
+        ArOptions_set_s_arDelay(ao, optarg);
         break;
       }
       case '?': {
@@ -285,7 +336,7 @@ main(int argc, char **argv)
       client_short_usage("Port on the server is required in reverse mode");
   }
 #ifdef HAVE_LIBPTHREAD
-  if ((proxyname) || (proxyport)) {
+  if ((HttpProxyOptions_get_proxyname(hpo)) || (HttpProxyOptions_get_proxyport(hpo))) {
     if (tunneltype == 0) {
       tunneltype = 1;
     }
@@ -294,8 +345,8 @@ main(int argc, char **argv)
     }
   }
   if (tunneltype == 1) {
-    if (proxyport == NULL) {
-      proxyport = "8080";
+    if (HttpProxyOptions_get_proxyport(hpo) == NULL) {
+      HttpProxyOptions_set_proxyport(hpo, "8080");
     }
   }
 #endif
@@ -313,19 +364,14 @@ main(int argc, char **argv)
     client_short_usage("Destination port number is required");
   }
 
+  initializelogging(verbose, dateformat);
+  
   if (sendkapackets) {
     check_value(&timeout, katimeout, "Invalid timeout value");
     keepalive.tv_sec = timeout;
     keepalive.tv_usec = 0;
   }
-  if (artries) {
-    tries = check_value_liberal(artries, "Invalid ar-tries value");
-  }
-  if (ardelay) {
-    check_value(&delay, ardelay, "Invalid ar-delay value");
-  }
-
-  initializelogging(verbose, dateformat);
+  ArOptions_evaluate_values(ao);
   
 #ifdef HAVE_LIBDL
   if (loadmodule(&module)) {
@@ -418,32 +464,81 @@ main(int argc, char **argv)
         temp2 = accept(n, cliaddr, &addrlen);
       }
     }
-    
-#ifdef HAVE_LIBPTHREAD
-    initialize_client_stage1(tunneltype, &master, name, manage, proxyname, proxyport,
-        ipfam, ctx, buff, pass, 1, ignorepkeys);
-#else
-    initialize_client_stage1(tunneltype, &master, name, manage, NULL, NULL,
-        ipfam, ctx, buff, pass, 1, ignorepkeys);
-#endif
-    
-    if (remote) {
-      return client_admin(type, master, buff, temp2, id);
+
+  }
+
+  i = ArOptions_get_arTries(ao);
+  usernum = 0;
+  SslFd_set_fd(master, -1);
+
+  do {  
+    temp = 0;
+    if (SslFd_get_fd(master) != -1) {
+      close(SslFd_get_fd(master));
     }
-  
-    initialize_client_stage2(&type, &master, &usernum, buff, 1);
-  } /* !reverse */
-  else {
-    initialize_client_reverse_udp(&usernum, &master, name, manage, ipfam);
-  }
+    close_connections(usernum, &contable);
+    SslFd_set_ssl(master, NULL);
+    
+    if (!reverse) {
+      if (temp == 0) {
+#ifdef HAVE_LIBPTHREAD
+        if (initialize_client_stage1(tunneltype, master, name, manage, hpo,
+              ipfam, ctx, buff, pass,
+              (ArOptions_get_arStart(ao) == AR_OPTION_ENABLED) ? 0 : 1,
+              ignorepkeys)) {
+#else
+        if (initialize_client_stage1(tunneltype, master, name, manage, NULL,
+              ipfam, ctx, buff, pass,
+              (ArOptions_get_arStart(ao) == AR_OPTION_ENABLED) ? 0 : 1,
+              ignorepkeys)) {
+#endif
+          temp = 1;
+        }
+      }
 
-  initialize_client_stage3(&contable, &master, usernum, &buflength, &len, &allset, &wset, &maxfdp1, 1);
+      if ((temp == 0) && remote) {
+        return client_admin(type, master, buff, temp2, id);
+      }
 
-  /* UDP REVERSE MODE */
-  
-  if (reverse) {
-    client_reverse_udp(contable, &master, desnam, despor, type, buff, buflength);
-  }
+      if (temp == 0) {
+        if (initialize_client_stage2(&type, master, &usernum, buff,
+                (ArOptions_get_arStart(ao) == AR_OPTION_ENABLED) ? 0 : 1)) {
+          temp = 1;
+        }
+      }
+    } /* !reverse */
+    else {
+      if (initialize_client_reverse_udp(&usernum, master, name, manage, ipfam,
+              (ArOptions_get_arStart(ao) == AR_OPTION_ENABLED) ? 0 : 1)) {
+        temp = 1;
+      }
+    }
+
+    if (temp == 0) {
+      if (initialize_client_stage3(&contable, master, usernum, &buflength, &len, &allset, &wset, &maxfdp1,
+              (ArOptions_get_arStart(ao) == AR_OPTION_ENABLED) ? 0 : 1)) {
+        temp = 1;
+      }
+    }
+
+    /* UDP REVERSE MODE */
+
+    if ((temp == 0) && reverse) {
+      client_reverse_udp(contable, master, desnam, despor, type, buff, buflength);
+    }
+
+    if (i > 0) {
+      --i;
+    }
+    if ((i != 0) && (temp == 1)) {
+      aflog(LOG_T_INIT, LOG_I_INFO,
+          "Trying to reconnect...");
+      mysleep(ArOptions_get_arDelay(ao));
+    }
+    if (temp == 0) {
+      break;
+    }
+  } while (i);
 
   /* NORMAL MODE */
 	
@@ -453,7 +548,8 @@ main(int argc, char **argv)
       "SERVER SSL: %s, ZLIB: %s, MODE: %s", (TYPE_IS_SSL(type))?"yes":"no",
 		  (TYPE_IS_ZLIB(type))?"yes":"no", (TYPE_IS_TCP(type))?"tcp":"udp");
   aflog(LOG_T_CLIENT, LOG_I_NOTICE,
-      "CIPHER: %s VER: %s", SSL_get_cipher_name(master.ssl), SSL_get_cipher_version(master.ssl));
+      "CIPHER: %s VER: %s", SSL_get_cipher_name(SslFd_get_ssl(master)),
+      SSL_get_cipher_version(SslFd_get_ssl(master)));
 #ifdef HAVE_LIBDL
   if (ismloaded(&module)) {
     aflog(LOG_T_CLIENT, LOG_I_INFO,
@@ -471,7 +567,7 @@ main(int argc, char **argv)
     memcpy(&buff[5], id, n);
     buff[3] = n >> 8;	/* high bits of message length */
     buff[4] = n;		/* low bits of message length */
-    send_message(type, master, buff, n+5);
+    SslFd_send_message(type, master, buff, n+5);
     aflog(LOG_T_CLIENT, LOG_I_INFO,
         "ID SENT: %s", id);
   }
@@ -486,8 +582,9 @@ main(int argc, char **argv)
         aflog(LOG_T_CLIENT, LOG_I_DEBUG,
             "timeout: sending keep-alive packet");
         buff[0] = AF_S_KEEP_ALIVE;
-        send_message(type, master, buff, 5);
+        SslFd_send_message(type, master, buff, 5);
         keepalive.tv_sec = timeout;
+        keepalive.tv_usec = 0;
       }
     }
     else {
@@ -497,11 +594,12 @@ main(int argc, char **argv)
         "after select...");
 
     for (i = 0; i < usernum; ++i) {
-      if ((contable[i].state == S_STATE_OPEN)||(contable[i].state == S_STATE_STOPPED)) {
-        if (FD_ISSET(contable[i].connfd, &rset)) { /* FD_ISSET   CONTABLE[i].CONNFD   RSET */
+      if ((ConnectUser_get_state(contable[i]) == S_STATE_OPEN) ||
+          (ConnectUser_get_state(contable[i]) == S_STATE_STOPPED)) {
+        if (FD_ISSET(ConnectUser_get_connFd(contable[i]), &rset)) { /* FD_ISSET   CONTABLE[i].CONNFD   RSET */
           aflog(LOG_T_USER, LOG_I_DDEBUG,
               "user[%d]: FD_ISSET", i);
-          n = read(contable[i].connfd, &buff[5], 8091);
+          n = read(ConnectUser_get_connFd(contable[i]), &buff[5], 8091);
           if (n == -1) {
             aflog(LOG_T_USER, LOG_I_ERR,
                 "error (%d): while reading from service", n);
@@ -509,14 +607,14 @@ main(int argc, char **argv)
           }
 #ifdef HAVE_LINUX_SOCKIOS_H
 # ifdef SIOCOUTQ
-          if (ioctl(master.commfd, SIOCOUTQ, &notsent)) {
+          if (ioctl(SslFd_get_fd(master), SIOCOUTQ, &notsent)) {
             aflog(LOG_T_USER, LOG_I_CRIT,
                 "ioctl error -> exiting...");
             exit(1);
           }
           if (udp) {
             len = 4;
-            if (getsockopt(master.commfd, SOL_SOCKET, SO_SNDBUF, &temp2, &len) != -1) {
+            if (getsockopt(SslFd_get_fd(master), SOL_SOCKET, SO_SNDBUF, &temp2, &len) != -1) {
               if (temp2 != buflength) {
                 buflength = temp2;
                 aflog(LOG_T_USER, LOG_I_WARNING,
@@ -553,7 +651,7 @@ main(int argc, char **argv)
           if (n) {
 #ifdef HAVE_LIBDL
               if (ismloaded(&secmodule)) {
-                switch ((temp2 = secmodule.filter(contable[i].namebuf, &buff[5], &n))) {
+                switch ((temp2 = secmodule.filter(ConnectUser_get_nameBuf(contable[i]), &buff[5], &n))) {
                   case 1: case 4: {
                     aflog(LOG_T_USER, LOG_I_WARNING,
                         "user[%d] (by ser): PACKET IGNORED BY MODULE", i);
@@ -568,15 +666,15 @@ main(int argc, char **argv)
                   case 2: case 5: {
                     aflog(LOG_T_USER, LOG_I_NOTICE,
                         "user[%d] (by ser): DROPPED BY MODULE", i);
-                    close(contable[i].connfd);
-                    FD_CLR(contable[i].connfd, &allset);
-                    FD_CLR(contable[i].connfd, &wset);
-                    contable[i].state = S_STATE_CLOSING;
-                    freebuflist(&contable[i].head);
+                    close(ConnectUser_get_connFd(contable[i]));
+                    FD_CLR(ConnectUser_get_connFd(contable[i]), &allset);
+                    FD_CLR(ConnectUser_get_connFd(contable[i]), &wset);
+                    ConnectUser_set_state(contable[i], S_STATE_CLOSING);
+                    BufList_clear(ConnectUser_get_bufList(contable[i]));
                     buff[0] = AF_S_CONCLOSED; /* closing connection */
                     buff[1] = i >> 8;	/* high bits of user number */
                     buff[2] = i;		/* low bits of user number */
-                    send_message(type, master, buff, 5);
+                    SslFd_send_message(type, master, buff, 5);
 		    if (temp2 == 5) {
                       aflog(LOG_T_MAIN, LOG_I_INFO,
                           "RELEASED MODULE (ser): %s INFO: %s", secmodule.name, secmodule.info());
@@ -612,74 +710,76 @@ main(int argc, char **argv)
             aflog(LOG_T_USER, LOG_I_DEBUG,
                 "user[%d]: TO msglen: %d", i, n);
 #endif
-            send_message(type, master, buff, n+5);
+            SslFd_send_message(type, master, buff, n+5);
           }
           else if (!udp) {
             aflog(LOG_T_USER, LOG_I_INFO,
                 "user[%d]: CLOSING", i);
-            close(contable[i].connfd);
-            FD_CLR(contable[i].connfd, &allset);
-            FD_CLR(contable[i].connfd, &wset);
-            contable[i].state = S_STATE_CLOSING;
-            freebuflist(&contable[i].head);
+            close(ConnectUser_get_connFd(contable[i]));
+            FD_CLR(ConnectUser_get_connFd(contable[i]), &allset);
+            FD_CLR(ConnectUser_get_connFd(contable[i]), &wset);
+            ConnectUser_set_state(contable[i], S_STATE_CLOSING);
+            BufList_clear(ConnectUser_get_bufList(contable[i]));
             buff[0] = AF_S_CONCLOSED; /* closing connection */
             buff[1] = i >> 8;	/* high bits of user number */
             buff[2] = i;		/* low bits of user number */
-            send_message(type, master, buff, 5);
+            SslFd_send_message(type, master, buff, 5);
           }
         } /* - FD_ISSET   CONTABLE[i].CONNFD   RSET */
       }
     }
     for (i = 0; i < usernum; ++i) {
-      if (contable[i].state == S_STATE_STOPPED) {
-        if (FD_ISSET(contable[i].connfd, &tmpset)) { /* FD_ISSET   CONTABLE[i].CONNFD   TMPSET */
+      if (ConnectUser_get_state(contable[i]) == S_STATE_STOPPED) {
+        if (FD_ISSET(ConnectUser_get_connFd(contable[i]), &tmpset)) { /* FD_ISSET  CONTABLE[i].CONNFD  TMPSET */
           aflog(LOG_T_USER, LOG_I_DDEBUG,
               "user[%d]: FD_ISSET - WRITE", i);
-          n = contable[i].head->msglen - contable[i].head->actptr;
-          temp2 = write(contable[i].connfd, &(contable[i].head->buff[contable[i].head->actptr]), n);
+          n = BufListNode_readMessageLength(BufList_get_first(ConnectUser_get_bufList(contable[i])));
+          temp2 = write(ConnectUser_get_connFd(contable[i]),
+              BufListNode_readMessage(BufList_get_first(ConnectUser_get_bufList(contable[i]))), n);
           if ((temp2 > 0) && (temp2 != n)) {
-            contable[i].head->actptr+=temp2;
+            BufListNode_set_actPtr(BufList_get_first(ConnectUser_get_bufList(contable[i])),
+                BufListNode_get_actPtr(BufList_get_first(ConnectUser_get_bufList(contable[i]))) + temp2);
           }
           else if ((temp2 == -1) && (errno == EAGAIN)) {
             aflog(LOG_T_USER, LOG_I_DEBUG,
                 "user[%d]: Couldn't write?", i);
           }
           else if (temp2 == -1) {
-            close(contable[i].connfd);
-            FD_CLR(contable[i].connfd, &allset);
-            FD_CLR(contable[i].connfd, &wset);
-            contable[i].state = S_STATE_CLOSING;
+            close(ConnectUser_get_connFd(contable[i]));
+            FD_CLR(ConnectUser_get_connFd(contable[i]), &allset);
+            FD_CLR(ConnectUser_get_connFd(contable[i]), &wset);
+            ConnectUser_set_state(contable[i], S_STATE_CLOSING);
             buff[0] = AF_S_CONCLOSED; /* closing connection */
             buff[1] = i >> 8;	/* high bits of user number */
             buff[2] = i;		/* low bits of user number */
-            send_message(type, master, buff, 5);
+            SslFd_send_message(type, master, buff, 5);
           }
           else {
-            deleteblnode(&contable[i].head);
-            if (contable[i].head == NULL) {
-              contable[i].state = S_STATE_OPEN;
-              FD_CLR(contable[i].connfd, &wset);
+            BufList_delete_first(ConnectUser_get_bufList(contable[i]));
+            if (BufList_get_first(ConnectUser_get_bufList(contable[i])) == NULL) {
+              ConnectUser_set_state(contable[i], S_STATE_OPEN);
+              FD_CLR(ConnectUser_get_state(contable[i]), &wset);
               buff[0] = AF_S_CAN_SEND; /* stopping transfer */
               buff[1] = i >> 8;       /* high bits of user number */
               buff[2] = i;            /* low bits of user number */
               aflog(LOG_T_USER, LOG_I_DDEBUG,
                   "FROM user[%d]: BUFFERING MESSAGE ENDED", i);
-              send_message(type, master, buff, 5);
+              SslFd_send_message(type, master, buff, 5);
             }
           }
         } /* - FD_ISSET   CONTABLE[i].CONNFD   TMPSET */
       }
     }
-    if (FD_ISSET(master.commfd, &rset)) { /* FD_ISSET   MASTER.COMMFD   RSET */
+    if (FD_ISSET(SslFd_get_fd(master), &rset)) { /* FD_ISSET   MASTER.COMMFD   RSET */
       aflog(LOG_T_CLIENT, LOG_I_DDEBUG,
           "masterfd: FD_ISSET");
-      n = get_message(type, master, buff, 5);
+      n = SslFd_get_message(type, master, buff, 5);
       if (n != 5) {
         aflog(LOG_T_CLIENT, LOG_I_ERR,
             "FATAL ERROR! (%d)", n);
         if (n == -1) {
           if (TYPE_IS_SSL(type)) {
-            get_ssl_error(&master, "FE", n);
+            get_ssl_error(master, "FE", n);
             continue; /* what happened? */
           }
         }
@@ -687,37 +787,40 @@ main(int argc, char **argv)
           exit(1);
       }
       if (n == 0) { /* server quits -> we do the same... */
-        i = tries;
+        i = ArOptions_get_arTries(ao);
+        if (ArOptions_get_arPremature(ao) == AR_OPTION_DISABLED) {
+          i = 0;
+        }
         if (i) {
           aflog(LOG_T_CLIENT, LOG_I_ERR,
               "SERVER: premature quit -> auto-reconnect enabled");
         }
         while (i) {
           close_connections(usernum, &contable);
-          clear_master_connection(&master);
-          mysleep(delay);
+          SslFd_set_ssl(master, NULL);
+          mysleep(ArOptions_get_arDelay(ao));
           aflog(LOG_T_CLIENT, LOG_I_INFO,
               "Trying to reconnect...");
           
           temp2 = 0;
           if (temp2 == 0) {
 #ifdef HAVE_LIBPTHREAD
-            if (initialize_client_stage1(tunneltype, &master, name, manage, proxyname, proxyport,
+            if (initialize_client_stage1(tunneltype, master, name, manage, hpo,
                 ipfam, ctx, buff, pass, 0, ignorepkeys)) {
 #else
-            if (initialize_client_stage1(tunneltype, &master, name, manage, NULL, NULL,
+            if (initialize_client_stage1(tunneltype, master, name, manage, NULL,
                 ipfam, ctx, buff, pass, 0, ignorepkeys)) {
 #endif
               temp2 = 1;
             }
           }
           if (temp2 == 0) {
-            if (initialize_client_stage2(&type, &master, &usernum, buff, 0)) {
+            if (initialize_client_stage2(&type, master, &usernum, buff, 0)) {
               temp2 = 1;
             }
           }
           if (temp2 == 0) {
-            if (initialize_client_stage3(&contable, &master, usernum, &buflength, &len, &allset,
+            if (initialize_client_stage3(&contable, master, usernum, &buflength, &len, &allset,
                 &wset, &maxfdp1, 0)) {
               temp2 = 1;
             }
@@ -753,23 +856,24 @@ main(int argc, char **argv)
                   "user[%d]: AF_S_CONCLOSED", numofcon);
           if ((numofcon>=0) && (numofcon<=usernum)) {
             usercon--;
-            if (contable[numofcon].state == S_STATE_CLOSING) {
-              contable[numofcon].state = S_STATE_CLEAR;
+            if (ConnectUser_get_state(contable[numofcon]) == S_STATE_CLOSING) {
+              ConnectUser_set_state(contable[numofcon], S_STATE_CLEAR);
               aflog(LOG_T_USER, LOG_I_INFO,
                   "user[%d]: CLOSED", numofcon);
             }
-            else if ((contable[numofcon].state==S_STATE_OPEN) || (contable[numofcon].state==S_STATE_STOPPED)){
+            else if ((ConnectUser_get_state(contable[numofcon]) == S_STATE_OPEN) ||
+                (ConnectUser_get_state(contable[numofcon]) == S_STATE_STOPPED)) {
               aflog(LOG_T_USER, LOG_I_INFO,
                   "user[%d]: CLOSED", numofcon);
-              close(contable[numofcon].connfd);
-              FD_CLR(contable[numofcon].connfd, &allset);
-              FD_CLR(contable[numofcon].connfd, &wset);
-              contable[numofcon].state = S_STATE_CLEAR;
-              freebuflist(&contable[numofcon].head);
+              close(ConnectUser_get_connFd(contable[numofcon]));
+              FD_CLR(ConnectUser_get_connFd(contable[numofcon]), &allset);
+              FD_CLR(ConnectUser_get_connFd(contable[numofcon]), &wset);
+              ConnectUser_set_state(contable[numofcon], S_STATE_CLEAR);
+              BufList_clear(ConnectUser_get_bufList(contable[numofcon]));
               buff[0] = AF_S_CONCLOSED; /* closing connection */
               buff[1] = numofcon >> 8;		/* high bits of user number */
               buff[2] = numofcon;		/* low bits of user number */
-              send_message(type, master, buff, 5);
+              SslFd_send_message(type, master, buff, 5);
             }
           }
           break;
@@ -779,23 +883,24 @@ main(int argc, char **argv)
                   "user[%d]: AF_S_CONOPEN", numofcon);
           if ((numofcon>=0) && (numofcon<=usernum)) {
             usercon++;
-            if (contable[numofcon].state == S_STATE_CLEAR) {
-              n = get_message(type, master, buff, length);
-              memcpy(contable[numofcon].namebuf, buff, 128);
-              memcpy(contable[numofcon].portbuf,&buff[128],7);
+            if (ConnectUser_get_state(contable[numofcon]) == S_STATE_CLEAR) {
+              n = SslFd_get_message(type, master, buff, length);
+              ConnectUser_set_nameBuf(contable[numofcon], (char*) buff);
+              ConnectUser_set_portBuf(contable[numofcon], (char*) &buff[128]);
               aflog(LOG_T_USER, LOG_I_INFO,
                   "user[%d]: OPENING", numofcon);
               aflog(LOG_T_USER, LOG_I_INFO,
                   "user[%d]: IP:%s PORT:%s", numofcon,
-              contable[numofcon].namebuf, contable[numofcon].portbuf);
+              ConnectUser_get_nameBuf(contable[numofcon]), ConnectUser_get_portBuf(contable[numofcon]));
 #ifdef HAVE_LIBDL
-              if (ismloaded(&module) && module.allow(contable[numofcon].namebuf, contable[numofcon].portbuf)) {
+              if (ismloaded(&module) && module.allow(ConnectUser_get_nameBuf(contable[numofcon]),
+                    ConnectUser_get_portBuf(contable[numofcon]))) {
                 aflog(LOG_T_USER, LOG_I_WARNING,
-                    "IT'S NOT ALLOWED - DROPPING", numofcon);
+                    "user[%d]: IT'S NOT ALLOWED - DROPPING", numofcon);
                 buff[0] = AF_S_CANT_OPEN; /* not opening connection */
                 buff[1] = numofcon >> 8;		/* high bits of user number */
                 buff[2] = numofcon;		/* low bits of user number */
-                send_message(type, master, buff, 5);
+                SslFd_send_message(type, master, buff, 5);
                 usercon--;
                 continue;
               }
@@ -814,25 +919,27 @@ main(int argc, char **argv)
                 ipfam |= 0x04;
               }
 #endif
-              if (ip_connect(&(contable[numofcon].connfd), desnam, despor, ipfam)) {
+              if (ip_connect(&temp, desnam, despor, ipfam)) {
                 aflog(LOG_T_USER, LOG_I_WARNING,
-                    "CAN'T OPEN - DROPPING", numofcon);
+                    "user[%d]: CAN'T CONNECT to %s:%s - DROPPING", numofcon, desnam, despor);
                 buff[0] = AF_S_CANT_OPEN; /* not opening connection */
                 buff[1] = numofcon >> 8;		/* high bits of user number */
                 buff[2] = numofcon;		/* low bits of user number */
-                send_message(type, master, buff, 5);
+                SslFd_send_message(type, master, buff, 5);
                 usercon--;
                 continue;
               }
-              temp2 = fcntl(contable[numofcon].connfd, F_GETFL, 0);
-              fcntl(contable[numofcon].connfd, F_SETFL, temp2 | O_NONBLOCK);
-              FD_SET(contable[numofcon].connfd, &allset);
-              maxfdp1 = (maxfdp1 > (contable[numofcon].connfd+1)) ? maxfdp1 : (contable[numofcon].connfd+1);
+              ConnectUser_set_connFd(contable[numofcon], temp);
+              temp2 = fcntl(ConnectUser_get_connFd(contable[numofcon]), F_GETFL, 0);
+              fcntl(ConnectUser_get_connFd(contable[numofcon]), F_SETFL, temp2 | O_NONBLOCK);
+              FD_SET(ConnectUser_get_connFd(contable[numofcon]), &allset);
+              maxfdp1 = (maxfdp1 > (ConnectUser_get_connFd(contable[numofcon]) + 1)) ?
+                maxfdp1 : (ConnectUser_get_connFd(contable[numofcon]) + 1);
               buff[0] = AF_S_CONOPEN; /* opening connection */
               buff[1] = numofcon >> 8;		/* high bits of user number */
               buff[2] = numofcon; 		/* low bits of user number */
-              send_message(type, master, buff, 5);
-              contable[numofcon].state = S_STATE_OPEN;
+              SslFd_send_message(type, master, buff, 5);
+              ConnectUser_set_state(contable[numofcon], S_STATE_OPEN);
             }
           }
           break;
@@ -842,12 +949,12 @@ main(int argc, char **argv)
                   "user[%d]: AF_S_MESSAGE", numofcon);
           aflog(LOG_T_USER, LOG_I_DEBUG,
               "user[%d]: FROM msglen: %d", numofcon, length);
-          n = get_message(type, master, buff, length);
+          n = SslFd_get_message(type, master, buff, length);
           if ((numofcon>=0) && (numofcon<=usernum)) {
-            if (contable[numofcon].state == S_STATE_OPEN) {
+            if (ConnectUser_get_state(contable[numofcon]) == S_STATE_OPEN) {
 #ifdef HAVE_LIBDL
               if (ismloaded(&module)) {
-                switch ((temp2 = module.filter(contable[numofcon].namebuf, buff, &n))) {
+                switch ((temp2 = module.filter(ConnectUser_get_nameBuf(contable[numofcon]), buff, &n))) {
                   case 1: case 4:{
                     aflog(LOG_T_USER, LOG_I_WARNING,
                         "user[%d]: PACKET IGNORED BY MODULE", numofcon);
@@ -862,15 +969,15 @@ main(int argc, char **argv)
                   case 2: case 5:{
                     aflog(LOG_T_USER, LOG_I_NOTICE,
                         "user[%d]: DROPPED BY MODULE", numofcon);
-                    close(contable[numofcon].connfd);
-                    FD_CLR(contable[numofcon].connfd, &allset);
-                    FD_CLR(contable[numofcon].connfd, &wset);
-                    contable[numofcon].state = S_STATE_CLOSING;
-                    freebuflist(&contable[numofcon].head);
+                    close(ConnectUser_get_connFd(contable[numofcon]));
+                    FD_CLR(ConnectUser_get_connFd(contable[numofcon]), &allset);
+                    FD_CLR(ConnectUser_get_connFd(contable[numofcon]), &wset);
+                    ConnectUser_set_state(contable[numofcon], S_STATE_CLOSING);
+                    BufList_clear(ConnectUser_get_bufList(contable[numofcon]));
                     buff[0] = AF_S_CONCLOSED; /* closing connection */
                     buff[1] = numofcon >> 8;	/* high bits of user number */
                     buff[2] = numofcon;		/* low bits of user number */
-                    send_message(type, master, buff, 5);
+                    SslFd_send_message(type, master, buff, 5);
 		    if (temp2 == 5) {
                       aflog(LOG_T_MAIN, LOG_I_INFO,
                           "RELEASED MODULE: %s INFO: %s", module.name, module.info());
@@ -890,65 +997,121 @@ main(int argc, char **argv)
 #endif
               aflog(LOG_T_USER, LOG_I_DEBUG,
                   "user[%d]: FROM msglen: %d SENT", numofcon, n);
-              temp2 = write(contable[numofcon].connfd, buff, n);
+              temp2 = write(ConnectUser_get_connFd(contable[numofcon]), buff, n);
               if ((temp2 > 0) && (temp2 != n)) {
-                insertblnode(&(contable[numofcon].head), temp2, n, buff);
-                contable[numofcon].state = S_STATE_STOPPED;
-                FD_SET(contable[numofcon].connfd, &wset);
+                BufList_insert_back(ConnectUser_get_bufList(contable[numofcon]),
+                    BufListNode_new_message(temp2, n, buff));
+                ConnectUser_set_state(contable[numofcon], S_STATE_STOPPED);
+                FD_SET(ConnectUser_get_connFd(contable[numofcon]), &wset);
                 buff[0] = AF_S_DONT_SEND; /* stopping transfer */
                 buff[1] = numofcon >> 8;        /* high bits of user number */
                 buff[2] = numofcon;             /* low bits of user number */
                 aflog(LOG_T_USER, LOG_I_DDEBUG,
                     "FROM user[%d]: BUFFERING MESSAGE STARTED", numofcon);
-                send_message(type, master, buff, 5);
+                SslFd_send_message(type, master, buff, 5);
               }
               else if ((temp2 == -1) && (errno == EAGAIN)) {
-                insertblnode(&(contable[numofcon].head), 0, n, buff);
-                contable[numofcon].state = S_STATE_STOPPED;
-                FD_SET(contable[numofcon].connfd, &wset);
+                BufList_insert_back(ConnectUser_get_bufList(contable[numofcon]),
+                    BufListNode_new_message(0, n, buff));
+                ConnectUser_set_state(contable[numofcon], S_STATE_STOPPED);
+                FD_SET(ConnectUser_get_connFd(contable[numofcon]), &wset);
                 buff[0] = AF_S_DONT_SEND; /* stopping transfer */
                 buff[1] = numofcon >> 8;        /* high bits of user number */
                 buff[2] = numofcon;             /* low bits of user number */
                 aflog(LOG_T_USER, LOG_I_DDEBUG,
                     "FROM user[%d]: BUFFERING MESSAGE STARTED", numofcon);
-                send_message(type, master, buff, 5);
+                SslFd_send_message(type, master, buff, 5);
               }
               else if (temp2 == -1) {
-                close(contable[numofcon].connfd);
-                FD_CLR(contable[numofcon].connfd, &allset);
-                FD_CLR(contable[numofcon].connfd, &wset);
-                contable[numofcon].state = S_STATE_CLOSING;
-                freebuflist(&contable[numofcon].head);
+                close(ConnectUser_get_connFd(contable[numofcon]));
+                FD_CLR(ConnectUser_get_connFd(contable[numofcon]), &allset);
+                FD_CLR(ConnectUser_get_connFd(contable[numofcon]), &wset);
+                ConnectUser_set_state(contable[numofcon], S_STATE_CLOSING);
+                BufList_clear(ConnectUser_get_bufList(contable[numofcon]));
                 buff[0] = AF_S_CONCLOSED; /* closing connection */
                 buff[1] = numofcon >> 8;	/* high bits of user number */
                 buff[2] = numofcon;		/* low bits of user number */
-                send_message(type, master, buff, 5);
+                SslFd_send_message(type, master, buff, 5);
               }
             }
-            else if (contable[numofcon].state == S_STATE_STOPPED) {
+            else if (ConnectUser_get_state(contable[numofcon]) == S_STATE_STOPPED) {
               aflog(LOG_T_USER, LOG_I_DDEBUG,
                   "FROM user[%d]: BUFFERING MESSAGE", numofcon);
-              insertblnode(&(contable[numofcon].head), 0, n, buff);
+              BufList_insert_back(ConnectUser_get_bufList(contable[numofcon]),
+                  BufListNode_new_message(0, n, buff));
             }
           }
           break;
         }
-        case AF_S_CLOSING : { /* server shut down -> exiting... */
-          aflog(LOG_T_CLIENT, LOG_I_INFO,
-              "SERVER: CLOSED -> exiting... cg: %ld bytes", getcg());
-          exit(1);
+        case AF_S_CLOSING : { /* server shut down */
+          n = 0;
+          i = ArOptions_get_arTries(ao);
+          if (ArOptions_get_arQuit(ao) == AR_OPTION_DISABLED) {
+            i = 0;
+          }
+          if (i) {
+            aflog(LOG_T_CLIENT, LOG_I_ERR,
+                "SERVER: CLOSED -> auto-reconnect enabled");
+          }
+          while (i) {
+            close_connections(usernum, &contable);
+            SslFd_set_ssl(master, NULL);
+            mysleep(ArOptions_get_arDelay(ao));
+            aflog(LOG_T_CLIENT, LOG_I_INFO,
+                "Trying to reconnect...");
+          
+            temp2 = 0;
+            if (temp2 == 0) {
+#ifdef HAVE_LIBPTHREAD
+              if (initialize_client_stage1(tunneltype, master, name, manage, hpo,
+                  ipfam, ctx, buff, pass, 0, ignorepkeys)) {
+#else
+              if (initialize_client_stage1(tunneltype, master, name, manage, NULL,
+                  ipfam, ctx, buff, pass, 0, ignorepkeys)) {
+#endif
+                temp2 = 1;
+              }
+            }
+            if (temp2 == 0) {
+              if (initialize_client_stage2(&type, master, &usernum, buff, 0)) {
+                temp2 = 1;
+              }
+            }
+            if (temp2 == 0) {
+              if (initialize_client_stage3(&contable, master, usernum, &buflength, &len, &allset,
+                  &wset, &maxfdp1, 0)) {
+                temp2 = 1;
+              }
+            }
+
+            if (temp2 == 0) {
+              n = 1;
+              aflog(LOG_T_CLIENT, LOG_I_INFO,
+                  "Reconnected successfully...");
+              break;
+            }
+          
+            if (i > 0) {
+              --i;
+            }
+          }
+          if (n == 0) {
+            aflog(LOG_T_CLIENT, LOG_I_INFO,
+                "SERVER: CLOSED -> exiting... cg: %ld bytes", getcg());
+            exit(1);
+          }
           break;
         }
         case AF_S_DONT_SEND: {
               aflog(LOG_T_USER, LOG_I_DEBUG,
                   "user[%d]: AF_S_DONT_SEND", numofcon);
-          FD_CLR(contable[numofcon].connfd, &allset);
+          FD_CLR(ConnectUser_get_connFd(contable[numofcon]), &allset);
           break;
         }
         case AF_S_CAN_SEND: {
               aflog(LOG_T_USER, LOG_I_DEBUG,
                   "user[%d]: AF_S_CAN_SEND", numofcon);
-          FD_SET(contable[numofcon].connfd, &allset);
+          FD_SET(ConnectUser_get_connFd(contable[numofcon]), &allset);
           break;
         }
         default : { /* unrecognized type of message -> exiting... */

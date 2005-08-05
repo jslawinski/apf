@@ -24,6 +24,6 @@
 #include "http_proxy_functions.h"
 #include "network.h"
 
-int initialize_http_proxy_server(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, const char type, int limit);
+int initialize_http_proxy_server(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, const char type, int limit, char https, SSL_CTX* ctx);
 
 #endif

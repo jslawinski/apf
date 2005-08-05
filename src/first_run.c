@@ -62,7 +62,7 @@ callback(int i, int j, void* k)
 }
 
 /*
- * Name: create_apf_dir
+ * Function name: create_apf_dir
  * Description: creates .apf directory in ~/ or apf directory locally
  * Arguments: type - type of the directory to create:
  *                     0 - .apf in ~/

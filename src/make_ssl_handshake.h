@@ -19,13 +19,14 @@
  */
 
 #include "network.h"
+#include "ssl_fd_struct.h"
 
 #ifndef _JS_MAKE_SSL_HANDSHAKE_H
 #define _JS_MAKE_SSL_HANDSHAKE_H
 
-void make_ssl_initialize(clifd *cliconn);
-int make_ssl_accept(clifd *cliconn);
-int get_ssl_error(clifd *cliconn, char* info, int result);
+void make_ssl_initialize(SslFd* sf);
+int make_ssl_accept(SslFd* sf);
+int get_ssl_error(SslFd* sf, char* info, int result);
 
 #endif
 

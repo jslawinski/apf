@@ -29,13 +29,13 @@ get_clientname(RealmT* pointer, int client)
 {
   static char clientname[10];
   
-  if (pointer->clitable[client].clientid == NULL) {
+  if (ConnectClient_get_sClientId(pointer->clitable[client]) == NULL) {
     memset(clientname, 0, 10);
-    sprintf(clientname, "%d", pointer->clitable[client].clientnum);
+    sprintf(clientname, "%d", ConnectClient_get_clientId(pointer->clitable[client]));
     return clientname;
   }
   
-  return pointer->clitable[client].clientid;
+  return ConnectClient_get_sClientId(pointer->clitable[client]);
 }
 
 int
@@ -45,9 +45,9 @@ get_clientid(RealmT* pointer, char* clientname)
   char guard;
   
   for (i = 0; i < pointer->clinum; ++i) {
-    if (pointer->clitable[i].clientid != NULL) {
-      if (strcmp(clientname, pointer->clitable[i].clientid) == 0) {
-        return pointer->clitable[i].clientnum;
+    if (ConnectClient_get_sClientId(pointer->clitable[i]) != NULL) {
+      if (strcmp(clientname, ConnectClient_get_sClientId(pointer->clitable[i])) == 0) {
+        return ConnectClient_get_clientId(pointer->clitable[i]);
       }
     }
   }
@@ -55,7 +55,7 @@ get_clientid(RealmT* pointer, char* clientname)
   if (sscanf(clientname, "%d%c", &i, &guard) == 1) {
     n = get_clientnumber(pointer, i);
     if ((n >= 0) && (n < pointer->clinum)) {
-      if (pointer->clitable[n].clientid == NULL) {
+      if (ConnectClient_get_sClientId(pointer->clitable[n]) == NULL) {
         return i;
       }
     }
@@ -68,7 +68,7 @@ get_clientnumber(RealmT* pointer, int clientid)
 {
   int i;
   for (i = 0; i < pointer->clinum; ++i) {
-    if (pointer->clitable[i].clientnum == clientid) {
+    if (ConnectClient_get_clientId(pointer->clitable[i]) == clientid) {
       return i;
     }
   }
@@ -81,13 +81,13 @@ get_raclientname(RealmT* pointer, int client)
 {
   static char clientname[10];
   
-  if (pointer->raclitable[client].clientid == NULL) {
+  if (ConnectClient_get_sClientId(pointer->raclitable[client]) == NULL) {
     memset(clientname, 0, 10);
-    sprintf(clientname, "%d", pointer->raclitable[client].clientnum);
+    sprintf(clientname, "%d", ConnectClient_get_clientId(pointer->raclitable[client]));
     return clientname;
   }
   
-  return pointer->raclitable[client].clientid;
+  return ConnectClient_get_sClientId(pointer->raclitable[client]);
 }
 
 int
@@ -97,9 +97,9 @@ get_raclientid(RealmT* pointer, char* clientname)
   char guard;
   
   for (i = 0; i < pointer->raclinum; ++i) {
-    if (pointer->raclitable[i].clientid != NULL) {
-      if (strcmp(clientname, pointer->raclitable[i].clientid) == 0) {
-        return pointer->raclitable[i].clientnum;
+    if (ConnectClient_get_sClientId(pointer->raclitable[i]) != NULL) {
+      if (strcmp(clientname, ConnectClient_get_sClientId(pointer->raclitable[i])) == 0) {
+        return ConnectClient_get_clientId(pointer->raclitable[i]);
       }
     }
   }
@@ -107,7 +107,7 @@ get_raclientid(RealmT* pointer, char* clientname)
   if (sscanf(clientname, "%d%c", &i, &guard) == 1) {
     n = get_raclientnumber(pointer, i);
     if ((n >= 0) && (n < pointer->raclinum)) {
-      if (pointer->raclitable[n].clientid == NULL) {
+      if (ConnectClient_get_sClientId(pointer->raclitable[n]) == NULL) {
         return i;
       }
     }
@@ -121,7 +121,7 @@ get_raclientnumber(RealmT* pointer, int clientid)
 {
   int i;
   for (i = 0; i < pointer->raclinum; ++i) {
-    if (pointer->raclitable[i].clientnum == clientid) {
+    if (ConnectClient_get_clientId(pointer->raclitable[i]) == clientid) {
       return i;
     }
   }

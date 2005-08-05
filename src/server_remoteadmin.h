@@ -18,52 +18,20 @@
  *
  */
 
-#include <config.h>
+#ifndef _JS_SERVER_REMOTEADMIN_H
+#define _JS_SERVER_REMOTEADMIN_H
 
-#include <stdlib.h>
+#include <ctype.h>
 #include <string.h>
 
-#include "audit.h"
+#include "remoteadmin_codes.h"
+#include "activefor.h"
+#include "logging.h"
+#include "stats.h"
+#include "clientnames.h"
+#include "realmnames.h"
+#include "usernames.h"
 
-int
-insertalnode(alnodeT** headRef, int uid, char* nbuf, char* pbuf, time_t ctime, time_t dur)
-{
-  alnodeT* newnode, *lastnode;
-	lastnode = newnode = *headRef;
-	while (newnode) {
-		lastnode = newnode;
-		newnode = newnode->next;
-	}
-  newnode = calloc(1, sizeof(alnodeT));
-  newnode->userid = uid;
-  memcpy(newnode->namebuf, nbuf, 128);
-  memcpy(newnode->portbuf, pbuf, 7);
-  newnode->connecttime = ctime;
-  newnode->duration = dur;
-  newnode->next = NULL;
-	if (lastnode)
-		lastnode->next = newnode;
-	else
-		*headRef = newnode;
-	return 0;
-}
+int serve_admin(ConfigurationT*, int, int, unsigned char*);
 
-int
-deletealnode(alnodeT** headRef)
-{
-	alnodeT* node = *headRef;
-	if (*headRef == NULL)
-		return 1;
-  *headRef = node->next;
-  free(node);
-	return 0;
-}
-
-int
-freeauditlist(alnodeT** headRef)
-{
-	while (*headRef) {
-		deletealnode(headRef);
-	}
-	return 0;
-}
+#endif

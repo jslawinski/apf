@@ -1,4 +1,4 @@
-.TH afserver 1 "apf 0.7.1" Jeremian
+.TH afserver 1 "apf 0.7.2" Jeremian
 .SH NAME
 afserver \- active port forwarder server
 .SH SYNOPSIS
@@ -29,11 +29,11 @@ which redirects it to the specified destination host:port.
 .B -n, --hostname NAME
   used when creating listening sockets (default: '')
 
-.B -l, --listenport PORT
-  listening port number - users connect to it (default: 50127)
+.B -l, --listenport [HOST:]PORT
+  listening [host:]port number - users connect to it (default: 50127)
 
-.B -m, --manageport PORT
-  manage port number -
+.B -m, --manageport [HOST:]PORT
+  manage [host:]port number -
 .I afclient
 connects to it (default: 50126)
 

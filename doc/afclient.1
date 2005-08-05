@@ -1,4 +1,4 @@
-.TH afclient 1 "apf 0.7.1" Jeremian
+.TH afclient 1 "apf 0.7.2" Jeremian
 .SH NAME
 afclient \- active port forwarder client
 .SH SYNOPSIS
@@ -72,8 +72,19 @@ is running (required)
 .B -K, --keep-alive N
   send keepalive packets every N seconds (default: not send keepalive packets)
 
+.I Auto-reconnection
+
+.B --ar-start
+  enable auto-reconnection when afserver is not reachable on start (default: disabled)
+
+.B --ar-quit
+  enable auto-reconnection after normal afserver quit (default: disabled)
+
+.B --noar
+  disable auto-reconnection after premature afserver quit (default: enabled)
+
 .B -A, --ar-tries N
-  try N times to reconnect to afserver after its premature quit (default: unlimited)
+  try N times to reconnect (default: unlimited)
 
 .B -T, --ar-delay N
   wait N seconds between reconnect tries (default: 5)
@@ -113,13 +124,22 @@ is running (required)
 .B -L, --Load
   load a module for service's packets filtering
 
-.I HTTP PROXY
+.I HTTP/HTTPS PROXY
+
+.B -S, --use-https
+  use https proxy instead of http proxy
 
 .B -P, --proxyname
   the name of the machine with proxy server
 
 .B -X, --proxyport
   the port used by proxy server (default: 8080)
+
+.B -C, --pa-cred  U:P
+  the user (U) and password (P) used in proxy authorization
+
+.B -B, --pa-t-basic
+  the Basic type of proxy authorization (default)
 
 .SH "REMOTE ADMINISTRATION"
 

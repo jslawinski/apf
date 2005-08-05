@@ -1,3 +1,16 @@
+05.08.2005 (v0.7.2):
+  - Added: http proxy basic authorization
+  - Fixed: logging initialization after some value checking
+  - Fixed: auto-reconnect failure when --nossl option is set
+  - Added: auto-reconnect when afserver is not reachable on start
+  - Added: auto-reconnect after normal afserver quit
+  - Added: per user statistics: idle time, amount of downloaded/uploaded bytes
+           and current download/upload rate
+  - Added: support for https proxies
+  - Added: possibility to bind sockets on different interfaces
+  - Fixed: receiving incomplete headers from afclient
+  - Fixed: close user connections by afclient
+
 03.07.2005 (v0.7.1):
   - Added: afserver certificate storing and checking
   - Modified: generating keys and certificate

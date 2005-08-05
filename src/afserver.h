@@ -22,7 +22,7 @@
 #include "network.h"
 #include "file.h"
 #include "stats.h"
-#include "remoteadmin.h"
+#include "server_remoteadmin.h"
 #include "server_check.h"
 #include "server_set.h"
 #include "server_eval.h"
@@ -40,6 +40,7 @@
 #include "usage.h"
 #include "logging.h"
 #include "daemon.h"
+#include "timeval_functions.h"
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>

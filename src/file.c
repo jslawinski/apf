@@ -110,7 +110,7 @@ parsefile(char* name, int* status)
 {
   static ConfigurationT cfg;
   FILE* file = NULL;
-  int state, i, n, listencount, managecount;
+  int state, i, j, n, listencount, managecount;
   char buff[256];
   char helpbuf1[256];
   char helpbuf2[256];
@@ -187,8 +187,16 @@ parsefile(char* name, int* status)
     return cfg;
   }
 
-  for (i=0; i<cfg.size; ++i) {
-    cfg.realmtable[i].usrclitable = calloc(cfg.realmtable[i].usrclinum, sizeof(UsrCliT));
+  for (i = 0; i < cfg.size; ++i) {
+    cfg.realmtable[i].usrclitable = calloc(cfg.realmtable[i].usrclinum, sizeof(UsrCli*));
+    for (j = 0; j < cfg.realmtable[i].usrclinum; ++j) {
+      cfg.realmtable[i].usrclitable[j] = UsrCli_new();
+      if (cfg.realmtable[i].usrclitable[j] == NULL) {
+        aflog(LOG_T_INIT, LOG_I_CRIT,
+            "Problem with allocating memory for UsrCli structure... exiting");
+        return cfg;
+      }
+    }
   }
   
   cfg.size = 0;
@@ -293,8 +301,7 @@ parsefile(char* name, int* status)
         strcpy(cfg.realmtable[cfg.size-1].hostname, helpbuf2);
       }
       else if (strcmp(helpbuf1, "listen")==0) {
-        cfg.realmtable[cfg.size-1].usrclitable[listencount].lisportnum=calloc(strlen(helpbuf2)+1, sizeof(char));
-        strcpy(cfg.realmtable[cfg.size-1].usrclitable[listencount].lisportnum, helpbuf2);
+        UsrCli_set_listenPortName(cfg.realmtable[cfg.size-1].usrclitable[listencount], helpbuf2);
         ++listencount;
       }
       else if (strcmp(helpbuf1, "pass")==0) {
@@ -305,8 +312,7 @@ parsefile(char* name, int* status)
         }
       }
       else if (strcmp(helpbuf1, "manage")==0) {
-        cfg.realmtable[cfg.size-1].usrclitable[managecount].manportnum=calloc(strlen(helpbuf2)+1, sizeof(char));
-        strcpy(cfg.realmtable[cfg.size-1].usrclitable[managecount].manportnum, helpbuf2);
+        UsrCli_set_managePortName(cfg.realmtable[cfg.size-1].usrclitable[managecount], helpbuf2);
         ++managecount;
       }
       else if (strcmp(helpbuf1, "users")==0) {

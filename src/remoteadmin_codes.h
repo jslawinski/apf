@@ -18,22 +18,15 @@
  *
  */
 
-#include <time.h>
+#ifndef _JS_REMOTEADMIN_CODES_H
+#define _JS_REMOTEADMIN_CODES_H
 
-#ifndef _JS_AUDIT_H
-#define _JS_AUDIT_H
-
-typedef struct alnode {
-  int userid;
-  char namebuf[128];
-  char portbuf[7];
-  time_t connecttime;
-  time_t duration;
-	struct alnode* next;
-} alnodeT;
-
-int insertalnode(alnodeT** headRef, int uid, char* nbuf, char* pbuf, time_t ctime, time_t dur);
-int deletealnode(alnodeT** headRef);
-int freeauditlist(alnodeT** headRef);
+#define AF_RA_UNDEFINED 0
+#define AF_RA_CMD       1
+#define AF_RA_REPEAT    2
+#define AF_RA_STATUS_OK 3
+#define AF_RA_NOT_KNOWN 4
+#define AF_RA_FAILED    5
+#define AF_RA_KICKED    6
 
 #endif

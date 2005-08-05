@@ -18,33 +18,10 @@
  *
  */
 
-#include "file.h"
-#include "stats.h"
-#include "logging.h"
-#include "activefor.h"
-#include "realmnames.h"
-#include "clientnames.h"
-#include "usernames.h"
-#include "make_ssl_handshake.h"
-  
-#include <openssl/err.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdarg.h>
+#ifndef _JS_STRING_FUNCTIONS_H
+#define _JS_STRING_FUNCTIONS_H
 
-#ifndef _JS_REMOTEADMIN_H
-#define _JS_REMOTEADMIN_H
-
-#define AF_RA_UNDEFINED 0
-#define AF_RA_CMD       1
-#define AF_RA_REPEAT    2
-#define AF_RA_STATUS_OK 3
-#define AF_RA_NOT_KNOWN 4
-#define AF_RA_FAILED    5
-#define AF_RA_KICKED    6
-
-int serve_admin(ConfigurationT*, int, int, unsigned char*);
-int client_admin(char, clifd, unsigned char*, int, char*);
+char* string_cp(char** dest, char* src);
 
 #endif
 

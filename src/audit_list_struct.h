@@ -18,18 +18,24 @@
  *
  */
 
-#ifndef _JS_BUFLIST_H
-#define _JS_BUFLIST_H
+#ifndef _JS_AUDIT_LIST_STRUCT_H
+#define _JS_AUDIT_LIST_STRUCT_H
 
-typedef struct blnode {
-        int actptr;
-        int msglen;
-        unsigned char* buff;
-	struct blnode* next;
-} blnodeT;
+#include "audit_list_node_struct.h"
 
-int insertblnode(blnodeT** headRef, int actptr, int msglen, unsigned char* buff);
-int deleteblnode(blnodeT** headRef);
-int freebuflist(blnodeT** headRef);
+typedef struct auditlist {
+  AuditListNode* head;
+  AuditListNode* tail;
+} AuditList;
+
+/* 'constructor' */
+AuditList* AuditList_new();
+/* 'destructor' */
+void AuditList_free(AuditList** al);
+/* other */
+void AuditList_insert_back(AuditList* al, AuditListNode* aln);
+AuditListNode* AuditList_get_first(AuditList* al);
+void AuditList_delete_first(AuditList* al);
+void AuditList_clear(AuditList* al);
 
 #endif

@@ -32,9 +32,11 @@
 #include "activefor.h"
 #include "stats.h"
 #include "logging.h"
+#include "ssl_fd_struct.h"
 
-void initialize_client_reverse_udp(int* usernum, clifd* master, char* name, char* manage, char ipfam);
-void client_reverse_udp(ConnectuserT* contable, clifd* master, char* desnam, char* despor, char type,
+int initialize_client_reverse_udp(int* usernum, SslFd* master, char* name, char* manage, char ipfam,
+    char wanttoexit);
+void client_reverse_udp(ConnectUser** contable, SslFd* master, char* desnam, char* despor, char type,
         unsigned char* buff, int buflength);
 
 #endif

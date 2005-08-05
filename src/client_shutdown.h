@@ -25,7 +25,6 @@
 
 #include "activefor.h"
 
-void close_connections(int usernum, ConnectuserT** contable);
-void clear_master_connection(clifd* master);
+void close_connections(int usernum, ConnectUser*** contable);
 
 #endif

@@ -22,8 +22,12 @@
 #define _JS_ACTIVEFOR_H
 
 #include "network.h"
-#include "buflist.h"
-#include "audit.h"
+#include "buf_list_struct.h"
+#include "audit_list_struct.h"
+#include "usr_cli_struct.h"
+#include "connect_user_struct.h"
+#include "ssl_fd_struct.h"
+#include "connect_client_struct.h"
 
 #define AF_S_CONCLOSED	  1
 #define	AF_S_CONOPEN	    2
@@ -46,7 +50,7 @@
 #define S_STATE_OPEN	    7
 #define S_STATE_STOPPED	 11
 
-#define	AF_VER(info)	info" v0.7.1"
+#define	AF_VER(info)	info" v0.7.2"
 
 #define TYPE_TCP	1
 #define TYPE_UDP	3
@@ -82,42 +86,6 @@
 #define TYPE_IS_COMP(type)	(type&TYPE_COMP)
 
 typedef struct {
-  char* lisportnum;
-  char* manportnum;
-  int listenfd;
-  int managefd;
-} UsrCliT;
-
-typedef struct {
-	char state;
-	int connfd;
-  int whatcli;
-  int userid;
-  time_t connecttime;
-	char namebuf[128];
-	char portbuf[7];
-	blnodeT* head;
-} ConnectuserT;
-
-typedef struct {
-  char ready;
-  clifd cliconn;
-  struct timeval tv;
-  int* users;
-  int usercon;
-  int usernum;
-  int listenfd;
-  int whatusrcli;
-  int clientnum;
-  time_t connecttime;
-  char* clientid;
-	char namebuf[128];
-	char portbuf[7];
-  char tunneltype;
-  alnodeT* head;
-} ConnectclientT;
-
-typedef struct {
   char* hostname;
   char* users;
   char* clients;
@@ -146,10 +114,10 @@ typedef struct {
   char audit;
   socklen_t addrlen;
   struct sockaddr* cliaddr;
-  ConnectuserT* contable;
-  ConnectclientT* clitable;
-  ConnectclientT* raclitable;
-  UsrCliT* usrclitable;
+  ConnectUser** contable;
+  ConnectClient** clitable;
+  ConnectClient** raclitable;
+  UsrCli** usrclitable;
 } RealmT;
 
 typedef struct {

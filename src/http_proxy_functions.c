@@ -55,10 +55,10 @@ delete_user(connection* cnts, int i, fd_set* allset)
       "http proxy: delete_user(%d)", i);
   clear_fd(&(cnts[i].sockfd), allset);
   if (!(cnts[i].state & C_POST_WAIT)) {
-    clear_fd(&(cnts[i].postfd), allset);
+    clear_sslFd(cnts[i].postFd, allset);
   }
   if ((cnts[i].type == 0) && (!(cnts[i].state & C_GET_WAIT))) {
-    clear_fd(&(cnts[i].getfd), allset);
+    clear_sslFd(cnts[i].getFd, allset);
   }
   cnts[i].state = C_CLOSED;
   cnts[i].sent_ptr = cnts[i].ptr = cnts[i].length = 0;
@@ -66,11 +66,16 @@ delete_user(connection* cnts, int i, fd_set* allset)
 }
 
 int
-parse_header(int fd, char* tab, header* hdr)
+parse_header(SslFd* sf, char* tab, header* hdr, char https)
 {
   int n, i, j, state = 0;
   char tmpt[100];
-  n = read(fd, tab, 9000);
+  if (https) {
+    n = SSL_read(SslFd_get_ssl(sf), tab, 9000);
+  }
+  else {
+    n = read(SslFd_get_fd(sf), tab, 9000);
+  }
   hdr->allreaded = n;
   i = j = 0;
   memset(tmpt, 0, 100);
@@ -264,4 +269,63 @@ read_message(int fd, int length, connection* client, char* tab, int ptr)
     }
   }
   return 0;
+}
+
+/*
+ * Function name: clear sslFd
+ * Description: Close the socket encapsulated in SslFd structure, remove this file descriptor
+ *              from fd_set and clear ssl structure.
+ * Arguments: sf - pointer to SslFd structure
+ *            set - pointer to fd_set structure
+ */
+
+void
+clear_sslFd(SslFd* sf, fd_set* set)
+{
+  clear_fd((&(sf->fd)), set);
+  if (SslFd_get_ssl(sf)) {
+    SSL_clear(SslFd_get_ssl(sf));
+  }
+}
+
+/*
+ * Function name: http_write
+ * Description: Write the message via http/https proxy.
+ * Arguments: https - if the https proxy will be used instead of http proxy
+ *            sf - pointer to SslFd structure
+ *            buf - buffer containing the data to send
+ *            amount - how much butes will be send
+ * Returns: The result of writen or SSL_writen function, depending on 'https' value.
+ */
+
+int
+http_write(char https, SslFd* sf, unsigned char* buf, int amount)
+{
+  if (https) {
+    return SSL_writen(SslFd_get_ssl(sf), buf, amount);
+  }
+  else {
+    return writen(SslFd_get_fd(sf), buf, amount);
+  }
+}
+
+/*
+ * Function name: http_read
+ * Description: Read the message via http/https proxy.
+ * Arguments: https - if the https proxy will be used instead of http proxy
+ *            sf - pointer to SslFd structure
+ *            buf - buffer for the received data
+ *            amount - how much bytes will be received
+ * Returns: The result of read or SSL_read function, depending on 'https' value.
+ */
+
+int
+http_read(char https, SslFd* sf, unsigned char* buf, int amount)
+{
+  if (https) {
+    return SSL_read(SslFd_get_ssl(sf), buf, amount);
+  }
+  else {
+    return read(SslFd_get_fd(sf), buf, amount);
+  }
 }

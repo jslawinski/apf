@@ -18,10 +18,12 @@
  *
  */
 
+#include "http_proxy_options_struct.h"
+
 #ifndef _JS_HTTP_PROXY_CLIENT_H
 #define _JS_HTTP_PROXY_CLIENT_H
 
 int initialize_http_proxy_client(int* sockfd, const char *host, const char *serv,
-    const char *proxyname, const char *proxyport, const char type);
+    HttpProxyOptions* hpo, const char type, SSL_CTX* ctx);
 
 #endif

@@ -25,6 +25,8 @@
 #include <sys/select.h>
 #include <unistd.h>
 
+#include "ssl_fd_struct.h"
+
 #ifndef _JS_HTTP_PROXY_FUNCTIONS_H
 #define _JS_HTTP_PROXY_FUNCTIONS_H
 
@@ -51,14 +53,14 @@ typedef struct {
   char readed_length[4];
   char state;
   char id[10];
-  int postfd;
-  int getfd;
+  SslFd* postFd;
+  SslFd* getFd;
   int sent_ptr;
   int sockfd;
   char buf[9000];
   char tmpbuf[9000];
   char tmpstate;
-  int tmpfd;
+  SslFd* tmpFd;
   char type;
   header tmpheader;
   int ptr;
@@ -70,11 +72,14 @@ typedef struct {
 
 int myrand(int, int);
 void mysleep(double);
-int parse_header(int, char*, header*);
+int parse_header(SslFd*, char*, header*, char);
 int read_message(int, int, connection*, char*, int);
 void delete_user(connection*, int, fd_set*);
 void set_fd(int, int*, fd_set*);
 void close_fd(int*);
 void clear_fd(int*, fd_set*);
+void clear_sslFd(SslFd*, fd_set*);
+int http_write(char, SslFd*, unsigned char*, int);
+int http_read(char, SslFd*, unsigned char*, int);
 
 #endif

@@ -29,8 +29,11 @@ find_client(RealmT* ptr, char mode, int usrclipair)
   switch(mode) {
     case 1: { /* fill first client before go to next */
               for (i = 0; i < ptr->clinum; ++i) {
-                if ((ptr->clitable[i].ready == 3) && (ptr->clitable[i].whatusrcli == usrclipair)) {
-                  if (ptr->clitable[i].usercon < ptr->clitable[i].usernum) {
+                if ((ConnectClient_get_state(ptr->clitable[i]) ==
+                      CONNECTCLIENT_STATE_ACCEPTED) &&
+                    (ConnectClient_get_usrCliPair(ptr->clitable[i]) == usrclipair)) {
+                  if (ConnectClient_get_connected(ptr->clitable[i]) <
+                      ConnectClient_get_limit(ptr->clitable[i])) {
                     return i;
                   }
                 }
@@ -45,12 +48,12 @@ find_client(RealmT* ptr, char mode, int usrclipair)
 }
 
 int
-find_usernum(ConnectclientT* ptr, int usernum)
+find_usernum(ConnectClient* ptr, int usernum)
 {
   int i;
-  for (i = 0; i < ptr->usernum; ++i) {
-    if (ptr->users[i] == -1) {
-      ptr->users[i] = usernum;
+  for (i = 0; i < ConnectClient_get_limit(ptr); ++i) {
+    if (ConnectClient_get_users(ptr)[i] == -1) {
+      ConnectClient_get_users(ptr)[i] = usernum;
       return i;
     }
   }

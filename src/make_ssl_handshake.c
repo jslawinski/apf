@@ -28,9 +28,9 @@
 #include <openssl/err.h>
 
 void
-make_ssl_initialize(clifd *cliconn)
+make_ssl_initialize(SslFd* sf)
 {
-  if (SSL_set_fd(cliconn->ssl, cliconn->commfd) != 1) {
+  if (SSL_set_fd(SslFd_get_ssl(sf), SslFd_get_fd(sf)) != 1) {
     aflog(LOG_T_INIT, LOG_I_CRIT,
         "Problem with initializing ssl... exiting");
     exit(1);
@@ -38,23 +38,23 @@ make_ssl_initialize(clifd *cliconn)
 }
 
 int
-make_ssl_accept(clifd *cliconn)
+make_ssl_accept(SslFd* sf)
 {
   int result;
-  if ((result = SSL_accept(cliconn->ssl)) != 1) {
-    return get_ssl_error(cliconn, "SSL_accept has failed", result);
+  if ((result = SSL_accept(SslFd_get_ssl(sf))) != 1) {
+    return get_ssl_error(sf, "SSL_accept has failed", result);
   }
   return 0;
 }
 
 int
-get_ssl_error(clifd *cliconn, char* info, int result)
+get_ssl_error(SslFd* sf, char* info, int result)
 {
   int merror;
 #ifdef HAVE_ERR_ERROR_STRING
   char err_buff[200];
 #endif
-  merror = SSL_get_error(cliconn->ssl, result);
+  merror = SSL_get_error(SslFd_get_ssl(sf), result);
   switch (merror) {
     case SSL_ERROR_NONE : {
                             aflog(LOG_T_MAIN, LOG_I_WARNING,

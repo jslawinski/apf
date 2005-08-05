@@ -25,8 +25,8 @@
 int
 eval_numofcon(RealmT* ptr, int client, int numofcon)
 {
-  if ((numofcon >= 0) && (numofcon < ptr->clitable[client].usernum)) {
-    numofcon = ptr->clitable[client].users[numofcon];
+  if ((numofcon >= 0) && (numofcon < ConnectClient_get_limit(ptr->clitable[client]))) {
+    numofcon = ConnectClient_get_users(ptr->clitable[client])[numofcon];
   }
   else {
     numofcon = -1;
@@ -35,11 +35,11 @@ eval_numofcon(RealmT* ptr, int client, int numofcon)
 }
 
 int
-eval_usernum(ConnectclientT* ptr, int usernum)
+eval_usernum(ConnectClient* ptr, int usernum)
 {
   int i;
-  for (i = 0; i < ptr->usernum; ++i) {
-    if (ptr->users[i] == usernum)
+  for (i = 0; i < ConnectClient_get_limit(ptr); ++i) {
+    if (ConnectClient_get_users(ptr)[i] == usernum)
       return i;
   }
   return -1;

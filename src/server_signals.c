@@ -44,13 +44,21 @@ server_sig_int(int signo)
   for (j = 0; j < config.size; ++j) {
     buff[0] = AF_S_CLOSING; /* closing */
     for (i = 0; i < config.realmtable[j].clinum; ++i) {
-      if (config.realmtable[j].clitable[i].ready == 3) {
-        send_message(config.realmtable[j].type,config.realmtable[j].clitable[i].cliconn,buff,5);
+      if (ConnectClient_get_state(config.realmtable[j].clitable[i]) ==
+          CONNECTCLIENT_STATE_ACCEPTED) {
+        SslFd_send_message(config.realmtable[j].type,
+            ConnectClient_get_sslFd(
+              config.realmtable[j].clitable[i]),
+            buff, 5);
       }
     }
     for (i = 0; i < config.realmtable[j].raclinum; ++i) {
-      if (config.realmtable[j].raclitable[i].ready == 3) {
-        send_message(config.realmtable[j].type | TYPE_SSL, config.realmtable[j].raclitable[i].cliconn, buff, 5);
+      if (ConnectClient_get_state(config.realmtable[j].raclitable[i]) ==
+          CONNECTCLIENT_STATE_ACCEPTED) {
+        SslFd_send_message(config.realmtable[j].type | TYPE_SSL,
+            ConnectClient_get_sslFd(
+              config.realmtable[j].raclitable[i]),
+            buff, 5);
       }
     }
 

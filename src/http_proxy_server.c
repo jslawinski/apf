@@ -20,6 +20,7 @@
 
 #include <config.h>
 
+#include "make_ssl_handshake.h"
 #include "http_proxy_server.h"
 #include "thread_management.h"
 #include "stats.h"
@@ -35,6 +36,8 @@ typedef struct {
   socklen_t *addrlenp;
   char type;
   int limit;
+  char https;
+  SSL_CTX* ctx;
 } sproxy_argT;
 
 int
@@ -63,7 +66,8 @@ afserver_connect(int* sockfd, int afserverfd, struct sockaddr* cliaddr, socklen_
 void*
 http_proxy_server(void *vptr)
 {
-	int listenfd, connfd, afserverfd;
+	int listenfd, afserverfd;
+  SslFd* connFd;
 	struct sockaddr* cliaddr;
   char tab[9000];
   connection* table;
@@ -74,8 +78,9 @@ http_proxy_server(void *vptr)
   int maxclients, tmp;
   int timeout = 5;
   socklen_t *addrlenp;
-  char type, nothttp;
-  char *host, *serv;
+  char type, nothttp, https;
+  char *host, *serv, *name = "";
+  SSL_CTX* ctx;
   sproxy_argT *proxy_argptr;
 
   start_critical_section();
@@ -87,20 +92,62 @@ http_proxy_server(void *vptr)
   addrlenp = proxy_argptr->addrlenp;
   type = proxy_argptr->type;
   maxclients = proxy_argptr->limit+1;
+  https = proxy_argptr->https;
+  ctx = proxy_argptr->ctx;
 
   broadcast_condition();
   end_critical_section();
 
+  if (https) {
+    name = "s";
+  }
+
   table = calloc(maxclients, sizeof(connection));
   if (table == NULL) {
     aflog(LOG_T_INIT, LOG_I_CRIT,
-        "http proxy: Can't allocate memory... exiting.");
+        "http%s proxy: Can't allocate memory... exiting.", name);
     exit(1);
+  }
+  for (i = 0; i < maxclients; ++i) {
+    table[i].postFd = SslFd_new();
+    table[i].getFd = SslFd_new();
+    table[i].tmpFd = SslFd_new();
+    if ((table[i].postFd == NULL) || (table[i].getFd == NULL) || (table[i].tmpFd == NULL)) {
+      aflog(LOG_T_INIT, LOG_I_CRIT,
+          "http%s proxy: Can't allocate memory... exiting.", name);
+      exit(1);
+    }
+    if (https) {
+      SslFd_set_ssl(table[i].postFd, SSL_new(ctx));
+      SslFd_set_ssl(table[i].getFd, SSL_new(ctx));
+      SslFd_set_ssl(table[i].tmpFd, SSL_new(ctx));
+      if ((SslFd_get_ssl(table[i].postFd) == NULL) ||
+          (SslFd_get_ssl(table[i].getFd) == NULL) ||
+          (SslFd_get_ssl(table[i].tmpFd) == NULL)) {
+        aflog(LOG_T_INIT, LOG_I_CRIT,
+            "http%s proxy: Can't allocate memory... exiting.", name);
+        exit(1);
+      }
+    }
+  }
+  connFd = SslFd_new();
+  if (connFd == NULL) {
+    aflog(LOG_T_INIT, LOG_I_CRIT,
+        "http%s proxy: Can't allocate memory... exiting.", name);
+    exit(1);
+  }
+  if (https) {
+    SslFd_set_ssl(connFd, SSL_new(ctx));
+    if (SslFd_get_ssl(connFd) == NULL) {
+      aflog(LOG_T_INIT, LOG_I_CRIT,
+          "http%s proxy: Can't allocate memory... exiting.", name);
+      exit(1);
+    }
   }
   
 	if (ip_listen(&listenfd, host, serv, addrlenp, type)) {
     aflog(LOG_T_INIT, LOG_I_CRIT,
-        "http proxy: Can't listen on %s:%s", host, serv);
+        "http%s proxy: Can't listen on %s:%s", name, host, serv);
     exit(1);
   }
 	cliaddr = malloc(*addrlenp);
@@ -116,23 +163,23 @@ http_proxy_server(void *vptr)
 
     if (select(maxfdp1, &rset, NULL, NULL, &tv) == 0) {
       aflog(LOG_T_MAIN, LOG_I_DDEBUG,
-          "http proxy: timeout");
+          "http%s proxy: timeout", name);
       tv.tv_sec = timeout;
       for (i = 0; i < maxclients; ++i) {
         if ((table[i].state == C_CLOSED) || (table[i].state & C_GET_WAIT) || (table[i].type == 1)) {
           continue;
         }
         aflog(LOG_T_MAIN, LOG_I_DDEBUG,
-            "http proxy: send T to table[%d].getfd", i);
+            "http%s proxy: send T to table[%d].getfd", name, i);
         if (table[i].sent_ptr+1 >= 90000) {
-          writen(table[i].getfd, (unsigned char*) "T", 1);
+          http_write(https, table[i].getFd, (unsigned char*) "T", 1);
           table[i].sent_ptr = 0;
-          clear_fd(&table[i].getfd, &allset);
+          clear_sslFd(table[i].getFd, &allset);
           FD_CLR(table[i].sockfd, &allset);
           table[i].state |= C_GET_WAIT;
         }
         else {
-          writen(table[i].getfd, (unsigned char*) "T", 1);
+          http_write(https, table[i].getFd, (unsigned char*) "T", 1);
           table[i].sent_ptr += 1;
         }
       }
@@ -148,10 +195,10 @@ http_proxy_server(void *vptr)
       /* sockfd */
       if ((!(table[i].state & C_GET_WAIT)) && (FD_ISSET(table[i].sockfd, &rset))) {
         aflog(LOG_T_MAIN, LOG_I_DDEBUG,
-            "http proxy: FD_ISSET(table[%d].sockfd)", i);
+            "http%s proxy: FD_ISSET(table[%d].sockfd)", name, i);
         n = read(table[i].sockfd, table[i].buf+5, 8995);
         if (n <= 0) {
-          writen(table[i].getfd, (unsigned char*) "Q", 1);
+          http_write(https, table[i].getFd, (unsigned char*) "Q", 1);
           delete_user(table, i, &allset);
           continue;
         }
@@ -159,34 +206,34 @@ http_proxy_server(void *vptr)
         tmp = htonl(n);
         memcpy(&table[i].buf[1], &tmp, 4);
         if (table[i].sent_ptr+5 + n >= 90000) {
-          writen(table[i].getfd, (unsigned char*) table[i].buf, 90000 - table[i].sent_ptr);
+          http_write(https, table[i].getFd, (unsigned char*) table[i].buf, 90000 - table[i].sent_ptr);
           table[i].ptr = 90000 - table[i].sent_ptr;
           table[i].length = 5+n - table[i].ptr;
           table[i].sent_ptr = 0;
-          clear_fd(&table[i].getfd, &allset);
+          clear_sslFd(table[i].getFd, &allset);
           FD_CLR(table[i].sockfd, &allset);
           table[i].state |= C_GET_WAIT;
           continue;
         }
         else {
-          writen(table[i].getfd, (unsigned char*) table[i].buf, n+5);
+          http_write(https, table[i].getFd, (unsigned char*) table[i].buf, n+5);
           table[i].sent_ptr += n+5;
         }
       }
       
       /* getfd */
-      if (FD_ISSET(table[i].getfd, &rset)) {
+      if (FD_ISSET(SslFd_get_fd(table[i].getFd), &rset)) {
         aflog(LOG_T_MAIN, LOG_I_DDEBUG,
-            "http proxy: FD_ISSET(table[%d].getfd)", i);
+            "http%s proxy: FD_ISSET(table[%d].getfd)", name, i);
         delete_user(table, i, &allset);
         continue;
       }
       
       /* postfd */
-      if (FD_ISSET(table[i].postfd, &rset)) {
+      if (FD_ISSET(SslFd_get_fd(table[i].postFd), &rset)) {
         aflog(LOG_T_MAIN, LOG_I_DDEBUG,
-            "http proxy: FD_ISSET(table[%d].postfd)", i);
-        n = read(table[i].postfd, tab, 9000);
+            "http%s proxy: FD_ISSET(table[%d].postfd)", name, i);
+        n = http_read(https, table[i].postFd, (unsigned char*) tab, 9000);
         if (n != 0) {
           table[i].received += n;
           if (read_message(table[i].sockfd, n, &table[i], tab, 0)) {
@@ -195,14 +242,14 @@ http_proxy_server(void *vptr)
         }
         if ((n == 0) || (table[i].received == 90000)) {
           table[i].received = 0;
-          clear_fd(&table[i].postfd, &allset);
+          clear_sslFd(table[i].postFd, &allset);
           table[i].state |= C_POST_WAIT;
           if (table[i].tmpstate == 1) {
             aflog(LOG_T_MAIN, LOG_I_DEBUG,
-                "http proxy: get old POST request...");
+                "http%s proxy: get old POST request...", name);
             table[i].state &= ~C_POST_WAIT;
-            table[i].postfd = table[i].tmpfd;
-            set_fd(table[i].postfd, &maxfdp1, &allset);
+            SslFd_swap_content(table[i].postFd, table[i].tmpFd);
+            set_fd(SslFd_get_fd(table[i].postFd), &maxfdp1, &allset);
             table[i].tmpstate = 0;
             if (table[i].tmpheader.length) {
               table[i].received += table[i].tmpheader.length;
@@ -224,7 +271,7 @@ http_proxy_server(void *vptr)
         if (FD_ISSET(table[i].sockfd, &rset)) {
           n = read(table[i].sockfd, table[i].buf, 9000);
           if (n > 0) {
-            write(table[i].postfd, table[i].buf, n);
+            writen(SslFd_get_fd(table[i].postFd), (unsigned char*) table[i].buf, n);
           }
           else {
             delete_user(table, i, &allset);
@@ -232,10 +279,10 @@ http_proxy_server(void *vptr)
           }
         }
         
-        if (FD_ISSET(table[i].postfd, &rset)) {
-          n = read(table[i].postfd, tab, 9000);
+        if (FD_ISSET(SslFd_get_fd(table[i].postFd), &rset)) {
+          n = read(SslFd_get_fd(table[i].postFd), tab, 9000);
           if (n > 0) {
-            write(table[i].sockfd, tab, n);
+            writen(table[i].sockfd, (unsigned char*) tab, n);
           }
           else {
             delete_user(table, i, &allset);
@@ -249,23 +296,34 @@ http_proxy_server(void *vptr)
     /* listen */
     if (FD_ISSET(listenfd, &rset)) {
       aflog(LOG_T_MAIN, LOG_I_DDEBUG,
-          "http proxy: FD_ISSET(listenfd)");
-      connfd = accept(listenfd, cliaddr, addrlenp);
-      if (connfd != -1) {
+          "http%s proxy: FD_ISSET(listenfd)", name);
+      tmp = accept(listenfd, cliaddr, addrlenp);
+      if (tmp != -1) {
         aflog(LOG_T_MAIN, LOG_I_DEBUG,
-            "http proxy: New connection...");
+            "http%s proxy: New connection...", name);
+        SslFd_set_fd(connFd, tmp);
+        if (https) {
+          make_ssl_initialize(connFd);
+          if (make_ssl_accept(connFd)) {
+            aflog(LOG_T_MAIN, LOG_I_DEBUG,
+                "https proxy: DENIED by SSL_accept");
+            close(SslFd_get_fd(connFd));
+            SSL_clear(SslFd_get_ssl(connFd));
+            continue;
+          }
+        }
       }
       else {
         aflog(LOG_T_MAIN, LOG_I_DEBUG,
-            "http proxy: New connection --> EAGAIN");
+            "http%s proxy: New connection --> EAGAIN", name);
         continue;
       }
       memset(tab, 0, 9000);
       nothttp = 0;
-      if (parse_header(connfd, tab, &hdr)) {
+      if (parse_header(connFd, tab, &hdr, https)) {
         nothttp = 1;
         aflog(LOG_T_MAIN, LOG_I_DEBUG,
-            "http proxy: no http header...");
+            "http%s proxy: no http header...", name);
       }
       n = -1;
       for (i = 0; i < maxclients; ++i) {
@@ -281,40 +339,41 @@ http_proxy_server(void *vptr)
       }
       if (i < maxclients) { /* the client exists */
         aflog(LOG_T_MAIN, LOG_I_DEBUG,
-            "http proxy: the client exist...");
+            "http%s proxy: the client exist...", name);
         if (hdr.type == H_TYPE_GET) {
           aflog(LOG_T_MAIN, LOG_I_DEBUG,
-              "http proxy: type GET...");
+              "http%s proxy: type GET...", name);
           if (!(table[i].state & C_GET_WAIT)) {
             aflog(LOG_T_MAIN, LOG_I_DEBUG,
-                "http proxy: not waiting for GET...");
+                "http%s proxy: not waiting for GET...", name);
             table[i].sent_ptr = 0;
             FD_CLR(table[i].sockfd, &allset);
-            clear_fd(&table[i].getfd, &allset);
+            clear_sslFd(table[i].getFd, &allset);
             table[i].state |= C_GET_WAIT;
           }
           if (!(table[i].state & C_OPEN)) {
             aflog(LOG_T_MAIN, LOG_I_DEBUG,
-                "http proxy: not opened...");
+                "http%s proxy: not opened...", name);
             if (afserver_connect(&table[i].sockfd, afserverfd, cliaddr, addrlenp, 1)) {
               memset(tab, 0, 9000);
               sprintf(tab,"HTTP/1.1 400 Bad Request\r\n\r\n");
               n = strlen (tab); 
-              write(connfd, tab, n);
-              close_fd(&connfd);
-              clear_fd(&table[i].postfd, &allset);
+              http_write(https, connFd, (unsigned char*) tab, n);
+              close_fd((&(connFd->fd)));
+              SSL_clear(SslFd_get_ssl(connFd));
+              clear_sslFd(table[i].postFd, &allset);
               table[i].state = C_CLOSED;
               continue;
             }
             table[i].state |= C_OPEN;
             aflog(LOG_T_MAIN, LOG_I_DEBUG,
-                "http proxy: OPEN...");
+                "http%s proxy: OPEN...", name);
           }
           table[i].state &= ~C_GET_WAIT;
           table[i].sent_ptr = 0;
-          table[i].getfd = connfd;
+          SslFd_swap_content(table[i].getFd, connFd);
           set_fd(table[i].sockfd, &maxfdp1, &allset);
-          set_fd(table[i].getfd, &maxfdp1, &allset);
+          set_fd(SslFd_get_fd(table[i].getFd), &maxfdp1, &allset);
           memset(tab, 0, 9000);
           sprintf(tab,
               "HTTP/1.1 200 OK\r\n"
@@ -325,12 +384,13 @@ http_proxy_server(void *vptr)
               "Expires: 0\r\n"
               "Content-Type: text/html\r\n\r\n");
           n = strlen(tab);
-          if (writen(table[i].getfd, (unsigned char*) tab, n) <= 0) {
+          if (writen(SslFd_get_fd(table[i].getFd), (unsigned char*) tab, n) <= 0) {
             delete_user(table, i, &allset);
             continue;
           }
           if (table[i].length) {
-            if (writen(table[i].getfd, (unsigned char*) (table[i].buf+table[i].ptr), table[i].length) <= 0) {
+            if (writen(SslFd_get_fd(table[i].getFd),
+                  (unsigned char*) (table[i].buf+table[i].ptr), table[i].length) <= 0) {
               delete_user(table, i, &allset);
               continue;
             }
@@ -341,21 +401,21 @@ http_proxy_server(void *vptr)
         }
         else if (hdr.type == H_TYPE_POST) {
           aflog(LOG_T_MAIN, LOG_I_DEBUG,
-              "http proxy: type POST...");
+              "http%s proxy: type POST...", name);
           if (!(table[i].state & C_POST_WAIT)) {
             aflog(LOG_T_MAIN, LOG_I_DEBUG,
-                "http proxy: unexpected POST request...");
+                "http%s proxy: unexpected POST request...", name);
             if (table[i].tmpstate == 0) {
               aflog(LOG_T_MAIN, LOG_I_DEBUG,
-                  "http proxy: buffering POST request...");
+                  "http%s proxy: buffering POST request...", name);
               table[i].tmpstate = 1;
-              table[i].tmpfd = connfd;
+              SslFd_swap_content(table[i].tmpFd, connFd);
               memcpy(table[i].tmpbuf, tab, 9000);
               table[i].tmpheader = hdr;
             }
             else {
               aflog(LOG_T_MAIN, LOG_I_DEBUG,
-                  "http proxy: no space to buffer POST request (received from first postfd: %d)",
+                  "http%s proxy: no space to buffer POST request (received from first postfd: %d)", name,
                   table[i].received);
               delete_user(table, i, &allset);
             }
@@ -368,44 +428,45 @@ http_proxy_server(void *vptr)
               }
             } 
             table[i].state &= ~C_POST_WAIT;
-            table[i].postfd = connfd;
-            set_fd(table[i].postfd, &maxfdp1, &allset);
+            SslFd_swap_content(table[i].postFd, connFd);
+            set_fd(SslFd_get_fd(table[i].postFd), &maxfdp1, &allset);
           }
         }
         else {
           aflog(LOG_T_MAIN, LOG_I_DEBUG,
-              "http proxy: unrecognized type...");
+              "http%s proxy: unrecognized type...", name);
           delete_user(table, i, &allset);
         }
       }
       else if (n != -1) { /* there are free slots */
         aflog(LOG_T_MAIN, LOG_I_DEBUG,
-            "http proxy: there are free slots...");
+            "http%s proxy: there are free slots...", name);
         if (!nothttp) {
           aflog(LOG_T_MAIN, LOG_I_DEBUG,
-              "http proxy: http header...");
+              "http%s proxy: http header...", name);
           if (hdr.type == H_TYPE_POST) { /* POST request must be first */
             aflog(LOG_T_MAIN, LOG_I_DEBUG,
-                "http proxy: type POST...");
+                "http%s proxy: type POST...", name);
             table[n].state = C_GET_WAIT;
             memcpy(table[n].id,hdr.id, 9);
-            table[n].postfd = connfd;
-            set_fd(table[n].postfd, &maxfdp1, &allset);
+            SslFd_swap_content(table[n].postFd, connFd);
+            set_fd(SslFd_get_fd(table[n].postFd), &maxfdp1, &allset);
           }
           else {
             aflog(LOG_T_MAIN, LOG_I_DEBUG,
-                "http proxy: closing this connection...");
-            close_fd(&connfd);
+                "http%s proxy: closing this connection...", name);
+            close_fd((&(connFd->fd)));
+            SSL_clear(SslFd_get_ssl(connFd));
             continue;
           }
         }
         else {
           table[n].state = C_OPEN;
-          table[n].postfd = connfd;
+          SslFd_set_fd(table[n].postFd, SslFd_get_fd(connFd));
           table[n].type = 1;
-          set_fd(table[n].postfd, &maxfdp1, &allset);
+          set_fd(SslFd_get_fd(table[n].postFd), &maxfdp1, &allset);
           if (afserver_connect(&table[n].sockfd, afserverfd, cliaddr, addrlenp, 0)) {
-            clear_fd(&table[n].postfd, &allset);
+            clear_sslFd(table[n].postFd, &allset);
             table[n].state = C_CLOSED;
             continue;
           }
@@ -415,8 +476,8 @@ http_proxy_server(void *vptr)
       }
       else {
         aflog(LOG_T_MAIN, LOG_I_DEBUG,
-            "http proxy: closing this connection...");
-        close_fd(&connfd);
+            "http%s proxy: closing this connection...", name);
+        close_fd((&(connFd->fd)));
         continue;
       }
     }
@@ -427,7 +488,7 @@ http_proxy_server(void *vptr)
 
 
 int
-initialize_http_proxy_server(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, const char type, int limit)
+initialize_http_proxy_server(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, const char type, int limit, char https, SSL_CTX* ctx)
 {
   int retval;
   int sockets[2];
@@ -447,6 +508,8 @@ initialize_http_proxy_server(int* sockfd, const char *host, const char *serv, so
   arg.limit = limit;
   arg.type = (char) type;
   arg.sockfd = sockets[1];
+  arg.https = https;
+  arg.ctx = ctx;
 
   retval = pthread_create(&proxy_thread, NULL, &http_proxy_server, &arg);
   
