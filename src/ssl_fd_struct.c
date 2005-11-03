@@ -20,14 +20,11 @@
 
 #include <config.h>
 
-#include <stdlib.h>
-#include <string.h>
-#include <zlib.h>
-
 #include "activefor.h"
 #include "stats.h"
 #include "logging.h"
 #include "ssl_fd_struct.h"
+#include <zlib.h>
 
 /*
  * Function name: SslFd_new

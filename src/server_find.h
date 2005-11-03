@@ -24,7 +24,7 @@
 #ifndef _JS_SERVER_FIND_H
 #define _JS_SERVER_FIND_H
 
-int find_client(RealmT*, char, int);
+int find_client(ServerRealm*, char, int);
 int find_usernum(ConnectClient*, int);
 
 #endif

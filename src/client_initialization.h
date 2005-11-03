@@ -26,17 +26,17 @@
 #include "http_proxy_client.h"
 #include "http_proxy_options_struct.h"
 #include "ssl_fd_struct.h"
+#include "client_realm_struct.h"
 
 #include <openssl/ssl.h>
 
 #ifndef _JS_CLIENT_INITIALIZATION_H
 #define _JS_CLIENT_INITIALIZATION_H
 
-int initialize_client_stage1(char tunneltype, SslFd* master, char* name, char* manage,
-    HttpProxyOptions* hpo, char ipfam, SSL_CTX* ctx, unsigned char* buff, unsigned char* pass,
-    char wanttoexit, char ignorepkeys);
-int initialize_client_stage2(char *type, SslFd* master, int* usernum, unsigned char* buff, char wanttoexit);
-int initialize_client_stage3(ConnectUser*** contable, SslFd* master, int usernum, int* buflength,
-    socklen_t* len, fd_set* allset, fd_set* wset, int* maxfdp1, char wanttoexit);
+int initialize_client_stage1(ClientRealm* cr, SSL_CTX* ctx, unsigned char* buff, char wanttoexit,
+    char ignorePublicKeys);
+int initialize_client_stage2(ClientRealm* cr, unsigned char* buff, char wanttoexit);
+int initialize_client_stage3(ClientRealm* cr, int* buflength, fd_set* allset, fd_set* wset, int* maxfdp1,
+    char wanttoexit);
 
 #endif

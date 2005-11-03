@@ -22,48 +22,34 @@
 
 #ifdef HAVE_LIBDL
 
-#include "modules.h"
+#  ifndef _JS_MODULE_STRUCT_H
+#  define _JS_MODULE_STRUCT_H
 
-#include <stdlib.h>
-#include <dlfcn.h>
+typedef struct {
+    char loaded;
+    char* fileName;
+    void* handle;
+    char* (*info)(void);
+    int (*allow)(char*, char*);
+    int (*filter)(char*, unsigned char*, int*);
+} Module;
 
-int
-loadmodule(moduleT* module)
-{
-  if (module->name) {
-    module->handle = dlopen(module->name, RTLD_NOW);
-    if (!module->handle) {
-      return 1;
-    }
-    dlerror();
-    *(void**) (&module->info) = dlsym(module->handle, "info");
-    *(void**) (&module->allow) = dlsym(module->handle, "allow");
-    *(void**) (&module->filter) = dlsym(module->handle, "filter");
-    if (dlerror() != NULL) {
-      return 2;
-    }
-    module->loaded = 1;
-  }	
-  return 0;
-}
+/* 'constructor' */
+Module* Module_new();
+/* 'destructor' */
+void Module_free(Module** m);
+/* setters */
+void Module_set_fileName(Module* m, char* fileName);
+/* getters */
+char* Module_get_fileName(Module* m);
+/* other */
+int Module_loadModule(Module* m);
+int Module_releaseModule(Module* m);
+int Module_isModuleLoaded(Module* m);
+char* Module_function_info(Module* m);
+int Module_function_allow(Module* m, char* host, char* port);
+int Module_function_filter(Module* m, char* host, unsigned char* message, int* messageLength);
 
-int
-releasemodule(moduleT* module)
-{
-	if (ismloaded(module)) {
-		module->loaded = 0;
-		module->info = NULL;
-		module->allow = NULL;
-		module->filter = NULL;
-	return dlclose(module->handle);
-	}
-	return 0;
-}
-
-int
-ismloaded(moduleT* module)
-{
-	return module->loaded;
-}
+#  endif
 
 #endif

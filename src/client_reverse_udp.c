@@ -25,19 +25,23 @@
 #include <stdlib.h>
 
 int
-initialize_client_reverse_udp(int* usernum, SslFd* master, char* name, char* manage, char ipfam,
-    char wanttoexit)
+initialize_client_reverse_udp(ClientRealm* cr)
 {
   int tmp;
-  (*usernum) = 1;
-  if (ip_connect(&tmp, name, manage, ipfam)) {
+  int wanttoexit = (ArOptions_get_arStart(ClientRealm_get_arOptions(cr)) == AR_OPTION_ENABLED) ? 0 : 1;
+  ClientRealm_set_usersLimit(cr, 1);
+  if (ip_connect(&tmp, ClientRealm_get_serverName(cr),
+        ClientRealm_get_managePort(cr),
+        ClientRealm_get_ipFamily(cr), NULL, NULL)) {
 #ifdef AF_INET6
     aflog(LOG_T_INIT, LOG_I_CRIT,
         "tcp_connect_%s error for %s, %s",
-        (ipfam & 0x02)?"ipv4":(ipfam & 0x04)?"ipv6":"unspec", name, manage);
+        (ClientRealm_get_ipFamily(cr) & 0x02) ?
+          "ipv4" : (ClientRealm_get_ipFamily(cr) & 0x04) ?
+            "ipv6":"unspec", ClientRealm_get_serverName(cr), ClientRealm_get_managePort(cr));
 #else
     aflog(LOG_T_INIT, LOG_I_CRIT,
-        "tcp_connect error for %s, %s", name, manage);
+        "tcp_connect error for %s, %s", ClientRealm_get_serverName(cr), ClientRealm_get_managePort(cr));
 #endif
     if (wanttoexit) {
       exit(1);
@@ -47,55 +51,48 @@ initialize_client_reverse_udp(int* usernum, SslFd* master, char* name, char* man
     }
 
   }
-  SslFd_set_fd(master, tmp);
-  SslFd_set_ssl(master, NULL);
+  SslFd_set_fd(ClientRealm_get_masterSslFd(cr), tmp);
+  SslFd_set_ssl(ClientRealm_get_masterSslFd(cr), NULL);
   return 0;
 }
 
 void
-client_reverse_udp(ConnectUser** contable, SslFd* master, char* desnam, char* despor, char type,
-    unsigned char* buff, int buflength)
+client_reverse_udp(ClientRealm* cr, unsigned char* buff, int buflength)
 {
-  char ipfam;
   socklen_t len, addrlen;
   int maxfdp1, temp, notsent, n, length;
   struct sockaddr* cliaddr;
   fd_set rset, allset;
-  
-  ipfam = 0;
-#ifdef AF_INET6
-  if (TYPE_IS_IPV4(type)) {
-    ipfam |= 0x02;
-  }
-  else if (TYPE_IS_IPV6(type)) {
-    ipfam |= 0x04;
-  }
-#endif
-  if (ip_listen(&temp, desnam, despor, &addrlen, ipfam)) {
+
+  if (ip_listen(&temp, ClientRealm_get_hostName(cr),
+        ClientRealm_get_destinationPort(cr), &addrlen,
+        ClientRealm_get_ipFamily(cr) & 0xfe)) {
 #ifdef AF_INET6
     aflog(LOG_T_INIT, LOG_I_DEBUG,
         "udp_listen_%s error for %s, %s",
-        (ipfam & 0x02)?"ipv4":(ipfam & 0x04)?"ipv6":"unspec", desnam, despor);
+        (ClientRealm_get_ipFamily(cr) & 0x02) ?
+          "ipv4":(ClientRealm_get_ipFamily(cr) & 0x04) ?
+            "ipv6":"unspec", ClientRealm_get_hostName(cr), ClientRealm_get_destinationPort(cr));
 #else
     aflog(LOG_T_INIT, LOG_I_DEBUG,
-        "udp_listen error for %s, %s", desnam, despor);
+        "udp_listen error for %s, %s", ClientRealm_get_hostName(cr), ClientRealm_get_destinationPort(cr));
 #endif
     exit(1);
   }
-  ConnectUser_set_connFd(contable[0], temp);
+  ConnectUser_set_connFd(ClientRealm_get_usersTable(cr)[0], temp);
   cliaddr = malloc(addrlen);
   FD_ZERO(&allset);
 
-  FD_SET(SslFd_get_fd(master), &allset);
-  maxfdp1 = SslFd_get_fd(master) + 1;
-  maxfdp1 = (maxfdp1 > (ConnectUser_get_connFd(contable[0]) + 1)) ?
-    maxfdp1 : (ConnectUser_get_connFd(contable[0]) + 1);
-  FD_SET(ConnectUser_get_connFd(contable[0]), &allset);
+  FD_SET(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)), &allset);
+  maxfdp1 = SslFd_get_fd(ClientRealm_get_masterSslFd(cr)) + 1;
+  maxfdp1 = (maxfdp1 > (ConnectUser_get_connFd(ClientRealm_get_usersTable(cr)[0]) + 1)) ?
+    maxfdp1 : (ConnectUser_get_connFd(ClientRealm_get_usersTable(cr)[0]) + 1);
+  FD_SET(ConnectUser_get_connFd(ClientRealm_get_usersTable(cr)[0]), &allset);
   aflog(LOG_T_CLIENT, LOG_I_INFO,
       "CLIENT STARTED mode: udp reverse");
   for ( ; ; ) {
     len = 4;
-    if (getsockopt(SslFd_get_fd(master), SOL_SOCKET, SO_SNDBUF, &temp, &len) != -1) {
+    if (getsockopt(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)), SOL_SOCKET, SO_SNDBUF, &temp, &len) != -1) {
       if (temp != buflength) {
         buflength = temp;
         aflog(LOG_T_CLIENT, LOG_I_WARNING,
@@ -110,13 +107,13 @@ client_reverse_udp(ConnectUser** contable, SslFd* master, char* desnam, char* de
     aflog(LOG_T_MAIN, LOG_I_DEBUG,
         "after select...");
 
-    if (FD_ISSET(ConnectUser_get_connFd(contable[0]), &rset)) { /* FD_ISSET   CONTABLE[0].CONNFD   RSET*/
-      n = recvfrom(ConnectUser_get_connFd(contable[0]), &buff[5], 8091, 0, cliaddr, &len);
+    if (FD_ISSET(ConnectUser_get_connFd(ClientRealm_get_usersTable(cr)[0]), &rset)) { /* FD_ISSET   CONTABLE[0].CONNFD   RSET*/
+      n = recvfrom(ConnectUser_get_connFd(ClientRealm_get_usersTable(cr)[0]), &buff[5], 8091, 0, cliaddr, &len);
 #ifdef HAVE_LINUX_SOCKIOS_H
 # ifdef SIOCOUTQ
       aflog(LOG_T_MAIN, LOG_I_DDEBUG,
           "SIOCOUTQ is defined");
-      if (ioctl(SslFd_get_fd(master), SIOCOUTQ, &notsent)) {
+      if (ioctl(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)), SIOCOUTQ, &notsent)) {
         aflog(LOG_T_CLIENT, LOG_I_CRIT,
             "ioctl error -> exiting...");
         exit(1);
@@ -127,7 +124,7 @@ client_reverse_udp(ConnectUser** contable, SslFd* master, char* desnam, char* de
 # else
       aflog(LOG_T_MAIN< LOG_I_DDEBUG,
           "TIOCOUTQ is defined");
-      if (ioctl(SslFd_get_fd(master), TIOCOUTQ, &notsent)) {
+      if (ioctl(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)), TIOCOUTQ, &notsent)) {
         aflog(LOG_T_CLIENT, LOG_I_CRIT,
             "ioctl error -> exiting...");
         exit(1);
@@ -158,15 +155,15 @@ client_reverse_udp(ConnectUser** contable, SslFd* master, char* desnam, char* de
           buff[2] = AF_S_MESSAGE;
           buff[3] = n >> 8;
           buff[4] = n;
-          writen(SslFd_get_fd(master), buff, n + 5);
+          writen(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)), buff, n + 5);
         }
 #ifdef HAVE_LINUX_SOCKIOS_H
       }
 #endif
     } /* - FD_ISSET   CONTABLE[0].CONNFD   RSET */
 
-    if (FD_ISSET(SslFd_get_fd(master), &rset)) { /* FD_ISSET   MASTER.COMMFD   RSET */
-      n = readn(SslFd_get_fd(master), buff, 5);
+    if (FD_ISSET(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)), &rset)) { /* FD_ISSET   MASTER.COMMFD   RSET */
+      n = readn(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)), buff, 5);
       if (n == 5) {
         if ((buff[0] != AF_S_MESSAGE) || (buff[1] != AF_S_LOGIN) || (buff[2] != AF_S_MESSAGE)) {
           aflog(LOG_T_CLIENT, LOG_I_CRIT,
@@ -176,7 +173,7 @@ client_reverse_udp(ConnectUser** contable, SslFd* master, char* desnam, char* de
         length = buff[3];
         length = length << 8;
         length += buff[4]; /* this is length of message */
-        n = readn(SslFd_get_fd(master), buff, length);
+        n = readn(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)), buff, length);
       }
       else {
         n = 0;
@@ -188,7 +185,7 @@ client_reverse_udp(ConnectUser** contable, SslFd* master, char* desnam, char* de
       }
       aflog(LOG_T_CLIENT, LOG_I_INFO,
           "Sending %d bytes to user (TO:%s)", n, sock_ntop(cliaddr, addrlen, NULL, NULL, 0));
-      sendto(ConnectUser_get_connFd(contable[0]), buff, n, 0, cliaddr, addrlen);
+      sendto(ConnectUser_get_connFd(ClientRealm_get_usersTable(cr)[0]), buff, n, 0, cliaddr, addrlen);
     } /* - FD_ISSET   MASTER.COMMFD   RSET */
   }
   exit(0); /* we shouldn't get here */

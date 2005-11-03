@@ -23,17 +23,17 @@
 #include "server_find.h"
 
 int
-find_client(RealmT* ptr, char mode, int usrclipair)
+find_client(ServerRealm* ptr, char mode, int usrclipair)
 {
   int i;
   switch(mode) {
     case 1: { /* fill first client before go to next */
-              for (i = 0; i < ptr->clinum; ++i) {
-                if ((ConnectClient_get_state(ptr->clitable[i]) ==
+              for (i = 0; i < ServerRealm_get_clientsLimit(ptr); ++i) {
+                if ((ConnectClient_get_state(ServerRealm_get_clientsTable(ptr)[i]) ==
                       CONNECTCLIENT_STATE_ACCEPTED) &&
-                    (ConnectClient_get_usrCliPair(ptr->clitable[i]) == usrclipair)) {
-                  if (ConnectClient_get_connected(ptr->clitable[i]) <
-                      ConnectClient_get_limit(ptr->clitable[i])) {
+                    (ConnectClient_get_usrCliPair(ServerRealm_get_clientsTable(ptr)[i]) == usrclipair)) {
+                  if (ConnectClient_get_connected(ServerRealm_get_clientsTable(ptr)[i]) <
+                      ConnectClient_get_limit(ServerRealm_get_clientsTable(ptr)[i])) {
                     return i;
                   }
                 }

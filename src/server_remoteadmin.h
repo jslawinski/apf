@@ -32,6 +32,6 @@
 #include "realmnames.h"
 #include "usernames.h"
 
-int serve_admin(ConfigurationT*, int, int, unsigned char*);
+int serve_admin(ServerConfiguration*, int, int, unsigned char*);
 
 #endif

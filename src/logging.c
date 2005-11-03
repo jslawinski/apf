@@ -204,7 +204,7 @@ checklogtarget(llnodeT* target)
       case 2: {
                 if ((*ptr) == ',') {
                   tab[i] = 0;
-                  if (ip_connect(&tmpfd, desc, tab, 1)) {
+                  if (ip_connect(&tmpfd, desc, tab, 1, NULL, NULL)) {
                     return 5; /* can't connect to host:port */
                   }
                   target->logfd = fdopen(tmpfd, "a");

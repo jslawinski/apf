@@ -20,8 +20,9 @@
 
 #include "activefor.h"
 #include "network.h"
+#include "file.h"
 #include "stats.h"
-#include "modules.h"
+#include "module_struct.h"
 #include "client_remoteadmin.h"
 #include "make_ssl_handshake.h"
 #include "first_run.h"

@@ -1,4 +1,4 @@
-.TH afclient 1 "apf 0.7.2" Jeremian
+.TH afclient 1 "apf 0.7.4" Jeremian
 .SH NAME
 afclient \- active port forwarder client
 .SH SYNOPSIS
@@ -41,6 +41,15 @@ is running (required)
 .B -p, --portnum PORT
   the port we are forwarding connection to (required)
 
+.B --localname NAME
+  local machine name for connection with afserver (used to bind socket to different interfaces)
+
+.B --localport NAME
+  local port name for connection with afserver (used to bind socket to different addressees)
+
+.B --localdesname NAME
+  local machine name for connections with destination application (used to bind socket to different interfaces)
+
 .B -V, --version
   display version number
 
@@ -62,6 +71,10 @@ is running (required)
 
 .B -k, --keyfile FILE
   the name of the file with RSA key (default: client.rsa)
+
+.B -f, --cfgfile FILE
+  the name of the file with the configuration for the
+.I afclient
 
 .B -s, --storefile
   the name of the file with stored public keys (default: known_hosts)
@@ -92,10 +105,10 @@ is running (required)
 .I Modes
 
 .B -u, --udpmode
-  udp mode - client will use udp protocol to communicate with the hostname:portnum (-p)
+  udp mode - client will use udp protocol to communicate with the hostname:portnum
 
 .B -U, --reverseudp
-  reverse udp forwarding. Udp packets will be forwarded from hostname:portnum (-p) to the server name:portnum (-m)
+  reverse udp forwarding. Udp packets will be forwarded from hostname:portnum to the server name:manageport
   
 .B -r, --remoteadmin
   remote administration mode. (using '-p PORT' will force afclient to use port rather than stdin-stdout)
@@ -302,6 +315,7 @@ options.
 
 .SH "SEE ALSO"
 
+.BR afclient.conf (5),
 .BR afserver (1),
 .BR afserver.conf (5)
   

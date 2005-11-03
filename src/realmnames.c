@@ -25,36 +25,36 @@
 #include "realmnames.h"
 
 char*
-get_realmname(ConfigurationT* config, int realm)
+get_realmname(ServerConfiguration* config, int realm)
 {
   static char realmname[10];
   
-  if (config->realmtable[realm].realmname == NULL) {
+  if (ServerRealm_get_realmName(ServerConfiguration_get_realmsTable(config)[realm]) == NULL) {
     memset(realmname, 0, 10);
     sprintf(realmname, "%d", realm);
     return realmname;
   }
   
-  return config->realmtable[realm].realmname;
+  return ServerRealm_get_realmName(ServerConfiguration_get_realmsTable(config)[realm]);
 }
 
 int
-get_realmnumber(ConfigurationT* config, char* realmname)
+get_realmnumber(ServerConfiguration* config, char* realmname)
 {
   int i;
   char guard;
   
-  for (i = 0; i < config->size; ++i) {
-    if (config->realmtable[i].realmname != NULL) {
-      if (strcmp(realmname, config->realmtable[i].realmname) == 0) {
+  for (i = 0; i < ServerConfiguration_get_realmsNumber(config); ++i) {
+    if (ServerRealm_get_realmName(ServerConfiguration_get_realmsTable(config)[i]) != NULL) {
+      if (strcmp(realmname, ServerRealm_get_realmName(ServerConfiguration_get_realmsTable(config)[i])) == 0) {
         return i;
       }
     }
   }
 
   if (sscanf(realmname, "%d%c", &i, &guard) == 1) {
-    if ((i >= 0) && (i < config->size)) {
-      if (config->realmtable[i].realmname == NULL) {
+    if ((i >= 0) && (i < ServerConfiguration_get_realmsNumber(config))) {
+      if (ServerRealm_get_realmName(ServerConfiguration_get_realmsTable(config)[i]) == NULL) {
         return i;
       }
     }

@@ -20,6 +20,8 @@
 
 #include "activefor.h"
 #include "network.h"
+#include "server_configuration_struct.h"
+#include "client_configuration_struct.h"
 #include <openssl/ssl.h>
 
 #ifndef _JS_FILE_H
@@ -31,7 +33,9 @@
 #define  F_RVALUE   4
 #define  F_MIDDLE   5
 
-ConfigurationT parsefile(char*, int*); /* parse the cfg file */
+int parse_line(char* buff, char* tab1, char* tab2); /* parse one line of the file */
+ServerConfiguration* parsefile(char*, int*); /* parse the cfg file */
+ClientConfiguration* cparsefile(char*, int*); /* parse the client's cfg file */
 
 #endif
 

@@ -25,11 +25,11 @@
 #include "network.h"
 #include "base64.h"
 #include "ssl_routines.h"
+#include "client_configuration_struct.h"
 
 int
-initialize_client_stage1(char tunneltype, SslFd* master, char* name, char* manage,
-    HttpProxyOptions* hpo, char ipfam, SSL_CTX* ctx, unsigned char* buff, unsigned char* pass,
-    char wanttoexit, char ignorepkeys)
+initialize_client_stage1(ClientRealm* cr, SSL_CTX* ctx, unsigned char* buff, char wanttoexit,
+    char ignorePublicKeys)
 {
   int n, nlen, elen, len, tmp;
   unsigned int olen;
@@ -40,16 +40,22 @@ initialize_client_stage1(char tunneltype, SslFd* master, char* name, char* manag
   unsigned char *encoded = NULL;
   char b64_encoded[100];
   unsigned char *key_buf = NULL;
-  switch (tunneltype) {
+  switch (ClientRealm_get_tunnelType(cr)) {
     case 0: {
-      if (ip_connect(&tmp, name, manage, ipfam)) {
+      if (ip_connect(&tmp, ClientRealm_get_serverName(cr),
+            ClientRealm_get_managePort(cr),
+            ClientRealm_get_ipFamily(cr),
+            ClientRealm_get_localName(cr),
+            ClientRealm_get_localPort(cr))) {
 #ifdef AF_INET6
         aflog(LOG_T_INIT, LOG_I_CRIT,
             "tcp_connect_%s error for %s, %s",
-            (ipfam & 0x02)?"ipv4":(ipfam & 0x04)?"ipv6":"unspec", name, manage);
+            (ClientRealm_get_ipFamily(cr) & 0x02) ?
+              "ipv4":(ClientRealm_get_ipFamily(cr) & 0x04) ?
+                "ipv6":"unspec", ClientRealm_get_serverName(cr), ClientRealm_get_managePort(cr));
 #else
         aflog(LOG_T_INIT, LOG_I_CRIT,
-            "tcp_connect error for %s, %s", name, manage);
+            "tcp_connect error for %s, %s", ClientRealm_get_serverName(cr), ClientRealm_get_managePort(cr));
 #endif
         if (wanttoexit) {
           exit(1);
@@ -58,21 +64,27 @@ initialize_client_stage1(char tunneltype, SslFd* master, char* name, char* manag
           return 1;
         }
       } 
-      SslFd_set_fd(master, tmp);
+      SslFd_set_fd(ClientRealm_get_masterSslFd(cr), tmp);
       break;
             }
 #ifdef HAVE_LIBPTHREAD 
     case 1: {
-      if (initialize_http_proxy_client(&tmp, name, manage, hpo, ipfam, ctx)) {
+      if (initialize_http_proxy_client(&tmp, cr, ctx)) {
 #ifdef AF_INET6
         aflog(LOG_T_INIT, LOG_I_CRIT,
             "http_proxy_connect_%s error for %s, %s (proxy: %s, %s)",
-            (ipfam & 0x02)?"ipv4":(ipfam & 0x04)?"ipv6":"unspec", name, manage,
-            HttpProxyOptions_get_proxyname(hpo), HttpProxyOptions_get_proxyport(hpo));
+            (ClientRealm_get_ipFamily(cr) & 0x02) ?
+              "ipv4":(ClientRealm_get_ipFamily(cr) & 0x04) ?
+                "ipv6":"unspec", ClientRealm_get_serverName(cr),
+                ClientRealm_get_managePort(cr),
+                HttpProxyOptions_get_proxyname(ClientRealm_get_httpProxyOptions(cr)),
+                HttpProxyOptions_get_proxyport(ClientRealm_get_httpProxyOptions(cr)));
 #else 
         aflog(LOG_T_INIT, LOG_I_CRIT,
-            "http_proxy_connect error for %s, %s (proxy: %s, %s)", name, manage,
-            HttpProxyOptions_get_proxyname(hpo), HttpProxyOptions_get_proxyport(hpo));
+            "http_proxy_connect error for %s, %s (proxy: %s, %s)", ClientRealm_get_serverName(cr),
+            ClientRealm_get_managePort(cr),
+            HttpProxyOptions_get_proxyname(ClientRealm_get_httpProxyOptions(cr)),
+            HttpProxyOptions_get_proxyport(ClientRealm_get_httpProxyOptions(cr)));
 #endif 
         if (wanttoexit) {
           exit(1);
@@ -81,7 +93,7 @@ initialize_client_stage1(char tunneltype, SslFd* master, char* name, char* manag
           return 1;
         }
       }
-      SslFd_set_fd(master, tmp);
+      SslFd_set_fd(ClientRealm_get_masterSslFd(cr), tmp);
       break;
             }
 #endif
@@ -98,22 +110,24 @@ initialize_client_stage1(char tunneltype, SslFd* master, char* name, char* manag
              }
   }
   
-  master->ssl = SSL_new(ctx);
-  if (SSL_set_fd(SslFd_get_ssl(master), SslFd_get_fd(master)) != 1) {
+  SslFd_set_ssl(ClientRealm_get_masterSslFd(cr), SSL_new(ctx));
+  if (SSL_set_fd(SslFd_get_ssl(ClientRealm_get_masterSslFd(cr)),
+        SslFd_get_fd(ClientRealm_get_masterSslFd(cr))) != 1) {
     aflog(LOG_T_INIT, LOG_I_CRIT,
         "Problem with initializing ssl... exiting");
     if (wanttoexit) {
       exit(1);
     }
     else {
+      close(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)));
       return 2;
     }
   }
 
   aflog(LOG_T_INIT, LOG_I_INFO,
       "Trying SSL_connect");
-  if ((n = SSL_connect(master->ssl)) == 1) {
-    if ((server_cert = SSL_get_peer_certificate(master->ssl)) == NULL) {
+  if ((n = SSL_connect(SslFd_get_ssl(ClientRealm_get_masterSslFd(cr)))) == 1) {
+    if ((server_cert = SSL_get_peer_certificate(SslFd_get_ssl(ClientRealm_get_masterSslFd(cr)))) == NULL) {
       aflog(LOG_T_MAIN, LOG_I_CRIT,
           "Server did not present a certificate... exiting");
       exit(1);
@@ -153,17 +167,17 @@ initialize_client_stage1(char tunneltype, SslFd* master, char* name, char* manag
       exit(1);
     }
     
-    switch (check_public_key(get_store_filename(), name, b64_encoded)) {
+    switch (check_public_key(get_store_filename(), ClientRealm_get_serverName(cr), b64_encoded)) {
       case SSL_PUBLIC_KEY_VALID:
         /* public key is ok - do nothing */
         break;
       case SSL_PUBLIC_KEY_NOT_KNOWN:
         aflog(LOG_T_MAIN, LOG_I_WARNING,
             "WARNING: implicitly added new server's public key to the list of known hosts");
-        add_public_key(get_store_filename(), name, b64_encoded);
+        add_public_key(get_store_filename(), ClientRealm_get_serverName(cr), b64_encoded);
         break;
       default:
-        if (ignorepkeys) {
+        if (ignorePublicKeys) {
           aflog(LOG_T_MAIN, LOG_I_WARNING,
               "WARNING: Invalid server's public key... ignoring");
         }
@@ -186,30 +200,34 @@ initialize_client_stage1(char tunneltype, SslFd* master, char* name, char* manag
   }
   else {
     aflog(LOG_T_INIT, LOG_I_CRIT,
-        "SSL_connect has failed (%d | %d)... exiting", n, SSL_get_error(master->ssl, n));
+        "SSL_connect has failed (%d | %d)... exiting", n,
+        SSL_get_error(SslFd_get_ssl(ClientRealm_get_masterSslFd(cr)), n));
     if (wanttoexit) {
       exit(1);
     }
     else {
+      close(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)));
       return 3;
     }
   }
 
   buff[0] = AF_S_LOGIN;
-  buff[1] = pass[0];
-  buff[2] = pass[1];
-  buff[3] = pass[2];
-  buff[4] = pass[3];
+  buff[1] = ClientRealm_get_password(cr)[0];
+  buff[2] = ClientRealm_get_password(cr)[1];
+  buff[3] = ClientRealm_get_password(cr)[2];
+  buff[4] = ClientRealm_get_password(cr)[3];
 
   return 0;
 }
 
 int
-initialize_client_stage2(char *type, SslFd* master, int* usernum, unsigned char* buff, char wanttoexit)
+initialize_client_stage2(ClientRealm* cr, unsigned char* buff, char wanttoexit)
 {
-  SslFd_send_message(*type | TYPE_SSL | TYPE_ZLIB, master, buff, 5);
+  SslFd_send_message(ClientRealm_get_realmType(cr) | TYPE_SSL | TYPE_ZLIB,
+      ClientRealm_get_masterSslFd(cr), buff, 5);
   buff[0] = 0;
-  SslFd_get_message(*type | TYPE_SSL | TYPE_ZLIB, master, buff, -5);
+  SslFd_get_message(ClientRealm_get_realmType(cr) | TYPE_SSL | TYPE_ZLIB,
+      ClientRealm_get_masterSslFd(cr), buff, -5);
 
   if ( buff[0] == 0 ) {
     aflog(LOG_T_INIT, LOG_I_CRIT,
@@ -218,6 +236,7 @@ initialize_client_stage2(char *type, SslFd* master, int* usernum, unsigned char*
       exit(1);
     }
     else {
+      close(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)));
       return 1;
     }
   }
@@ -228,6 +247,7 @@ initialize_client_stage2(char *type, SslFd* master, int* usernum, unsigned char*
       exit(1);
     }
     else {
+      close(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)));
       return 1;
     }
   }
@@ -238,6 +258,7 @@ initialize_client_stage2(char *type, SslFd* master, int* usernum, unsigned char*
       exit(1);
     }
     else {
+      close(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)));
       return 1;
     }
   }
@@ -248,55 +269,60 @@ initialize_client_stage2(char *type, SslFd* master, int* usernum, unsigned char*
       exit(1);
     }
     else {
+      close(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)));
       return 1;
     }
   }
 
-  *type = buff[3];
-  (*usernum) = buff[1];
-  (*usernum) = (*usernum) << 8;
-  (*usernum) += buff[2];
+  ClientRealm_set_realmType(cr, buff[3]);
+  ClientRealm_set_usersLimit(cr, buff[1] * 256 + buff[2]);
   return 0;
 }
 
 int
-initialize_client_stage3(ConnectUser*** contable, SslFd* master, int usernum, int* buflength, socklen_t* len,
-    fd_set* allset, fd_set* wset, int* maxfdp1, char wanttoexit)
+initialize_client_stage3(ClientRealm* cr, int* buflength, fd_set* allset, fd_set* wset, int* maxfdp1,
+    char wanttoexit)
 {
   int i;
-  (*contable) = calloc(usernum, sizeof(ConnectUser*));
-  if ((*contable) == NULL) {
+  socklen_t len;
+  ConnectUser** usersTable;
+  usersTable = calloc(ClientRealm_get_usersLimit(cr), sizeof(ConnectUser*));
+  if (usersTable == NULL) {
     aflog(LOG_T_INIT, LOG_I_CRIT,
         "Calloc error - unable to successfully communicate with server");
     if (wanttoexit) {
       exit(1);
     }
     else {
+      close(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)));
       return 1;
     }
   }
-  for (i = 0; i < usernum; ++i) {
-    (*contable)[i] = ConnectUser_new();
-    if ((*contable)[i] == NULL) {
+  ClientRealm_set_usersTable(cr, usersTable);
+  for (i = 0; i < ClientRealm_get_usersLimit(cr); ++i) {
+    usersTable[i] = ConnectUser_new();
+    if (usersTable[i] == NULL) {
       aflog(LOG_T_INIT, LOG_I_CRIT,
           "Calloc error - unable to successfully communicate with server");
       if (wanttoexit) {
         exit(1);
       }
       else {
+        close(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)));
         return 1;
       }
     }
   }
 
-  (*len) = 4;
-  if (getsockopt(SslFd_get_fd(master), SOL_SOCKET, SO_SNDBUF, buflength, len) == -1) {
+  len = 4;
+  if (getsockopt(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)), SOL_SOCKET, SO_SNDBUF, buflength, &len) == -1) {
     aflog(LOG_T_INIT, LOG_I_CRIT,
         "Can't get socket send buffer size - exiting...");
     if (wanttoexit) {
       exit(1);
     }
     else {
+      close(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)));
       return 2;
     }
   }
@@ -304,7 +330,7 @@ initialize_client_stage3(ConnectUser*** contable, SslFd* master, int usernum, in
   FD_ZERO(allset);
   FD_ZERO(wset);
 
-  FD_SET(SslFd_get_fd(master), allset);
-  (*maxfdp1) = SslFd_get_fd(master) + 1;
+  FD_SET(SslFd_get_fd(ClientRealm_get_masterSslFd(cr)), allset);
+  (*maxfdp1) = SslFd_get_fd(ClientRealm_get_masterSslFd(cr)) + 1;
   return 0;
 }

@@ -19,12 +19,13 @@
  */
 
 #include "activefor.h"
+#include "server_configuration_struct.h"
 
 #ifndef _JS_REALMNAMES_H
 #define _JS_REALMNAMES_H
 
-char* get_realmname(ConfigurationT*, int);
-int get_realmnumber(ConfigurationT*, char*);
+char* get_realmname(ServerConfiguration*, int);
+int get_realmnumber(ServerConfiguration*, char*);
 
 #endif
 

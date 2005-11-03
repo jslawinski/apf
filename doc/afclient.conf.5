@@ -1,0 +1,149 @@
+.TH afclient.conf 5 "apf 0.7.4" Jeremian
+.SH NAME
+afclient.conf \- Configuration File for afclient
+.SH INTRODUCTION
+.B Afclient
+supports several mechanisms to supply configuration and run-time parameters: command line options,
+.B afclient.conf
+and hard-coded defaults. When the same information is supplied in more than one way, the highest precedence mechanism is used. When configuration file is used (option:
+.IR "-f FILE")
+command line options like
+.IR --reverseudp ,
+.IR --udpmode ,
+.IR --remoteadmin ,
+.IR --load ,
+.I --Load
+and
+.I --pass
+are ignored. Options from configuration file are taken before values from command line (with the exception of
+.IR --keyfile ,
+.IR --storefile ,
+.IR --dateformat ,
+.IR --ignorepkeys
+and the options connected with http proxy and auto-reconnect support). When something is not declared, hard-coded values are used.
+
+.SH DESCRIPTION
+.B Afclient
+uses configuration file, which name is supplied by the
+.I -f FILE
+option. The
+.B afclient.conf
+file is the set of command-line like options, which can be written in any order.
+
+.SH "OPTIONS"
+
+.B servername NAME
+  name of the host, where
+.I afserver
+is running
+
+.B manageport PORT
+  manage port number - server must be listening on it (default: 50126)
+
+.B hostname NAME
+  the name of this host/remote host - the final destination of the packets (default: the name returned by hostname function)
+
+.B portnum PORT
+  the port we are forwarding connection to
+
+.B localname NAME
+  local machine name for connection with afserver (used to bind socket to different interfaces)
+
+.B localport NAME
+  local port name for connection with afserver (used to bind socket to different addressees)
+
+.B localdesname NAME
+  local machine name for connections with destination application (used to bind socket to different interfaces)
+
+.B id STRING
+  sends the id string to afserver
+
+.B pass PASSWORD
+  set the password used for client identification (default: no password)
+
+.B ignorepkeys
+  ignore invalid server's public keys
+
+.B keyfile FILE
+  the name of the file with RSA key (default: client.rsa)
+
+.B storefile FILE
+  the name of the file with stored public keys (default: known_hosts)
+
+.B dateformat FORMAT
+  format of the date printed in logs (see 'man strftime' for details) (default: %d.%m.%Y %H:%M:%S). Format string is trimmed. In order to include white characters into format string, use dots to mark beginning and end of the text. If the dot is first or last character, it's removed. Only one character from the beginning and one from the end can be removed.
+
+.B keep-alive N
+  send keepalive packets every N seconds (default: not send keepalive packets)
+
+.B ar-start
+  enable auto-reconnection when afserver is not reachable on start (default: disabled)
+
+.B ar-quit
+  enable auto-reconnection after normal afserver quit (default: disabled)
+
+.B noar
+  disable auto-reconnection after premature afserver quit (default: enabled)
+
+.B ar-tries N
+  try N times to reconnect (default: unlimited)
+
+.B ar-delay N
+  wait N seconds between reconnect tries (default: 5)
+
+.B udpmode
+  udp mode - client will use udp protocol to communicate with the hostname:portnum
+
+.B reverseudp
+  reverse udp forwarding. Udp packets will be forwarded from hostname:portnum to the server name:manageport
+
+.B remoteadmin
+  remote administration mode. (using '-p PORT' will force afclient to use port rather than stdin-stdout)
+
+.B log LOGCMD
+  log choosen information to file/socket
+
+.B ipv4
+  use ipv4 only
+
+.B ipv6
+  use ipv6 only
+
+.B load FILE
+  load a module for user's packets filtering
+
+.B Load FILE
+  load a module for service's packets filtering
+
+.B use-https
+  use https proxy instead of http proxy
+
+.B proxyname NAME
+  the name of the machine with proxy server
+
+.B proxyport PORT
+  the port used by proxy server (default: 8080)
+
+.B pa-cred  U:P
+  the user (U) and password (P) used in proxy authorization
+
+.B pa-t-basic
+  the Basic type of proxy authorization (default)
+
+.SH "SEE ALSO"
+
+.BR afserver.conf (5),
+.BR afclient (1),
+.BR afserver (1)
+
+.SH AUTHOR
+
+Jeremian <jeremian [at] poczta.fm>
+
+.SH CONTRIBUTIONS
+
+Alex Dyatlov <alex [at] gray-world.net>, Simon <scastro [at] entreelibre.com>, Ilia Perevezentsev <iliaper [at] mail.ru> and Marco Solari <marco.solari [at] koinesistemi.it>
+
+.SH LICENSE
+
+Active Port Forwarder is distributed under the terms of the GNU General Public License v2.0 and is copyright (C) 2003,2004,2005 jeremian <jeremian [at] poczta.fm>. See the file COPYING for details.

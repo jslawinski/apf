@@ -23,8 +23,8 @@
 #ifndef _JS_SERVER_REMOVE_H
 #define _JS_SERVER_REMOVE_H
 
-void remove_client(RealmT*, int, fd_set*, fd_set*, int*);
-void remove_raclient(RealmT*, int, fd_set*, fd_set*, int*);
+void remove_client(ServerRealm*, int, fd_set*, fd_set*, int*);
+void remove_raclient(ServerRealm*, int, fd_set*, fd_set*, int*);
 
 #endif
 

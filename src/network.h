@@ -37,7 +37,8 @@
 #include <openssl/ssl.h>
 
 int ip_listen(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, const char type); /* socket, bind, listen... */
-int ip_connect(int* sockfd, const char *host, const char *serv, const char type); /* socket, connect... */
+int ip_connect(int* sockfd, const char *host, const char *serv, const char type,
+    const char *lhost, const char *lserv); /* socket[, bind], connect... */
 char* sock_ntop(const struct sockaddr* sa, socklen_t salen, char* namebuf, char* portbuf, char type); /* return the IP of connected user */
 
 int SSL_writen(SSL* fd, unsigned char* buf, int amount);

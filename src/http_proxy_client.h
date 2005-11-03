@@ -19,11 +19,11 @@
  */
 
 #include "http_proxy_options_struct.h"
+#include "client_realm_struct.h"
 
 #ifndef _JS_HTTP_PROXY_CLIENT_H
 #define _JS_HTTP_PROXY_CLIENT_H
 
-int initialize_http_proxy_client(int* sockfd, const char *host, const char *serv,
-    HttpProxyOptions* hpo, const char type, SSL_CTX* ctx);
+int initialize_http_proxy_client(int* sockfd, ClientRealm* cr, SSL_CTX* ctx);
 
 #endif

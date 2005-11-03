@@ -136,7 +136,7 @@ http_proxy_client(void *vptr)
   /* postfd */
   aflog(LOG_T_MAIN, LOG_I_DEBUG,
       "http%s proxy: connecting (postfd)...", name);
-  if (ip_connect(&tmp, proxyname, proxyport, type)) {
+  if (ip_connect(&tmp, proxyname, proxyport, type, NULL, NULL)) {
     clean_return(conn.sockfd);
   }
   SslFd_set_fd(conn.postFd, tmp);
@@ -180,7 +180,7 @@ http_proxy_client(void *vptr)
   /* getfd */
   aflog(LOG_T_MAIN, LOG_I_DEBUG,
       "http%s proxy: connecting (getfd)...", name);
-  if (ip_connect(&tmp, proxyname, proxyport, type)) {
+  if (ip_connect(&tmp, proxyname, proxyport, type, NULL, NULL)) {
     clean_return(conn.sockfd);
   }
   SslFd_set_fd(conn.getFd, tmp);
@@ -264,7 +264,7 @@ http_proxy_client(void *vptr)
         /* postfd */
         aflog(LOG_T_MAIN, LOG_I_DEBUG,
             "http%s proxy: connecting (postfd)...", name);
-        if (ip_connect(&tmp, proxyname, proxyport, type)) {
+        if (ip_connect(&tmp, proxyname, proxyport, type, NULL, NULL)) {
           clean_return(conn.sockfd);
         }
         SslFd_set_fd(conn.postFd, tmp);
@@ -327,7 +327,7 @@ http_proxy_client(void *vptr)
         /* postfd */
         aflog(LOG_T_MAIN, LOG_I_DEBUG,
             "http%s proxy: connecting (postfd)...", name);
-        if (ip_connect(&tmp, proxyname, proxyport, type)) {
+        if (ip_connect(&tmp, proxyname, proxyport, type, NULL, NULL)) {
           clean_return(conn.sockfd);
         }
         SslFd_set_fd(conn.postFd, tmp);
@@ -367,7 +367,7 @@ http_proxy_client(void *vptr)
         /* postfd */
         aflog(LOG_T_MAIN, LOG_I_DEBUG,
             "http%s proxy: connecting (postfd)...", name);
-        if (ip_connect(&tmp, proxyname, proxyport, type)) {
+        if (ip_connect(&tmp, proxyname, proxyport, type, NULL, NULL)) {
           clean_return(conn.sockfd);
         }
         SslFd_set_fd(conn.postFd, tmp);
@@ -441,7 +441,7 @@ http_proxy_client(void *vptr)
         /* getfd */
         aflog(LOG_T_MAIN, LOG_I_DEBUG,
             "http%s proxy: connecting (getfd)...", name);
-        if (ip_connect(&tmp, proxyname, proxyport, type)) {
+        if (ip_connect(&tmp, proxyname, proxyport, type, NULL, NULL)) {
           clean_return(conn.sockfd);
         }
         SslFd_set_fd(conn.getFd, tmp);
@@ -520,8 +520,7 @@ http_proxy_client(void *vptr)
 }
 
 int
-initialize_http_proxy_client(int* sockfd, const char *host, const char *serv,
-    HttpProxyOptions* hpo, const char type, SSL_CTX* ctx)
+initialize_http_proxy_client(int* sockfd, ClientRealm* cr, SSL_CTX* ctx)
 {
   int retval;
   int sockets[2];
@@ -533,16 +532,16 @@ initialize_http_proxy_client(int* sockfd, const char *host, const char *serv,
   }
   (*sockfd) = sockets[0];
 
-  if (HttpProxyOptions_get_proxyname(hpo) == NULL) {
+  if (HttpProxyOptions_get_proxyname(ClientRealm_get_httpProxyOptions(cr)) == NULL) {
     return 1;
   }
 
   start_critical_section();
 
-  arg.host = (char*) host;
-  arg.serv = (char*) serv;
-  arg.hpo = hpo;
-  arg.type = (char) type;
+  arg.host = ClientRealm_get_serverName(cr);
+  arg.serv = ClientRealm_get_managePort(cr);
+  arg.hpo = ClientRealm_get_httpProxyOptions(cr);
+  arg.type = ClientRealm_get_ipFamily(cr);
   arg.sockfd = sockets[1];
   arg.ctx = ctx;
 

@@ -49,8 +49,9 @@
 #define	S_STATE_OPENING	  6
 #define S_STATE_OPEN	    7
 #define S_STATE_STOPPED	 11
+#define S_STATE_OPENING_CLOSED	 17
 
-#define	AF_VER(info)	info" v0.7.2"
+#define	AF_VER(info)	info" v0.7.4"
 
 #define TYPE_TCP	1
 #define TYPE_UDP	3
@@ -84,50 +85,6 @@
 
 #define TYPE_SET_COMP(type)	(type|=TYPE_COMP)
 #define TYPE_IS_COMP(type)	(type&TYPE_COMP)
-
-typedef struct {
-  char* hostname;
-  char* users;
-  char* clients;
-  char* raclients;
-  char* usrpcli;
-  char* clim;
-  char* timeout;
-  char* realmname;
-  unsigned char pass[4];
-  int usercon;
-  int usernum;
-  int clicon;
-  int clinum;
-  int raclicon;
-  int raclinum;
-  int upcnum;
-  int tmout;
-  int climode;
-  int usrclinum;
-  int clientcounter;
-  int usercounter;
-  char type;
-  char tunneltype;
-  char dnslookups;
-  char baseport;
-  char audit;
-  socklen_t addrlen;
-  struct sockaddr* cliaddr;
-  ConnectUser** contable;
-  ConnectClient** clitable;
-  ConnectClient** raclitable;
-  UsrCli** usrclitable;
-} RealmT;
-
-typedef struct {
-  char* certif;
-  char* keys;
-  char* dateformat;
-  int size;
-  time_t starttime;
-  RealmT* realmtable;
-} ConfigurationT;
 
 #endif
 

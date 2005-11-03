@@ -291,6 +291,6 @@ ArOptions_evaluate_values(ArOptions* ao)
     ao->tries = check_value_liberal(ao->artries, "Invalid ar-tries value");
   }
   if (ao->ardelay) {
-    check_value(&(ao->delay), ao->ardelay, "Invalid ar-delay value");
+    ao->delay = check_value(ao->ardelay, "Invalid ar-delay value");
   }
 }

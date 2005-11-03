@@ -58,7 +58,7 @@ server_long_usage(char* info)
   printf("  -f, --cfgfile       - the name of the file with the configuration for the\n");
   printf("                        active forwarder (server)\n");
   printf("  -D, --dateformat    - format of the date printed in logs (see 'man strftime'\n");
-  printf("                        for details) (default: %%d.%%m.%%Y %%H:%%M:%%S)\n\n");
+  printf("                        for details) (default: %%Y-%%m-%%d %%H:%%M:%%S)\n\n");
   printf("  -t, --timeout       - the timeout value for the client's connection\n");
   printf("                        (default: 5)\n");
   printf("  -u, --users         - the amount of users allowed to use this server\n");
@@ -125,6 +125,12 @@ client_long_usage(char* info)
   printf("                        destination of the packets (default: the name\n");
   printf("                        returned by hostname function)\n");
   printf("  -p, --portnum       - the port we are forwarding connection to (required)\n");
+  printf("  --localname         - local machine name for connection with afserver\n");
+  printf("                        (used to bind socket to different interfaces)\n");
+  printf("  --localport         - local port name for connection with afserver\n");
+  printf("                        (used to bind socket to different addressees)\n");
+  printf("  --localdesname      - local machine name for connections with destination\n");
+  printf("                        application (used to bind socket to different interfaces)\n");
   printf("  -V, --version       - display version number\n");
   printf("  -h, --help          - prints this help\n\n");
   printf(" Authorization:\n\n");
@@ -134,10 +140,12 @@ client_long_usage(char* info)
   printf("  --ignorepkeys       - ignore invalid server's public keys\n\n");
   printf(" Configuration:\n\n");
   printf("  -k, --keyfile       - the name of the file with RSA key (default: client.rsa)\n");
+  printf("  -f, --cfgfile       - the name of the file with the configuration for the\n");
+  printf("                        active forwarder (client)\n");
   printf("  -s, --storefile     - the name of the file with stored public keys\n");
   printf("                        (default: known_hosts)\n");
   printf("  -D, --dateformat    - format of the date printed in logs (see 'man strftime'\n");
-  printf("                        for details) (default: %%d.%%m.%%Y %%H:%%M:%%S)\n");
+  printf("                        for details) (default: %%Y-%%m-%%d %%H:%%M:%%S)\n");
   printf("  -K, --keep-alive N  - send keepalive packets every N seconds\n");
   printf("                        (default: not send keepalive packets)\n\n");
   printf(" Auto-reconnection:\n\n");
@@ -151,10 +159,9 @@ client_long_usage(char* info)
   printf("  -T, --ar-delay N    - wait N seconds between reconnect tries (default: 5)\n\n");
   printf(" Modes:\n\n");
   printf("  -u, --udpmode       - udp mode - client will use udp protocol to\n");
-  printf("                        communicate with the hostname:portnum (-p)\n");
+  printf("                        communicate with the hostname:portnum\n");
   printf("  -U, --reverseudp    - reverse udp forwarding. Udp packets will be forwarded\n");
-  printf("                        from hostname:portnum (-p) to the server name:portnum\n");
-  printf("                        (-m)\n");
+  printf("                        from hostname:portnum to the server name:manageport\n");
   printf("  -r, --remoteadmin   - remote administration mode. (using '-p #port' will\n");
   printf("                        force afclient to use port rather than stdin-stdout)\n\n");
   printf(" Logging:\n\n");

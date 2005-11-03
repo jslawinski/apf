@@ -19,12 +19,13 @@
  */
 
 #include "activefor.h"
+#include "server_realm_struct.h"
 
 #ifndef _JS_USERNAMES_H
 #define _JS_USERNAMES_H
 
-int get_username(RealmT*, int);
-int get_usernumber(RealmT*, int);
+int get_username(ServerRealm*, int);
+int get_usernumber(ServerRealm*, int);
 
 #endif
 

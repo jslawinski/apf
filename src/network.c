@@ -125,6 +125,7 @@ ip_listen(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, 
   servaddr.sin_port = htons(port);
   
   if (bind((*sockfd), (struct sockaddr*) &servaddr, sizeof(servaddr))){
+    printf("bind failed\n");
     return 4;
   } 
   
@@ -137,11 +138,14 @@ ip_listen(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, 
 }
 
 int
-ip_connect(int* sockfd, const char *host, const char *serv, const char type)
+ip_connect(int* sockfd, const char *host, const char *serv, const char type,
+    const char *lhost, const char *lserv)
 {
 #if defined(HAVE_GETADDRINFO) && defined(AF_INET6)
 	int				n;
+  int    bindFailed;
 	struct addrinfo	hints, *res, *ressave;
+	struct addrinfo	lhints, *lres, *lressave = NULL;
 
 	bzero(&hints, sizeof(struct addrinfo));
 	if (type & 0x02) {
@@ -160,6 +164,15 @@ ip_connect(int* sockfd, const char *host, const char *serv, const char type)
 		hints.ai_socktype = SOCK_DGRAM;
 	}
 
+  lhints = hints;
+  
+  if (lhost || lserv) {
+    if ( (n = getaddrinfo(lhost, lserv, &lhints, &lres)) != 0) {
+      return n;
+    }
+    lressave = lres;
+  }
+  
 	if ( (n = getaddrinfo(host, serv, &hints, &res)) != 0) {
 		return n;
 	}
@@ -171,7 +184,24 @@ ip_connect(int* sockfd, const char *host, const char *serv, const char type)
 			continue;	/* ignore this one */
 		}
 
-		if (connect((*sockfd), res->ai_addr, res->ai_addrlen) == 0) {
+    bindFailed = 0;
+    if (lhost || lserv) {
+      bindFailed = 1;
+      lres = lressave;
+      do {
+        if (bind((*sockfd), lres->ai_addr, lres->ai_addrlen) == 0) {
+          bindFailed = 0;
+          break;			/* success */
+        }
+      } while ( (lres = lres->ai_next) != NULL);
+    }
+
+    if (bindFailed == 1) {
+      close((*sockfd));	/* ignore this one */
+      continue;
+    }
+
+    if (connect((*sockfd), res->ai_addr, res->ai_addrlen) == 0) {
 			break;		/* success */
 		}
 
@@ -182,11 +212,15 @@ ip_connect(int* sockfd, const char *host, const char *serv, const char type)
 		return 1;
 	}
 
+  if (lhost || lserv) {
+	  freeaddrinfo(lressave);
+  }
 	freeaddrinfo(ressave);
 #else
-  struct sockaddr_in servaddr;
+  struct sockaddr_in servaddr, lservaddr;
   struct hostent* hostaddr;
-  int port;
+  struct hostent* lhostaddr;
+  int port, lport;
 
   if (type & 0x01) {
     (*sockfd) = socket(AF_INET, SOCK_STREAM, 0);
@@ -210,8 +244,30 @@ ip_connect(int* sockfd, const char *host, const char *serv, const char type)
   servaddr.sin_port = htons(port);
   memcpy(&servaddr.sin_addr.s_addr, hostaddr->h_addr_list[0], hostaddr->h_length);
 
+  if (lhost || lserv) {
+    memset(&lservaddr, 0, sizeof(lservaddr));
+    lservaddr.sin_family = AF_INET;
+    if (lserv) {
+      lport = atoi(lserv);
+      lservaddr.sin_port = htons(lport);
+    }
+    if (lhost) {
+      lhostaddr = gethostbyname(lhost);
+      if (lhostaddr == NULL) {
+        return 3;
+      }
+      memcpy(&lservaddr.sin_addr.s_addr, lhostaddr->h_addr_list[0], lhostaddr->h_length);
+    }
+    else {
+      lservaddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    }
+    if (bind((*sockfd), (struct sockaddr*) &lservaddr, sizeof(lservaddr))){
+      return 4;
+    }
+  }
+  
   if (connect((*sockfd), (struct sockaddr*) &servaddr, sizeof(servaddr))){
-    return 3;
+    return 5;
   }
 #endif
 

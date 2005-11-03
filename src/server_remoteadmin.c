@@ -185,15 +185,18 @@ add_uptime_to_message(unsigned char* buff, char* info, time_t period)
 }
 
 int
-serve_admin(ConfigurationT* config, int realm, int client, unsigned char* buff)
+serve_admin(ServerConfiguration* config, int realm, int client, unsigned char* buff)
 {
   int length, n, i, j, ret;
   time_t now, tmp;
   llnodeT* llptr;
   AuditListNode* alptr;
   char olddf[51], newdf[51];
-  char type = config->realmtable[realm].type | TYPE_SSL | TYPE_ZLIB;
-  SslFd* master = ConnectClient_get_sslFd(config->realmtable[realm].raclitable[client]);
+  ConnectClient* cpointer;
+  ConnectUser* upointer;
+  ServerRealm* pointer = ServerConfiguration_get_realmsTable(config)[realm];
+  char type = ServerRealm_get_realmType(pointer) | TYPE_SSL | TYPE_ZLIB;
+  SslFd* master = ConnectClient_get_sslFd(ServerRealm_get_raClientsTable(pointer)[client]);
   
   olddf[50] = newdf[50] = 0;
   length = buff[3];
@@ -248,9 +251,12 @@ serve_admin(ConfigurationT* config, int realm, int client, unsigned char* buff)
                                 }
                         case 3: { /* info */
                                   add_to_message(buff, AF_VER("Version:"));
-                                  add_to_message(buff, "Realms: %d", config->size);
-                                  add_to_message(buff, "Certificate: %s", config->certif);
-                                  add_to_message(buff, "Key: %s", config->keys);
+                                  add_to_message(buff, "Realms: %d",
+                                      ServerConfiguration_get_realmsNumber(config));
+                                  add_to_message(buff, "Certificate: %s",
+                                      ServerConfiguration_get_certificateFile(config));
+                                  add_to_message(buff, "Key: %s",
+                                      ServerConfiguration_get_keysFile(config));
                                   llptr = getloglisthead();
                                   i = 0;
                                   while (llptr) {
@@ -258,7 +264,7 @@ serve_admin(ConfigurationT* config, int realm, int client, unsigned char* buff)
                                     llptr = llptr->next;
                                     ++i;
                                   }
-                                  tmp = now - config->starttime;
+                                  tmp = now - ServerConfiguration_get_startTime(config);
                                   add_uptime_to_message(buff, "Uptime", tmp);
                                   add_to_message(buff, "Cg: %ld B", getcg());
                                   add_to_message(buff, "Dateformat: %s", getdateformat());
@@ -266,37 +272,44 @@ serve_admin(ConfigurationT* config, int realm, int client, unsigned char* buff)
                                   break;
                                 }
                         case 4: { /* rshow */
-                                  for (i = 0; i < config->size; ++i) {
+                                  for (i = 0; i < ServerConfiguration_get_realmsNumber(config); ++i) {
+                                    pointer = ServerConfiguration_get_realmsTable(config)[i];
                                     add_to_message(buff, "\nRealm[%s]:", get_realmname(config, i));
-                                    add_to_message(buff, "hostname: %s", config->realmtable[i].hostname);
+                                    add_to_message(buff, "hostname: %s", ServerRealm_get_hostName(pointer));
                                     add_to_message(buff, "users: %d (max: %d)",
-                                        config->realmtable[i].usercon, config->realmtable[i].usernum);
+                                        ServerRealm_get_connectedUsers(pointer),
+                                        ServerRealm_get_usersLimit(pointer));
                                     add_to_message(buff, "clients: %d (max: %d)",
-                                        config->realmtable[i].clicon-config->realmtable[i].raclicon,
-                                        config->realmtable[i].clinum);
+                                        ServerRealm_get_connectedClients(pointer) -
+                                        ServerRealm_get_connectedRaClients(pointer),
+                                        ServerRealm_get_clientsLimit(pointer));
                                     add_to_message(buff, "raclients: %d (max: %d)",
-                                        config->realmtable[i].raclicon, config->realmtable[i].raclinum);
-                                    add_to_message(buff, "users per client: %s", config->realmtable[i].usrpcli);
+                                        ServerRealm_get_connectedRaClients(pointer),
+                                        ServerRealm_get_raClientsLimit(pointer));
+                                    add_to_message(buff, "users per client: %s",
+                                        ServerRealm_get_sUsersPerClient(pointer));
                                     add_to_message(buff, "user-client pairs: %d",
-                                        config->realmtable[i].usrclinum);
-                                    for (j = 0; j < config->realmtable[i].usrclinum; ++j) {
+                                        ServerRealm_get_userClientPairs(pointer));
+                                    for (j = 0; j < ServerRealm_get_userClientPairs(pointer); ++j) {
                                       add_to_message(buff, " pair[%d]: listenport: %s, manageport: %s", j,
-                                          UsrCli_get_listenPortName(config->realmtable[i].usrclitable[j]),
-                                          UsrCli_get_managePortName(config->realmtable[i].usrclitable[j]));
+                                          UsrCli_get_listenPortName(
+                                            ServerRealm_get_usersClientsTable(pointer)[j]),
+                                          UsrCli_get_managePortName(
+                                            ServerRealm_get_usersClientsTable(pointer)[j]));
                                     }
-                                    add_to_message(buff, "climode: %s", config->realmtable[i].clim);
-                                    add_to_message(buff, "timeout: %d", config->realmtable[i].tmout);
-                                    add_to_message(buff, "baseport: %s", config->realmtable[i].baseport ?
+                                    add_to_message(buff, "climode: %s", ServerRealm_get_sClientMode(pointer));
+                                    add_to_message(buff, "timeout: %d", ServerRealm_get_timeout(pointer));
+                                    add_to_message(buff, "baseport: %s", ServerRealm_get_basePortOn(pointer) ?
                                         "yes" : "no");
-                                    add_to_message(buff, "audit: %s", config->realmtable[i].audit ?
+                                    add_to_message(buff, "audit: %s", ServerRealm_get_auditOn(pointer) ?
                                         "yes" : "no");
-                                    add_to_message(buff, "dnslookups: %s", config->realmtable[i].dnslookups ?
-                                        "yes" : "no");
+                                    add_to_message(buff, "dnslookups: %s",
+                                        ServerRealm_get_dnsLookupsOn(pointer) ? "yes" : "no");
                                     add_to_message(buff, "ssl: %s, zlib: %s, mode: %s",
-                                        (TYPE_IS_SSL(config->realmtable[i].type))?"yes":"no",
-                                        (TYPE_IS_ZLIB(config->realmtable[i].type))?"yes":"no",
-                                        (TYPE_IS_TCP(config->realmtable[i].type))?"tcp":"udp");
-                                    switch (config->realmtable[i].tunneltype) {
+                                        (TYPE_IS_SSL(ServerRealm_get_realmType(pointer))) ? "yes" : "no",
+                                        (TYPE_IS_ZLIB(ServerRealm_get_realmType(pointer))) ? "yes" : "no",
+                                        (TYPE_IS_TCP(ServerRealm_get_realmType(pointer))) ? "tcp" : "udp");
+                                    switch (ServerRealm_get_tunnelType(pointer)) {
                                       case CONNECTCLIENT_TUNNELTYPE_DIRECT: {
                                                 add_to_message(buff, "tunneltype: direct");
                                                 break;
@@ -319,13 +332,14 @@ serve_admin(ConfigurationT* config, int realm, int client, unsigned char* buff)
                                 }
                         case 5: { /* cshow*/
                                   n = get_realmnumber(config, (char*) &buff[ret]);
-                                  if ((n >= 0) && (n < config->size)) {
-                                    for (i = 0; i < config->realmtable[n].clinum; ++i) {
-                                      if (ConnectClient_get_state(config->realmtable[n].clitable[i]) !=
-                                          CONNECTCLIENT_STATE_FREE) {
+                                  if ((n >= 0) && (n < ServerConfiguration_get_realmsNumber(config))) {
+                                    pointer = ServerConfiguration_get_realmsTable(config)[n];
+                                    for (i = 0; i < ServerRealm_get_clientsLimit(pointer); ++i) {
+                                      cpointer = ServerRealm_get_clientsTable(pointer)[i];
+                                      if (ConnectClient_get_state(cpointer) != CONNECTCLIENT_STATE_FREE) {
                                         add_to_message(buff, "\nClient[%s]:",
-                                            get_clientname(&(config->realmtable[n]), i));
-                                        switch (ConnectClient_get_state(config->realmtable[n].clitable[i])) {
+                                            get_clientname(pointer, i));
+                                        switch (ConnectClient_get_state(cpointer)) {
                                           case CONNECTCLIENT_STATE_CONNECTING: {
                                                     add_to_message(buff, "state: ssl handshake");
                                                     break;
@@ -343,24 +357,21 @@ serve_admin(ConfigurationT* config, int realm, int client, unsigned char* buff)
                                                    }
                                         }
                                         add_to_message(buff, "users: %d (max: %d)",
-                                            ConnectClient_get_connected(config->realmtable[n].clitable[i]),
-                                            ConnectClient_get_limit(config->realmtable[n].clitable[i]));
+                                            ConnectClient_get_connected(cpointer),
+                                            ConnectClient_get_limit(cpointer));
                                         add_to_message(buff, "user-client pair: %d",
-                                            ConnectClient_get_usrCliPair(config->realmtable[n].clitable[i])); 
-                                        tmp = now - ConnectClient_get_connectTime(
-                                            config->realmtable[n].clitable[i]);
+                                            ConnectClient_get_usrCliPair(cpointer)); 
+                                        tmp = now - ConnectClient_get_connectTime(cpointer);
                                         add_uptime_to_message(buff, "Connection time", tmp);
                                         add_to_message(buff, "Id: %s",
-                                            (ConnectClient_get_sClientId(
-                                                 config->realmtable[n].clitable[i]) == NULL)?"":
-                                            ConnectClient_get_sClientId(config->realmtable[n].clitable[i]));
+                                            (ConnectClient_get_sClientId(cpointer) == NULL) ? "" :
+                                            ConnectClient_get_sClientId(cpointer));
                                         add_to_message(buff, "Number: %d",
-                                            ConnectClient_get_clientId(config->realmtable[n].clitable[i]));
+                                            ConnectClient_get_clientId(cpointer));
                                         add_to_message(buff, "IP: %s, port: %s",
-                                            ConnectClient_get_nameBuf(config->realmtable[n].clitable[i]),
-                                            ConnectClient_get_portBuf(config->realmtable[n].clitable[i]));
-                                        switch (ConnectClient_get_tunnelType(
-                                              config->realmtable[n].clitable[i])) {
+                                            ConnectClient_get_nameBuf(cpointer),
+                                            ConnectClient_get_portBuf(cpointer));
+                                        switch (ConnectClient_get_tunnelType(cpointer)) {
                                           case CONNECTCLIENT_TUNNELTYPE_DIRECT: {
                                                     add_to_message(buff, "tunneltype: direct");
                                                     break;
@@ -377,10 +388,10 @@ serve_admin(ConfigurationT* config, int realm, int client, unsigned char* buff)
                                                      add_to_message(buff, "tunneltype: UNKNOWN");
                                                    }
                                         }
-                                        if (config->realmtable[n].audit) {
+                                        if (ServerRealm_get_auditOn(pointer)) {
                                           add_to_message(buff, "auditlog:");
                                           alptr = AuditList_get_first(
-                                              ConnectClient_get_auditList(config->realmtable[n].clitable[i]));
+                                              ConnectClient_get_auditList(cpointer));
                                           while (alptr) {
                                             add_to_message(buff,
                                                 "userid: %d ip: %s port: %s connected: %s duration: %s",
@@ -404,19 +415,24 @@ serve_admin(ConfigurationT* config, int realm, int client, unsigned char* buff)
                                 }
                         case 6: { /* ushow */
                                   n = get_realmnumber(config, (char*) &buff[ret]);
-                                  if ((n >= 0) && (n < config->size)) {
-                                    for (i = 0; i < config->realmtable[n].usernum; ++i) {
-                                      if (ConnectUser_get_state(config->realmtable[n].contable[i]) !=
-                                          S_STATE_CLEAR) {
+                                  if ((n >= 0) && (n < ServerConfiguration_get_realmsNumber(config))) {
+                                    pointer = ServerConfiguration_get_realmsTable(config)[n];
+                                    for (i = 0; i < ServerRealm_get_usersLimit(pointer); ++i) {
+                                      upointer = ServerRealm_get_usersTable(pointer)[i];
+                                      if (ConnectUser_get_state(upointer) != S_STATE_CLEAR) {
                                         add_to_message(buff, "\nUser[%d]:",
-                                            get_username(&(config->realmtable[n]), i));
-                                        switch (ConnectUser_get_state(config->realmtable[n].contable[i])) {
+                                            get_username(pointer, i));
+                                        switch (ConnectUser_get_state(upointer)) {
                                           case S_STATE_CLOSING: {
                                                     add_to_message(buff, "state: closing");
                                                     break;
                                                   }
                                           case S_STATE_OPENING: {
                                                     add_to_message(buff, "state: opening");
+                                                    break;
+                                                  }
+                                          case S_STATE_OPENING_CLOSED: {
+                                                    add_to_message(buff, "state: opening (closed)");
                                                     break;
                                                   }
                                           case S_STATE_OPEN: {
@@ -432,28 +448,27 @@ serve_admin(ConfigurationT* config, int realm, int client, unsigned char* buff)
                                                    }
                                         }
                                         add_to_message(buff, "connected to: Client[%s]",
-                                            get_clientname(&(config->realmtable[n]),
-                                              ConnectUser_get_whatClient(config->realmtable[n].contable[i])));
-                                        tmp = now-ConnectUser_get_connectTime(config->realmtable[n].contable[i]);
+                                            get_clientname(pointer, ConnectUser_get_whatClient(upointer)));
+                                        tmp = now-ConnectUser_get_connectTime(upointer);
                                         add_uptime_to_message(buff, "Connection time", tmp);
                                         tmp = now - UserStats_get_lastActivity(
-                                            ConnectUser_get_stats(config->realmtable[n].contable[i]));
+                                            ConnectUser_get_stats(upointer));
                                         add_uptime_to_message(buff, "Idle time", tmp);
                                         add_to_message(buff, "IP: %s, port: %s",
-                                            ConnectUser_get_nameBuf(config->realmtable[n].contable[i]),
-                                            ConnectUser_get_portBuf(config->realmtable[n].contable[i]));
+                                            ConnectUser_get_nameBuf(upointer),
+                                            ConnectUser_get_portBuf(upointer));
                                         add_to_message(buff, "Downloaded: %d bytes",
                                             UserStats_get_totalDownloadedBytes(
-                                              ConnectUser_get_stats(config->realmtable[n].contable[i])));
+                                              ConnectUser_get_stats(upointer)));
                                         add_to_message(buff, "download speed: %.2f B/s",
                                             UserStats_get_downloadSpeed(
-                                              ConnectUser_get_stats(config->realmtable[n].contable[i])));
+                                              ConnectUser_get_stats(upointer)));
                                         add_to_message(buff, "Uploaded: %d bytes",
                                             UserStats_get_totalUploadedBytes(
-                                              ConnectUser_get_stats(config->realmtable[n].contable[i])));
+                                              ConnectUser_get_stats(upointer)));
                                         add_to_message(buff, "upload speed: %.2f B/s",
                                             UserStats_get_uploadSpeed(
-                                              ConnectUser_get_stats(config->realmtable[n].contable[i])));
+                                              ConnectUser_get_stats(upointer)));
                                       }
                                     }
                                     send_adm_message(type, master, buff, AF_RA_STATUS_OK);
@@ -468,7 +483,7 @@ serve_admin(ConfigurationT* config, int realm, int client, unsigned char* buff)
                                   aflog(LOG_T_MANAGE, LOG_I_INFO,
                                       "realm[%s]: Client[%s] (ra): commfd: CLOSED",
                                       get_realmname(config, realm),
-                                      get_raclientname(&(config->realmtable[realm]), client));
+                                      get_raclientname(pointer, client));
                                   send_adm_message(type, master, buff, AF_RA_KICKED);
                                   return 1;
                                 }
@@ -482,10 +497,11 @@ serve_admin(ConfigurationT* config, int realm, int client, unsigned char* buff)
                                     break;
                                   }
                                   n = get_realmnumber(config, (char*) &buff[ret]);
-                                  if ((n >= 0) && (n < config->size)) {
+                                  if ((n >= 0) && (n < ServerConfiguration_get_realmsNumber(config))) {
                                     add_to_message(buff, "changed timeout: %d --> %d",
-                                        config->realmtable[n].tmout, i);
-                                    config->realmtable[n].tmout = i;
+                                        ServerRealm_get_timeout(
+                                          ServerConfiguration_get_realmsTable(config)[n]), i);
+                                    ServerRealm_set_timeout(ServerConfiguration_get_realmsTable(config)[n], i);
                                     send_adm_message(type, master, buff, AF_RA_STATUS_OK);
                                     break;
                                   }
@@ -505,15 +521,19 @@ serve_admin(ConfigurationT* config, int realm, int client, unsigned char* buff)
                                     break;
                                   }
                                   n = get_realmnumber(config, (char*) &buff[ret]);
-                                  if ((n >= 0) && (n < config->size)) {
+                                  if ((n >= 0) && (n < ServerConfiguration_get_realmsNumber(config))) {
                                     add_to_message(buff, "changed audit: %s --> %s",
-                                        config->realmtable[n].audit ? "yes" : "no", i ? "yes" : "no");
-                                    config->realmtable[n].audit = i;
+                                        ServerRealm_get_auditOn(
+                                          ServerConfiguration_get_realmsTable(config)[n]) ? "yes" : "no",
+                                        i ? "yes" : "no");
+                                    ServerRealm_set_auditOn(ServerConfiguration_get_realmsTable(config)[n], i);
                                     if (i == 0) {
-                                      for (i = 0; i < config->realmtable[n].clinum; ++i) {
+                                      for (i = 0; i < ServerRealm_get_clientsLimit(
+                                            ServerConfiguration_get_realmsTable(config)[n]); ++i) {
                                         AuditList_clear(
                                             ConnectClient_get_auditList(
-                                              config->realmtable[n].clitable[i]));
+                                              ServerRealm_get_clientsTable(
+                                                ServerConfiguration_get_realmsTable(config)[n])[i]));
                                       }
                                     }
                                     send_adm_message(type, master, buff, AF_RA_STATUS_OK);
@@ -535,10 +555,13 @@ serve_admin(ConfigurationT* config, int realm, int client, unsigned char* buff)
                                     break;
                                   }
                                   n = get_realmnumber(config, (char*) &buff[ret]);
-                                  if ((n >= 0) && (n < config->size)) {
+                                  if ((n >= 0) && (n < ServerConfiguration_get_realmsNumber(config))) {
                                     add_to_message(buff, "changed dnslookups: %s --> %s",
-                                        config->realmtable[n].dnslookups ? "yes" : "no", i ? "yes" : "no");
-                                    config->realmtable[n].dnslookups = i;
+                                        ServerRealm_get_dnsLookupsOn(
+                                          ServerConfiguration_get_realmsTable(config)[n]) ? "yes" : "no",
+                                        i ? "yes" : "no");
+                                    ServerRealm_set_dnsLookupsOn(
+                                        ServerConfiguration_get_realmsTable(config)[n], i);
                                     send_adm_message(type, master, buff, AF_RA_STATUS_OK);
                                     break;
                                   }
@@ -567,16 +590,22 @@ serve_admin(ConfigurationT* config, int realm, int client, unsigned char* buff)
                                     break;
                                   }
                                   j = -1;
-                                  for (n = 0; n < config->size; ++n) {
-                                    j = get_usernumber(&(config->realmtable[n]), i);
+                                  for (n = 0; n < ServerConfiguration_get_realmsNumber(config); ++n) {
+                                    pointer = ServerConfiguration_get_realmsTable(config)[n];
+                                    j = get_usernumber(pointer, i);
                                     if (j != (-1)) {
-                                      if ((ConnectUser_get_state(config->realmtable[n].contable[j]) ==
-                                            S_STATE_OPEN) ||
-                                          (ConnectUser_get_state(config->realmtable[n].contable[j]) ==
-                                           S_STATE_STOPPED)) {
+                                      upointer = ServerRealm_get_usersTable(pointer)[j];
+                                      if ((ConnectUser_get_state(upointer) == S_STATE_OPEN) ||
+                                          (ConnectUser_get_state(upointer) == S_STATE_OPENING) ||
+                                          (ConnectUser_get_state(upointer) == S_STATE_STOPPED)) {
                                         add_to_message(buff, "kicked: realm[%s] user[%d]",
-                                            get_realmname(config, n), get_username(&(config->realmtable[n]), i));
-                                        close(ConnectUser_get_connFd(config->realmtable[n].contable[j]));
+                                            get_realmname(config, n), get_username(pointer, j));
+                                        if (ConnectUser_get_state(upointer) == S_STATE_OPENING) {
+                                          ConnectUser_set_state(upointer, S_STATE_OPENING_CLOSED);
+                                        }
+                                        else {
+                                          close(ConnectUser_get_connFd(upointer));
+                                        }
                                         send_adm_message(type, master, buff, AF_RA_STATUS_OK);
                                       }
                                       else {
@@ -606,14 +635,15 @@ serve_admin(ConfigurationT* config, int realm, int client, unsigned char* buff)
                                     break;
                                   }
                                   j = -1;
-                                  for (n = 0; n < config->size; ++n) {
-                                    j = get_clientnumber(&(config->realmtable[n]), i);
+                                  for (n = 0; n < ServerConfiguration_get_realmsNumber(config); ++n) {
+                                    pointer = ServerConfiguration_get_realmsTable(config)[n];
+                                    j = get_clientnumber(pointer, i);
                                     if (j != (-1)) {
-                                      if (ConnectClient_get_state(config->realmtable[n].clitable[j]) >
+                                      if (ConnectClient_get_state(ServerRealm_get_clientsTable(pointer)[j]) >
                                           CONNECTCLIENT_STATE_FREE) {
                                         add_to_message(buff, "kicked: realm[%s] client[%s]",
                                             get_realmname(config, n),
-                                            get_clientname(&(config->realmtable[n]), j));
+                                            get_clientname(pointer, j));
                                         send_adm_message(type, master, buff, AF_RA_STATUS_OK);
                                         return (i+2);
                                       }

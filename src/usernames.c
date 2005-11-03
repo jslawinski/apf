@@ -23,18 +23,18 @@
 #include "usernames.h"
 
 int
-get_username(RealmT* pointer, int user)
+get_username(ServerRealm* pointer, int user)
 {
-  return ConnectUser_get_userId(pointer->contable[user]);
+  return ConnectUser_get_userId(ServerRealm_get_usersTable(pointer)[user]);
 }
 
 int
-get_usernumber(RealmT* pointer, int userid)
+get_usernumber(ServerRealm* pointer, int userid)
 {
   int i;
-  
-  for (i = 0; i < pointer->usernum; ++i) {
-    if (userid == ConnectUser_get_userId(pointer->contable[i])) {
+
+  for (i = 0; i < ServerRealm_get_usersLimit(pointer); ++i) {
+    if (userid == ConnectUser_get_userId(ServerRealm_get_usersTable(pointer)[i])) {
       return i;
     }
   }

@@ -23,10 +23,10 @@
 #include "server_eval.h"
 
 int
-eval_numofcon(RealmT* ptr, int client, int numofcon)
+eval_numofcon(ServerRealm* ptr, int client, int numofcon)
 {
-  if ((numofcon >= 0) && (numofcon < ConnectClient_get_limit(ptr->clitable[client]))) {
-    numofcon = ConnectClient_get_users(ptr->clitable[client])[numofcon];
+  if ((numofcon >= 0) && (numofcon < ConnectClient_get_limit(ServerRealm_get_clientsTable(ptr)[client]))) {
+    numofcon = ConnectClient_get_users(ServerRealm_get_clientsTable(ptr)[client])[numofcon];
   }
   else {
     numofcon = -1;

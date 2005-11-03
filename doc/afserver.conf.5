@@ -1,4 +1,4 @@
-.TH afserver.conf 5 "apf 0.7.2" Jeremian
+.TH afserver.conf 5 "apf 0.7.4" Jeremian
 .SH NAME
 afserver.conf \- Configuration File for afserver
 .SH INTRODUCTION
@@ -13,7 +13,12 @@ command line options like
 .I --manageport
 and
 .I --pass
-are ignored. Options from configuration file are taken before values from command line. When something is not declared, hard-coded values are used.
+are ignored. Options from configuration file are taken before values from command line (with the exception of
+.IR --cerfile ,
+.I --keyfile
+and
+.I --dateformat
+). When something is not declared, hard-coded values are used.
 
 .SH DESCRIPTION
 .B Afserver
@@ -21,7 +26,7 @@ uses configuration file, which name is supplied by the
 .I -f FILE
 option. The
 .B afserver.conf
-file is composed of two sections which have to be in fixed order. In first section global values like certificates, keys and logging options are set. The second section starts with first
+file is composed of two sections which have to be in fixed order. In first section global values like cerfile, keyfile and logging options are set. The second section starts with first
 .B realm
 command and includes options describing specific realms. There may be several
 .B realm
@@ -29,10 +34,10 @@ commands.
 
 .SH "GLOBAL OPTIONS"
 
-.B certificate FILE
+.B cerfile FILE
   the name of the file with certificate (default: cacert.pem)
 
-.B key FILE
+.B keyfile FILE
   the name of the file with RSA key (default: server.rsa)
 
 .B log LOGCMD
@@ -49,10 +54,10 @@ commands.
 .B hostname NAME
   used when creating listening sockets (default: '')
 
-.B listen PORT
+.B listenport PORT
   listening port number - users connect to it (required at least one)
 
-.B manage PORT
+.B manageport PORT
   manage port number - afclient connects to it (required at least one)
 
 .B pass PASSWORD
@@ -107,6 +112,7 @@ commands.
 
 .SH "SEE ALSO"
 
+.BR afclient.conf (5),
 .BR afclient (1),
 .BR afserver (1)
 

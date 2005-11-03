@@ -24,7 +24,7 @@
 #ifndef _JS_SERVER_EVAL_H
 #define _JS_SERVER_EVAL_H
 
-int eval_numofcon(RealmT*, int, int);
+int eval_numofcon(ServerRealm*, int, int);
 int eval_usernum(ConnectClient*, int);
 
 #endif

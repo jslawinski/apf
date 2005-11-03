@@ -19,17 +19,18 @@
  */
 
 #include "activefor.h"
+#include "server_realm_struct.h"
 
 #ifndef _JS_CLIENTNAMES_H
 #define _JS_CLIENTNAMES_H
 
-char* get_clientname(RealmT*, int);
-int get_clientid(RealmT*, char*);
-int get_clientnumber(RealmT*, int);
+char* get_clientname(ServerRealm*, int);
+int get_clientid(ServerRealm*, char*);
+int get_clientnumber(ServerRealm*, int);
 
-char* get_raclientname(RealmT*, int);
-int get_raclientid(RealmT*, char*);
-int get_raclientnumber(RealmT*, int);
+char* get_raclientname(ServerRealm*, int);
+int get_raclientid(ServerRealm*, char*);
+int get_raclientnumber(ServerRealm*, int);
 
 #endif
 

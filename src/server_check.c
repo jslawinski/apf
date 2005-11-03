@@ -28,8 +28,8 @@
 #include "stats.h"
 #include "logging.h"
 
-void
-check_value(int* where, char* what, char* info)
+int
+check_value(char* what, char* info)
 {
   long tmp = check_value_liberal(what, info);
   
@@ -38,7 +38,7 @@ check_value(int* where, char* what, char* info)
         "%s: %d\n", info, tmp);
     exit(1);
   }
-  (*where) = tmp;
+  return tmp;
 }
 
 int

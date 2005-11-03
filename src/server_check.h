@@ -21,7 +21,7 @@
 #ifndef _JS_SERVER_CHECK_H
 #define _JS_SERVER_CHECK_H
 
-void check_value(int* where, char* what, char* info);
+int check_value(char* what, char* info);
 int check_value_liberal(char* what, char* info);
 int check_long(char* text, long* number);
 

@@ -1,4 +1,4 @@
-AF - Active Port Forwarder 0.7.2 - README
+AF - Active Port Forwarder 0.7.4 - README
 Copyright (C) 2003,2004,2005 jeremian - <jeremian [at] poczta.fm>
 =================================================================
 
@@ -30,6 +30,12 @@ INTRO
   2.1 afserver
   2.2 afclient
 3. REMOTE ADMINISTRATION
+  3.1 Usage
+  3.2 Commands
+  3.3 States
+    3.3.1 Users
+    3.3.2 Clients
+  3.4 Relay mode
 4. HTTP PROXY TUNNELS
 5. LOGGING
 6. MODULES
@@ -184,6 +190,12 @@ Multiple clients allow to create more sophisticated tunneling scheme.
                         destination of the packets (default: the name
                         returned by hostname function)
   -p, --portnum       - the port we are forwarding connection to (required)
+  --localname         - local machine name for connection with afserver
+                        (used to bind socket to different interfaces)
+  --localport         - local port name for connection with afserver
+                        (used to bind socket to different addressees)
+  --localdesname      - local machine name for connections with destination
+                        application (used to bind socket to different interfaces)
   -V, --version       - display version number
   -h, --help          - prints this help
 
@@ -197,6 +209,8 @@ Multiple clients allow to create more sophisticated tunneling scheme.
  Configuration:
 
   -k, --keyfile       - the name of the file with RSA key (default: client.rsa)
+  -f, --cfgfile       - the name of the file with the configuration for the
+                        active forwarder (client)
   -s, --storefile     - the name of the file with stored public keys
                         (default: known_hosts)
   -D, --dateformat    - format of the date printed in logs (see 'man strftime'
@@ -218,10 +232,9 @@ Multiple clients allow to create more sophisticated tunneling scheme.
  Modes:
 
   -u, --udpmode       - udp mode - client will use udp protocol to
-                        communicate with the hostname:portnum (-p)
+                        communicate with the hostname:portnum
   -U, --reverseudp    - reverse udp forwarding. Udp packets will be forwarded
-                        from hostname:portnum (-p) to the server name:portnum
-                        (-m)
+                        from hostname:portnum to the server name:manageport
   -r, --remoteadmin   - remote administration mode. (using '-p #port' will
                         force afclient to use port rather than stdin-stdout)
 
@@ -257,12 +270,18 @@ Multiple clients allow to create more sophisticated tunneling scheme.
 3. REMOTE ADMINISTRATION
 ========================
 
+  3.1 Usage
+  ---------
+  
 Afclient can be started in remote administration  mode  by  '-r,  --remoteadmin'
 option. Required option: '-n, --servername NAME'.
 
 After successful authorization stdin/stdout is used to  communicate  with  user.
 All the commands parsing is done by afserver.
 
+  3.2 Commands
+  ------------
+  
 Currently available commands are:
 
        help
@@ -305,6 +324,64 @@ Currently available commands are:
          kick client with number N
 
 
+  3.3 States
+  ----------
+  
+    3.3.1 Users
+    -----------
+    
+    Connected users can be in several states:
+    
+       running
+         user is properly connected and can send/receive data
+         
+       opening
+         user is connected to afserver, but afclient hasn't confirmed connection
+         with the destination. There is no traffic allowed in this situation.
+         
+       opening (closed)
+         user was in 'opening' state, but 'kuser' command has been used and it's
+         now queued for closing as soon as afclient will be ready to confirm
+         this
+         
+       stopped
+         user wasn't responsible, so all the packets addressed to it are queued.
+         Afclient is informed to not receive any packets for this user.
+         
+       closing
+         connection with user has been lost. Afclient has to confirm user
+         deletion
+         
+       unknown
+         probably afserver internal state has been corrupted.
+         
+         
+    3.3.2 Clients
+    -------------
+
+    Connected clients can be in several states:
+    
+       running
+         client is properly connected and can serve user's requests
+         
+       ssl handshake
+         connection with client has been initialized and now ssl routines are
+         negotiating all the details needed to establish secure tunnel. This
+         stage with 'authorization' must not exceed the time set by 'timeout'
+         option.
+         
+       authorization
+         ssl tunnel is ready and afclient has to authorize itself to the
+         afserver. This stage with 'ssl handshake' must not exceed the time set
+         by 'timeout' option.
+         
+       unknown
+         probably afserver internal state has been corrupted.
+
+
+  3.4 Relay mode
+  --------------
+
 Afclient with '-p, --portnum PORT' option listens for connection  from  user  at
 NAME:PORT.  NAME is set by '-d, --hostname' option or hostname() function,  when
 the option is missing.
@@ -317,12 +394,12 @@ When user quits (close the connection or send 'quit' command),  afclient  exits.
 4. HTTP PROXY TUNNELS
 =====================
 
-Afclient can communicate with afserver via HTTP proxy. In order to use this
+Afclient can communicate with afserver via HTTP proxy.  In  order  to  use  this
 feature, afserver must be started with '-P, --enableproxy' option. Afclient must
-specify the proxy host ('-P, --proxyname' option) and port ('-X, --proxyport'
+specify the proxy host ('-P, --proxyname' option) and  port  ('-X,  --proxyport'
 option).
 
-Afclient with HTTP proxy mode enabled can still accept connections from
+Afclient with  HTTP  proxy  mode  enabled  can  still  accept  connections  from
 afclients, which don't use HTTP proxy mode.
 
 ================================================================================

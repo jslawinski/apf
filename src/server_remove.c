@@ -21,59 +21,59 @@
 #include "server_remove.h"
 
 void
-remove_client(RealmT* ptr, int client, fd_set* set, fd_set* wset, int* con)
+remove_client(ServerRealm* ptr, int client, fd_set* set, fd_set* wset, int* con)
 {
   int i;
-  if (ConnectClient_get_state(ptr->clitable[client]) == CONNECTCLIENT_STATE_ACCEPTED) {
-    for (i = 0; i < ptr->usernum; ++i) {
-      if (ConnectUser_get_whatClient(ptr->contable[i]) == client) {
-        if (ConnectUser_get_state(ptr->contable[i]) != S_STATE_CLEAR) {
-          ConnectUser_set_state(ptr->contable[i], S_STATE_CLEAR);
-          FD_CLR(ConnectUser_get_connFd(ptr->contable[i]), set);
-          FD_CLR(ConnectUser_get_connFd(ptr->contable[i]), wset);
-          close(ConnectUser_get_connFd(ptr->contable[i]));
-          ptr->usercon--;
+  if (ConnectClient_get_state(ServerRealm_get_clientsTable(ptr)[client]) == CONNECTCLIENT_STATE_ACCEPTED) {
+    for (i = 0; i < ServerRealm_get_usersLimit(ptr); ++i) {
+      if (ConnectUser_get_whatClient(ServerRealm_get_usersTable(ptr)[i]) == client) {
+        if (ConnectUser_get_state(ServerRealm_get_usersTable(ptr)[i]) != S_STATE_CLEAR) {
+          ConnectUser_set_state(ServerRealm_get_usersTable(ptr)[i], S_STATE_CLEAR);
+          FD_CLR(ConnectUser_get_connFd(ServerRealm_get_usersTable(ptr)[i]), set);
+          FD_CLR(ConnectUser_get_connFd(ServerRealm_get_usersTable(ptr)[i]), wset);
+          close(ConnectUser_get_connFd(ServerRealm_get_usersTable(ptr)[i]));
+          ServerRealm_decrease_connectedUsers(ptr);
         }
       }
     }
   }
-  for (i = 0; i < ConnectClient_get_limit(ptr->clitable[client]); ++i) {
-    ConnectClient_get_users(ptr->clitable[client])[i] = -1;
+  for (i = 0; i < ConnectClient_get_limit(ServerRealm_get_clientsTable(ptr)[client]); ++i) {
+    ConnectClient_get_users(ServerRealm_get_clientsTable(ptr)[client])[i] = -1;
   }
-  if ((ptr->clinum != client) && (ptr->baseport == 1)) {
-    close(ConnectClient_get_listenFd(ptr->clitable[client]));
-    FD_CLR(ConnectClient_get_listenFd(ptr->clitable[client]), set);
+  if ((ServerRealm_get_clientsLimit(ptr) != client) && (ServerRealm_get_basePortOn(ptr) == 1)) {
+    close(ConnectClient_get_listenFd(ServerRealm_get_clientsTable(ptr)[client]));
+    FD_CLR(ConnectClient_get_listenFd(ServerRealm_get_clientsTable(ptr)[client]), set);
   }
-  ConnectClient_set_sClientId(ptr->clitable[client], NULL);
-  ConnectClient_set_connected(ptr->clitable[client], 0);
-  close(SslFd_get_fd(ConnectClient_get_sslFd(ptr->clitable[client])));
-  FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(ptr->clitable[client])), set);
-  if (ConnectClient_get_state(ptr->clitable[client]) == CONNECTCLIENT_STATE_AUTHORIZING) {
+  ConnectClient_set_sClientId(ServerRealm_get_clientsTable(ptr)[client], NULL);
+  ConnectClient_set_connected(ServerRealm_get_clientsTable(ptr)[client], 0);
+  close(SslFd_get_fd(ConnectClient_get_sslFd(ServerRealm_get_clientsTable(ptr)[client])));
+  FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(ServerRealm_get_clientsTable(ptr)[client])), set);
+  if (ConnectClient_get_state(ServerRealm_get_clientsTable(ptr)[client]) == CONNECTCLIENT_STATE_AUTHORIZING) {
     (*con)--;
   }
-  SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(ptr->clitable[client])));
-  ConnectClient_set_state(ptr->clitable[client], CONNECTCLIENT_STATE_FREE);
-  ptr->clicon--;
+  SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(ServerRealm_get_clientsTable(ptr)[client])));
+  ConnectClient_set_state(ServerRealm_get_clientsTable(ptr)[client], CONNECTCLIENT_STATE_FREE);
+  ServerRealm_decrease_connectedClients(ptr);
 }
 
 void
-remove_raclient(RealmT* ptr, int client, fd_set* set, fd_set* wset, int* con)
+remove_raclient(ServerRealm* ptr, int client, fd_set* set, fd_set* wset, int* con)
 {
   int i;
-  for (i = 0; i < ConnectClient_get_limit(ptr->raclitable[client]); ++i) {
-    ConnectClient_get_users(ptr->raclitable[client])[i] = -1;
+  for (i = 0; i < ConnectClient_get_limit(ServerRealm_get_raClientsTable(ptr)[client]); ++i) {
+    ConnectClient_get_users(ServerRealm_get_raClientsTable(ptr)[client])[i] = -1;
   }
-  ConnectClient_set_sClientId(ptr->raclitable[client], NULL);
-  ConnectClient_set_connected(ptr->raclitable[client], 0);
-  close(SslFd_get_fd(ConnectClient_get_sslFd(ptr->raclitable[client])));
-  FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(ptr->raclitable[client])), set);
-  if (ConnectClient_get_state(ptr->raclitable[client]) == CONNECTCLIENT_STATE_AUTHORIZING) {
+  ConnectClient_set_sClientId(ServerRealm_get_raClientsTable(ptr)[client], NULL);
+  ConnectClient_set_connected(ServerRealm_get_raClientsTable(ptr)[client], 0);
+  close(SslFd_get_fd(ConnectClient_get_sslFd(ServerRealm_get_raClientsTable(ptr)[client])));
+  FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(ServerRealm_get_raClientsTable(ptr)[client])), set);
+  if (ConnectClient_get_state(ServerRealm_get_raClientsTable(ptr)[client]) == CONNECTCLIENT_STATE_AUTHORIZING) {
     (*con)--;
   }
-  SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(ptr->raclitable[client])));
-  ptr->clicon--;
-  if (ConnectClient_get_state(ptr->raclitable[client]) == CONNECTCLIENT_STATE_ACCEPTED) {
-    ptr->raclicon--;
+  SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(ServerRealm_get_raClientsTable(ptr)[client])));
+  ServerRealm_decrease_connectedClients(ptr);
+  if (ConnectClient_get_state(ServerRealm_get_raClientsTable(ptr)[client]) == CONNECTCLIENT_STATE_ACCEPTED) {
+    ServerRealm_decrease_connectedRaClients(ptr);
   }
-  ConnectClient_set_state(ptr->raclitable[client], CONNECTCLIENT_STATE_FREE);
+  ConnectClient_set_state(ServerRealm_get_raClientsTable(ptr)[client], CONNECTCLIENT_STATE_FREE);
 }

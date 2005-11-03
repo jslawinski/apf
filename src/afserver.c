@@ -61,7 +61,7 @@ static struct option long_options[] = {
 	{0, 0, 0, 0}
 };
 
-ConfigurationT config;
+ServerConfiguration* config;
 
 int
 main(int argc, char **argv)
@@ -96,13 +96,19 @@ main(int argc, char **argv)
   char baseport = 0;
   char audit = 0;
   char dnslookups = 0;
-	RealmT* pointer = NULL;
+	ServerRealm* pointer = NULL;
 	struct sigaction act;
   time_t now;
+  ServerRealm** scRealmsTable;
+  UsrCli** srUsersClientsTable;
+  ConnectUser** srUsersTable;
+  ConnectClient** srClientsTable;
+  ConnectClient** srRaClientsTable;
 
   char* certif = NULL;
   char* keys = NULL;
   char* dateformat = NULL;
+  char* stemp = NULL;
 
 	SSL_METHOD* method;
 	SSL_CTX* ctx;
@@ -115,17 +121,10 @@ main(int argc, char **argv)
 	sigaction(SIGPIPE, &act, NULL);
 	act.sa_handler = server_sig_int;
 	sigaction(SIGINT, &act, NULL);
+	sigaction(SIGTERM, &act, NULL);
 	
 	TYPE_SET_SSL(mode);
 	TYPE_SET_ZLIB(mode);
-
-  memset(&config, 0, sizeof(config));
-  
-	config.certif = NULL;
-	config.keys = NULL;
-	config.size = 0;
-	config.realmtable = NULL;
-  config.dateformat = NULL;
   
 #ifdef HAVE_LIBPTHREAD
   remember_mainthread();
@@ -322,25 +321,29 @@ main(int argc, char **argv)
 		}
 		else {
       if (certif == NULL) {
-        config.certif = "cacert.pem";
+        if (ServerConfiguration_get_certificateFile(config) == NULL) {
+          ServerConfiguration_set_certificateFile(config, "cacert.pem");
+        }
       }
       else {
-        config.certif = certif;
+        ServerConfiguration_set_certificateFile(config, certif);
       }
       if (keys == NULL) {
-        config.keys = "server.rsa";
+        if (ServerConfiguration_get_keysFile(config) == NULL) {
+          ServerConfiguration_set_keysFile(config, "server.rsa");
+        }
       }
       else {
-        config.keys = keys;
+        ServerConfiguration_set_keysFile(config, keys);
       }
       if (dateformat != NULL) {
-        config.dateformat = dateformat;
+        ServerConfiguration_set_dateFormat(config, dateformat);
       }
      
-      initializelogging(verbose, config.dateformat);
+      initializelogging(verbose, ServerConfiguration_get_dateFormat(config));
       
       aflog(LOG_T_INIT, LOG_I_INFO,
-          "cfg file OK! (readed realms: %d)", config.size);
+          "cfg file OK! (readed realms: %d)", ServerConfiguration_get_realmsNumber(config));
       if (name != NULL)
         aflog(LOG_T_INIT, LOG_I_WARNING,
             "Warning: hostname=%s will be ignored", name);
@@ -358,12 +361,17 @@ main(int argc, char **argv)
             "Warning: password from command line will be ignored");
 		}
 	}
-	else {
-    config.certif = certif;
-    config.keys = keys;
-    config.dateformat = dateformat;
-    
-    initializelogging(verbose, config.dateformat);
+  else {
+    config = ServerConfiguration_new();
+    if (config == NULL) {
+      printf("Can't allocate memory for server configuration... exiting\n");
+      exit(1);
+    }
+    ServerConfiguration_set_certificateFile(config, certif);
+    ServerConfiguration_set_keysFile(config, keys);
+    ServerConfiguration_set_dateFormat(config, dateformat);
+
+    initializelogging(verbose, ServerConfiguration_get_dateFormat(config));
     
 		if (listen == NULL) {
       listencount = 1;
@@ -380,52 +388,77 @@ main(int argc, char **argv)
           "Number of listen and manage options are not the same... exiting");
       exit(1);
     }
-		if (config.certif == NULL) {
-			config.certif = "cacert.pem";
-		}
-		if (config.keys == NULL) {
-			config.keys = "server.rsa";
-		}
+    if (ServerConfiguration_get_certificateFile(config) == NULL) {
+      ServerConfiguration_set_certificateFile(config, "cacert.pem");
+    }
+    if (ServerConfiguration_get_keysFile(config) == NULL) {
+      ServerConfiguration_set_keysFile(config, "server.rsa");
+    }
 		if (type == NULL) {
 			type = "tcp";
 		}
-		config.size = 1;
-		config.realmtable = calloc(config.size, sizeof(RealmT));
-		config.realmtable[0].hostname = name;
-    config.realmtable[0].usrclinum = managecount;
-    config.realmtable[0].usrclitable = calloc(managecount, sizeof(UsrCli*));
-    for (i = 0; i < config.realmtable[0].usrclinum; ++i) {
-      config.realmtable[0].usrclitable[i] = UsrCli_new();
-      if (config.realmtable[0].usrclitable[i] == NULL) {
+    ServerConfiguration_set_realmsNumber(config, 1);
+    scRealmsTable = calloc(1, sizeof(ServerRealm*));
+    if (scRealmsTable == NULL) {
+      aflog(LOG_T_INIT, LOG_I_CRIT,
+          "Problem with allocating memory for ServerRealm* table... exiting");
+      exit(1);
+    }
+    ServerConfiguration_set_realmsTable(config, scRealmsTable);
+    pointer = ServerRealm_new();
+    if (pointer == NULL) {
+      aflog(LOG_T_INIT, LOG_I_CRIT,
+          "Problem with allocating memory for ServerRealm structure... exiting");
+      exit(1);
+    }
+    scRealmsTable[0] = pointer;
+    ServerRealm_set_hostName(pointer, name);
+    ServerRealm_set_userClientPairs(pointer, managecount);
+    srUsersClientsTable = calloc(managecount, sizeof(UsrCli*));
+    if (srUsersClientsTable == NULL) {
+      aflog(LOG_T_INIT, LOG_I_CRIT,
+          "Problem with allocating memory for UsrCli* table... exiting");
+      exit(1);
+    }
+    ServerRealm_set_usersClientsTable(pointer, srUsersClientsTable);
+    for (i = 0; i < managecount; ++i) {
+      srUsersClientsTable[i] = UsrCli_new();
+      if (srUsersClientsTable[i] == NULL) {
         aflog(LOG_T_INIT, LOG_I_CRIT,
             "Problem with allocating memory for UsrCli structure... exiting");
         exit(1);
       }
-      UsrCli_set_listenPortName(config.realmtable[0].usrclitable[i], listen[i]);
-      UsrCli_set_managePortName(config.realmtable[0].usrclitable[i], manage[i]);
+      UsrCli_set_listenPortName(srUsersClientsTable[i], listen[i]);
+      UsrCli_set_managePortName(srUsersClientsTable[i], manage[i]);
     }
-		config.realmtable[0].users = amount;
-		config.realmtable[0].clients = clients;
-		config.realmtable[0].raclients = raclients;
-		config.realmtable[0].timeout = timeout;
-		config.realmtable[0].usrpcli = usrpcli;
-		config.realmtable[0].clim = clim;
-		config.realmtable[0].baseport = baseport;
-		config.realmtable[0].audit = audit;
+    ServerRealm_set_sUsersLimit(pointer, amount);
+    ServerRealm_set_sClientsLimit(pointer, clients);
+    ServerRealm_set_sRaClientsLimit(pointer, raclients);
+    ServerRealm_set_sTimeout(pointer, timeout);
+    ServerRealm_set_sUsersPerClient(pointer, usrpcli);
+    ServerRealm_set_sClientMode(pointer, clim);
+    ServerRealm_set_basePortOn(pointer, baseport);
+    ServerRealm_set_auditOn(pointer, audit);
 #ifdef HAVE_LIBPTHREAD
-		config.realmtable[0].tunneltype = tunneltype;
+    ServerRealm_set_tunnelType(pointer, tunneltype);
 #endif
-		config.realmtable[0].dnslookups = dnslookups;
-    config.realmtable[0].realmname = realmname;
-		memcpy(config.realmtable[0].pass, pass, 4);
+    ServerRealm_set_dnsLookupsOn(pointer, dnslookups);
+    ServerRealm_set_realmName(pointer, realmname);
+    ServerRealm_set_password(pointer, pass);
 		if (strcmp(type, "tcp") == 0) {
-			TYPE_SET_TCP(config.realmtable[0].type);
+      temp = ServerRealm_get_realmType(pointer);
+			TYPE_SET_TCP(temp);
+      ServerRealm_set_realmType(pointer, temp);
 		}
 		else if (strcmp(type, "udp") == 0) {
-			TYPE_SET_UDP(config.realmtable[0].type);
+      temp = ServerRealm_get_realmType(pointer);
+			TYPE_SET_UDP(temp);
+      ServerRealm_set_realmType(pointer, temp);
 		}
 		else {
-			TYPE_SET_ZERO(config.realmtable[0].type);
+      temp = ServerRealm_get_realmType(pointer);
+			TYPE_SET_ZERO(temp);
+      ServerRealm_set_realmType(pointer, temp);
 		}
 #ifdef AF_INET6
 		if (ipfam == -1) {
@@ -434,13 +467,19 @@ main(int argc, char **argv)
 			exit(1);
 		}
 		else if (ipfam == 4) {
-			TYPE_SET_IPV4(config.realmtable[0].type);
+      temp = ServerRealm_get_realmType(pointer);
+			TYPE_SET_IPV4(temp);
+      ServerRealm_set_realmType(pointer, temp);
 		}
 		else if (ipfam == 6) {
-			TYPE_SET_IPV6(config.realmtable[0].type);
+      temp = ServerRealm_get_realmType(pointer);
+			TYPE_SET_IPV6(temp);
+      ServerRealm_set_realmType(pointer, temp);
 		}
 #endif
-		config.realmtable[0].type |= mode;
+    temp = ServerRealm_get_realmType(pointer);
+		temp |= mode;
+    ServerRealm_set_realmType(pointer, temp);
 	}
   
 	maxfdp1 = manconnecting = 0;
@@ -461,25 +500,30 @@ main(int argc, char **argv)
           "Warning: Creating ./apf directory failed (%d)", flags);
     }
   }
-  if ((flags = generate_rsa_key(&config.keys))) {
+  keys = ServerConfiguration_get_keysFile(config);
+  if ((flags = generate_rsa_key(&keys))) {
     aflog(LOG_T_INIT, LOG_I_WARNING,
         "Warning: Something bad happened when generating rsa keys... (%d)", flags);
   }
-	if (SSL_CTX_use_RSAPrivateKey_file(ctx, config.keys, SSL_FILETYPE_PEM) != 1) {
+  ServerConfiguration_set_keysFile(config, keys);
+	if (SSL_CTX_use_RSAPrivateKey_file(ctx, ServerConfiguration_get_keysFile(config), SSL_FILETYPE_PEM) != 1) {
     aflog(LOG_T_INIT, LOG_I_CRIT,
-        "Setting rsa key failed (%s)... exiting", config.keys);
+        "Setting rsa key failed (%s)... exiting", ServerConfiguration_get_keysFile(config));
     exit(1);
   }
-  if ((flags = generate_certificate(&config.certif, config.keys))) {
+  certif = ServerConfiguration_get_certificateFile(config);
+  if ((flags = generate_certificate(&certif, ServerConfiguration_get_keysFile(config)))) {
     aflog(LOG_T_INIT, LOG_I_WARNING,
         "Warning: Something bad happened when generating certificate... (%d)", flags);
   }
-	if (SSL_CTX_use_certificate_file(ctx, config.certif, SSL_FILETYPE_PEM) != 1) {
+  ServerConfiguration_set_certificateFile(config, certif);
+	if (SSL_CTX_use_certificate_file(ctx,
+        ServerConfiguration_get_certificateFile(config), SSL_FILETYPE_PEM) != 1) {
 		aflog(LOG_T_INIT, LOG_I_CRIT,
-        "Setting certificate failed (%s)... exiting", config.certif);
+        "Setting certificate failed (%s)... exiting", ServerConfiguration_get_certificateFile(config));
 		exit(1);
 	}
-	if (config.size == 0) {
+	if (ServerConfiguration_get_realmsNumber(config) == 0) {
 		aflog(LOG_T_INIT, LOG_I_CRIT,
         "Working without sense is really without sense...");
 		exit(1);
@@ -491,141 +535,180 @@ main(int argc, char **argv)
 	if (!verbose)
 		daemon(0, 0);
 
-	for (i = 0; i < config.size; ++i) {
-    if (config.realmtable[i].usrclinum == 0) {
+  scRealmsTable = ServerConfiguration_get_realmsTable(config);
+	for (i = 0; i < ServerConfiguration_get_realmsNumber(config); ++i) {
+    if (ServerRealm_get_userClientPairs(scRealmsTable[i]) == 0) {
       aflog(LOG_T_INIT, LOG_I_CRIT,
           "You have to specify at least one listen port and one manage port in each realm");
       exit(1);
     }
-    for (j = 0; j < config.realmtable[i].usrclinum; ++j) {
-  		if ((UsrCli_get_listenPortName(config.realmtable[i].usrclitable[j]) == NULL) ||
-  			(UsrCli_get_managePortName(config.realmtable[i].usrclitable[j]) == NULL)) {
+    srUsersClientsTable = ServerRealm_get_usersClientsTable(scRealmsTable[i]);
+    for (j = 0; j < ServerRealm_get_userClientPairs(scRealmsTable[i]); ++j) {
+  		if ((UsrCli_get_listenPortName(srUsersClientsTable[j]) == NULL) ||
+  			(UsrCli_get_managePortName(srUsersClientsTable[j]) == NULL)) {
   			aflog(LOG_T_INIT, LOG_I_CRIT,
             "Missing some of the variables...\nRealm: %d\nlistenport[%d]: %s\nmanageport[%d]: %s",
-  					i, j, UsrCli_get_listenPortName(config.realmtable[i].usrclitable[j]),
-  					j, UsrCli_get_managePortName(config.realmtable[i].usrclitable[j]));
+  					i, j, UsrCli_get_listenPortName(srUsersClientsTable[j]),
+  					j, UsrCli_get_managePortName(srUsersClientsTable[j]));
   			exit(1);
   		}
     }
     /* checking type of the realm */
-    if (!TYPE_IS_SET(config.realmtable[i].type)) {
+    if (!TYPE_IS_SET(ServerRealm_get_realmType(scRealmsTable[i]))) {
       if (type != NULL) {
         if (strcmp(type, "tcp") == 0) {
-          TYPE_SET_TCP(config.realmtable[i].type);
+          temp = ServerRealm_get_realmType(scRealmsTable[i]);
+          TYPE_SET_TCP(temp);
+          ServerRealm_set_realmType(scRealmsTable[i], temp);
         }
         else if (strcmp(type, "udp") == 0) {
-          TYPE_SET_UDP(config.realmtable[i].type);
+          temp = ServerRealm_get_realmType(scRealmsTable[i]);
+          TYPE_SET_UDP(temp);
+          ServerRealm_set_realmType(scRealmsTable[i], temp);
         }
         else {
-          TYPE_SET_TCP(config.realmtable[i].type);
+          temp = ServerRealm_get_realmType(scRealmsTable[i]);
+          TYPE_SET_TCP(temp);
+          ServerRealm_set_realmType(scRealmsTable[i], temp);
         }
       }
       else {
-        TYPE_SET_TCP(config.realmtable[i].type);
+        temp = ServerRealm_get_realmType(scRealmsTable[i]);
+        TYPE_SET_TCP(temp);
+        ServerRealm_set_realmType(scRealmsTable[i], temp);
       }
     }
 #ifdef AF_INET6
     /* using user's value for ipfam*/
-    if (TYPE_IS_UNSPEC(config.realmtable[i].type)) {
+    if (TYPE_IS_UNSPEC(ServerRealm_get_realmType(scRealmsTable[i]))) {
       if (ipfam == -1) {
         aflog(LOG_T_INIT, LOG_I_CRIT,
             "Conflicting types of ip protocol family... exiting");
         exit(1);
       }
       else if (ipfam == 4) {
-        TYPE_SET_IPV4(config.realmtable[i].type);
+        temp = ServerRealm_get_realmType(scRealmsTable[i]);
+        TYPE_SET_IPV4(temp);
+        ServerRealm_set_realmType(scRealmsTable[i], temp);
       }
       else if (ipfam == 6) {
-        TYPE_SET_IPV6(config.realmtable[i].type);
+        temp = ServerRealm_get_realmType(scRealmsTable[i]);
+        TYPE_SET_IPV6(temp);
+        ServerRealm_set_realmType(scRealmsTable[i], temp);
       }
     }
 #endif
     /* using user's values for zlib and ssl mode*/
     if (!TYPE_IS_SSL(mode)) {
-      TYPE_UNSET_SSL(config.realmtable[i].type);
+      temp = ServerRealm_get_realmType(scRealmsTable[i]);
+      TYPE_UNSET_SSL(temp);
+      ServerRealm_set_realmType(scRealmsTable[i], temp);
     }
     if (!TYPE_IS_ZLIB(mode)) {
-      TYPE_UNSET_ZLIB(config.realmtable[i].type);
+      temp = ServerRealm_get_realmType(scRealmsTable[i]);
+      TYPE_UNSET_ZLIB(temp);
+      ServerRealm_set_realmType(scRealmsTable[i], temp);
     }
     /* using user's baseport value*/
-    if (config.realmtable[i].baseport == 0) {
-      config.realmtable[i].baseport = baseport;
+    if (ServerRealm_get_basePortOn(scRealmsTable[i]) == 0) {
+      ServerRealm_set_basePortOn(scRealmsTable[i], baseport);
     }
     /* using user's audit value*/
-    if (config.realmtable[i].audit == 0) {
-      config.realmtable[i].audit = audit;
+    if (ServerRealm_get_auditOn(scRealmsTable[i]) == 0) {
+      ServerRealm_set_auditOn(scRealmsTable[i], audit);
     }
 #ifdef HAVE_LIBPTHREAD
     /* using user's tunneltype value*/
-    if (config.realmtable[i].tunneltype == 0) {
+    if (ServerRealm_get_tunnelType(scRealmsTable[i]) == 0) {
       if (tunneltype == -1) {
         aflog(LOG_T_INIT, LOG_I_CRIT,
             "Conflicting types of tunnel type... exiting");
         exit(1);
       }
-      config.realmtable[i].tunneltype = tunneltype;
+      ServerRealm_set_tunnelType(scRealmsTable[i], tunneltype);
     }
 #endif
     /* using user's dnslookups value*/
-    if (config.realmtable[i].dnslookups == 0) {
-      config.realmtable[i].dnslookups = dnslookups;
+    if (ServerRealm_get_dnsLookupsOn(scRealmsTable[i]) == 0) {
+      ServerRealm_set_dnsLookupsOn(scRealmsTable[i], dnslookups);
     }
     /* checking users amount */
-    set_value(&(config.realmtable[i].users), amount, "5");
-    check_value(&(config.realmtable[i].usernum), config.realmtable[i].users, "Invalid users amount");
+    stemp = ServerRealm_get_sUsersLimit(scRealmsTable[i]);
+    set_value(&stemp, amount, "5");
+    ServerRealm_set_sUsersLimit(scRealmsTable[i], stemp);
+    ServerRealm_set_usersLimit(scRealmsTable[i],
+        check_value(ServerRealm_get_sUsersLimit(scRealmsTable[i]), "Invalid users amount"));
     /* checking clients amount */
-    set_value(&(config.realmtable[i].clients), clients, "1");
-    check_value(&(config.realmtable[i].clinum), config.realmtable[i].clients, "Invalid clients amount");
+    stemp = ServerRealm_get_sClientsLimit(scRealmsTable[i]);
+    set_value(&stemp, clients, "1");
+    ServerRealm_set_sClientsLimit(scRealmsTable[i], stemp);
+    ServerRealm_set_clientsLimit(scRealmsTable[i],
+        check_value(ServerRealm_get_sClientsLimit(scRealmsTable[i]), "Invalid clients amount"));
     /* checking raclients amount */
-    set_value(&(config.realmtable[i].raclients), raclients, "1");
-    check_value(&(config.realmtable[i].raclinum), config.realmtable[i].raclients, "Invalid raclients amount");
+    stemp = ServerRealm_get_sRaClientsLimit(scRealmsTable[i]);
+    set_value(&stemp, raclients, "1");
+    ServerRealm_set_sRaClientsLimit(scRealmsTable[i], stemp);
+    ServerRealm_set_raClientsLimit(scRealmsTable[i],
+        check_value(ServerRealm_get_sRaClientsLimit(scRealmsTable[i]), "Invalid raclients amount"));
     /* checking usrpcli value */
-    set_value(&(config.realmtable[i].usrpcli), usrpcli, config.realmtable[i].users);
-    check_value(&(config.realmtable[i].upcnum), config.realmtable[i].usrpcli, "Invalid usrpcli value");
+    stemp = ServerRealm_get_sUsersPerClient(scRealmsTable[i]);
+    set_value(&stemp, usrpcli, ServerRealm_get_sUsersLimit(scRealmsTable[i]));
+    ServerRealm_set_sUsersPerClient(scRealmsTable[i], stemp);
+    ServerRealm_set_usersPerClient(scRealmsTable[i],
+        check_value(ServerRealm_get_sUsersPerClient(scRealmsTable[i]), "Invalid usrpcli value"));
     /* checking timeout value */
-    set_value(&(config.realmtable[i].timeout), timeout, "5");
-    check_value(&(config.realmtable[i].tmout), config.realmtable[i].timeout, "Invalid timeout value");
+    stemp = ServerRealm_get_sTimeout(scRealmsTable[i]);
+    set_value(&stemp, timeout, "5");
+    ServerRealm_set_sTimeout(scRealmsTable[i], stemp);
+    ServerRealm_set_timeout(scRealmsTable[i],
+        check_value(ServerRealm_get_sTimeout(scRealmsTable[i]), "Invalid timeout value"));
     /* checking climode value */
-    set_value(&(config.realmtable[i].clim), clim, "1");
-    check_value(&(config.realmtable[i].climode), config.realmtable[i].clim, "Invalid climode value");
+    stemp = ServerRealm_get_sClientMode(scRealmsTable[i]);
+    set_value(&stemp, clim, "1");
+    ServerRealm_set_sClientMode(scRealmsTable[i], stemp);
+    ServerRealm_set_clientMode(scRealmsTable[i],
+        check_value(ServerRealm_get_sClientMode(scRealmsTable[i]), "Invalid climode value"));
     /* allocating memory*/
-		config.realmtable[i].contable = calloc(config.realmtable[i].usernum, sizeof(ConnectUser));
-		if (config.realmtable[i].contable == NULL) {
+    srUsersTable = calloc(ServerRealm_get_usersLimit(scRealmsTable[i]), sizeof(ConnectUser*));
+		if (srUsersTable == NULL) {
 			aflog(LOG_T_INIT, LOG_I_CRIT,
           "Calloc error - try define smaller amount of users");
 			exit(1);
 		}
-    for (j = 0; j < config.realmtable[i].usernum; ++j) {
-      config.realmtable[i].contable[j] = ConnectUser_new();
-      if (config.realmtable[i].contable[j] == NULL) {
+    ServerRealm_set_usersTable(scRealmsTable[i], srUsersTable);
+    for (j = 0; j < ServerRealm_get_usersLimit(scRealmsTable[i]); ++j) {
+      srUsersTable[j] = ConnectUser_new();
+      if (srUsersTable[j] == NULL) {
         aflog(LOG_T_INIT, LOG_I_CRIT,
             "Calloc error - try define smaller amount of users");
         exit(1);
       }
     }
-		config.realmtable[i].clitable = calloc( config.realmtable[i].clinum, sizeof(ConnectClient));
-		if (config.realmtable[i].clitable == NULL) {
+    srClientsTable = calloc(ServerRealm_get_clientsLimit(scRealmsTable[i]), sizeof(ConnectClient*));
+		if (srClientsTable == NULL) {
 			aflog(LOG_T_INIT, LOG_I_CRIT,
           "Calloc error - try define smaller amount of clients");
 			exit(1);
 		}
-    for (j = 0; j < config.realmtable[i].clinum; ++j) {
-      config.realmtable[i].clitable[j] = ConnectClient_new();
-      if (config.realmtable[i].clitable[j] == NULL) {
+    ServerRealm_set_clientsTable(scRealmsTable[i], srClientsTable);
+    for (j = 0; j < ServerRealm_get_clientsLimit(scRealmsTable[i]); ++j) {
+      srClientsTable[j] = ConnectClient_new();
+      if (srClientsTable[j] == NULL) {
         aflog(LOG_T_INIT, LOG_I_CRIT,
             "Calloc error - try define smaller amount of clients");
         exit(1);
       }
     }
-		config.realmtable[i].raclitable = calloc( config.realmtable[i].raclinum, sizeof(ConnectClient));
-		if (config.realmtable[i].raclitable == NULL) {
+    srRaClientsTable = calloc(ServerRealm_get_raClientsLimit(scRealmsTable[i]), sizeof(ConnectClient*));
+		if (srRaClientsTable == NULL) {
 			aflog(LOG_T_INIT, LOG_I_CRIT,
           "Calloc error - try define smaller amount of raclients");
 			exit(1);
 		}
-    for (j = 0; j < config.realmtable[i].raclinum; ++j) {
-      config.realmtable[i].raclitable[j] = ConnectClient_new();
-      if (config.realmtable[i].raclitable[j] == NULL) {
+    ServerRealm_set_raClientsTable(scRealmsTable[i], srRaClientsTable);
+    for (j = 0; j < ServerRealm_get_raClientsLimit(scRealmsTable[i]); ++j) {
+      srRaClientsTable[j] = ConnectClient_new();
+      if (srRaClientsTable[j] == NULL) {
         aflog(LOG_T_INIT, LOG_I_CRIT,
             "Calloc error - try define smaller amount of raclients");
         exit(1);
@@ -633,20 +716,20 @@ main(int argc, char **argv)
     }
 		ipfam = 0x01;
 #ifdef AF_INET6
-		if (TYPE_IS_IPV4(config.realmtable[i].type)) {
+		if (TYPE_IS_IPV4(ServerRealm_get_realmType(scRealmsTable[i]))) {
 			ipfam |= 0x02;
 		}
-		else if (TYPE_IS_IPV6(config.realmtable[i].type)) {
+		else if (TYPE_IS_IPV6(ServerRealm_get_realmType(scRealmsTable[i]))) {
 			ipfam |= 0x04;
 		}
 #endif
-    if (config.realmtable[i].baseport == 0) {
-      for (j = 0; j < config.realmtable[i].usrclinum; ++j) {
-        if (ip_listen(&temp, UsrCli_get_listenHostName(config.realmtable[i].usrclitable[j]) ?
-              UsrCli_get_listenHostName(config.realmtable[i].usrclitable[j]) :
-              config.realmtable[i].hostname,
-              UsrCli_get_listenPortName(config.realmtable[i].usrclitable[j]),
-              (&(config.realmtable[i].addrlen)), ipfam)) {
+    if (ServerRealm_get_basePortOn(scRealmsTable[i]) == 0) {
+      for (j = 0; j < ServerRealm_get_userClientPairs(scRealmsTable[i]); ++j) {
+        if (ip_listen(&temp, UsrCli_get_listenHostName(srUsersClientsTable[j]) ?
+              UsrCli_get_listenHostName(srUsersClientsTable[j]) :
+              ServerRealm_get_hostName(scRealmsTable[i]),
+              UsrCli_get_listenPortName(srUsersClientsTable[j]),
+              (&len), ipfam)) {
           aflog(LOG_T_INIT, LOG_I_CRIT,
 #ifdef AF_INET6
               "tcp_listen_%s error for %s, %s",
@@ -654,25 +737,27 @@ main(int argc, char **argv)
 #else
               "tcp_listen error for %s, %s",
 #endif
-              UsrCli_get_listenHostName(config.realmtable[i].usrclitable[j]) ?
-              UsrCli_get_listenHostName(config.realmtable[i].usrclitable[j]) :
-              config.realmtable[i].hostname,
-              UsrCli_get_listenPortName(config.realmtable[i].usrclitable[j]));
+              UsrCli_get_listenHostName(srUsersClientsTable[j]) ?
+              UsrCli_get_listenHostName(srUsersClientsTable[j]) :
+              ServerRealm_get_hostName(scRealmsTable[i]),
+              UsrCli_get_listenPortName(srUsersClientsTable[j]));
           exit(1);
         }
-        UsrCli_set_listenFd(config.realmtable[i].usrclitable[j], temp);
-        flags = fcntl(UsrCli_get_listenFd(config.realmtable[i].usrclitable[j]), F_GETFL, 0);
-        fcntl(UsrCli_get_listenFd(config.realmtable[i].usrclitable[j]), F_SETFL, flags | O_NONBLOCK);
+        ServerRealm_set_addressLength(scRealmsTable[i], len);
+        UsrCli_set_listenFd(srUsersClientsTable[j], temp);
+        flags = fcntl(UsrCli_get_listenFd(srUsersClientsTable[j]), F_GETFL, 0);
+        fcntl(UsrCli_get_listenFd(srUsersClientsTable[j]), F_SETFL, flags | O_NONBLOCK);
       }
     }
-    for (j = 0; j < config.realmtable[i].usrclinum; ++j) {
-      switch (config.realmtable[i].tunneltype) {
+    
+    for (j = 0; j < ServerRealm_get_userClientPairs(scRealmsTable[i]); ++j) {
+      switch (ServerRealm_get_tunnelType(scRealmsTable[i])) {
         case 0: {
-                  if (ip_listen(&temp, UsrCli_get_manageHostName(config.realmtable[i].usrclitable[j]) ?
-                        UsrCli_get_manageHostName(config.realmtable[i].usrclitable[j]) :
-                        config.realmtable[i].hostname,
-                        UsrCli_get_managePortName(config.realmtable[i].usrclitable[j]),
-                        (&(config.realmtable[i].addrlen)), ipfam)) {
+                  if (ip_listen(&temp, UsrCli_get_manageHostName(srUsersClientsTable[j]) ?
+                        UsrCli_get_manageHostName(srUsersClientsTable[j]) :
+                        ServerRealm_get_hostName(scRealmsTable[i]),
+                        UsrCli_get_managePortName(srUsersClientsTable[j]),
+                        (&len), ipfam)) {
                     aflog(LOG_T_INIT, LOG_I_CRIT,
 #ifdef AF_INET6
                         "tcp_listen_%s error for %s, %s",
@@ -680,46 +765,49 @@ main(int argc, char **argv)
 #else
                         "tcp_listen error for %s, %s",
 #endif
-                        UsrCli_get_manageHostName(config.realmtable[i].usrclitable[j]) ?
-                        UsrCli_get_manageHostName(config.realmtable[i].usrclitable[j]) :
-                        config.realmtable[i].hostname,
-                        UsrCli_get_managePortName(config.realmtable[i].usrclitable[j]));
+                        UsrCli_get_manageHostName(srUsersClientsTable[j]) ?
+                        UsrCli_get_manageHostName(srUsersClientsTable[j]) :
+                        ServerRealm_get_hostName(scRealmsTable[i]),
+                        UsrCli_get_managePortName(srUsersClientsTable[j]));
                     exit(1);
                   }
-                  UsrCli_set_manageFd(config.realmtable[i].usrclitable[j], temp);
-                  flags = fcntl(UsrCli_get_manageFd(config.realmtable[i].usrclitable[j]), F_GETFL, 0);
-                  fcntl(UsrCli_get_manageFd(config.realmtable[i].usrclitable[j]), F_SETFL, flags | O_NONBLOCK);
+                  ServerRealm_set_addressLength(scRealmsTable[i], len);
+                  UsrCli_set_manageFd(srUsersClientsTable[j], temp);
+                  flags = fcntl(UsrCli_get_manageFd(srUsersClientsTable[j]), F_GETFL, 0);
+                  fcntl(UsrCli_get_manageFd(srUsersClientsTable[j]), F_SETFL, flags | O_NONBLOCK);
                   break;
                 }
 #ifdef HAVE_LIBPTHREAD
         case 1: case 2: {
                   if (initialize_http_proxy_server(&temp,
-                        UsrCli_get_manageHostName(config.realmtable[i].usrclitable[j]) ?
-                        UsrCli_get_manageHostName(config.realmtable[i].usrclitable[j]) :
-                        config.realmtable[i].hostname,
-                        UsrCli_get_managePortName(config.realmtable[i].usrclitable[j]),
-                        (&(config.realmtable[i].addrlen)), ipfam,
-                        config.realmtable[i].clinum + config.realmtable[i].raclinum,
-                        (config.realmtable[i].tunneltype - 1),
+                        UsrCli_get_manageHostName(srUsersClientsTable[j]) ?
+                        UsrCli_get_manageHostName(srUsersClientsTable[j]) :
+                        ServerRealm_get_hostName(scRealmsTable[i]),
+                        UsrCli_get_managePortName(srUsersClientsTable[j]),
+                        (&len), ipfam,
+                        ServerRealm_get_clientsLimit(scRealmsTable[i]) +
+                        ServerRealm_get_raClientsLimit(scRealmsTable[i]),
+                        (ServerRealm_get_tunnelType(scRealmsTable[i]) - 1),
                         ctx)) {
                     aflog(LOG_T_INIT, LOG_I_CRIT,
 #ifdef AF_INET6
                         "http%s_proxy_listen_%s error for %s, %s",
-                        (config.realmtable[i].tunneltype == 2) ? "s" : "",
+                        (ServerRealm_get_tunnelType(scRealmsTable[i]) == 2) ? "s" : "",
                         (ipfam & 0x02)?"ipv4":(ipfam & 0x04)?"ipv6":"unspec",
 #else
                         "http%s_proxy_listen error for %s, %s",
-                        (config.realmtable[i].tunneltype == 2) ? "s" : "",
+                        (ServerRealm_get_tunnelType(scRealmsTable[i]) == 2) ? "s" : "",
 #endif
-                        UsrCli_get_manageHostName(config.realmtable[i].usrclitable[j]) ?
-                        UsrCli_get_manageHostName(config.realmtable[i].usrclitable[j]) :
-                        config.realmtable[i].hostname,
-                        UsrCli_get_managePortName(config.realmtable[i].usrclitable[j]));
+                        UsrCli_get_manageHostName(srUsersClientsTable[j]) ?
+                        UsrCli_get_manageHostName(srUsersClientsTable[j]) :
+                        ServerRealm_get_hostName(scRealmsTable[i]),
+                        UsrCli_get_managePortName(srUsersClientsTable[j]));
                     exit(1);
                   }
-                  UsrCli_set_manageFd(config.realmtable[i].usrclitable[j], temp);
-                  flags = fcntl(UsrCli_get_manageFd(config.realmtable[i].usrclitable[j]), F_GETFL, 0);
-                  fcntl(UsrCli_get_manageFd(config.realmtable[i].usrclitable[j]), F_SETFL, flags | O_NONBLOCK);
+                  ServerRealm_set_addressLength(scRealmsTable[i], len);
+                  UsrCli_set_manageFd(srUsersClientsTable[j], temp);
+                  flags = fcntl(UsrCli_get_manageFd(srUsersClientsTable[j]), F_GETFL, 0);
+                  fcntl(UsrCli_get_manageFd(srUsersClientsTable[j]), F_SETFL, flags | O_NONBLOCK);
                   break;
                 }
 #endif
@@ -731,58 +819,66 @@ main(int argc, char **argv)
                  }
       }
     }
-		config.realmtable[i].cliaddr = malloc(config.realmtable[i].addrlen);
+
+    ServerRealm_set_clientAddress(scRealmsTable[i], malloc(ServerRealm_get_addressLength(scRealmsTable[i])));
+    if (ServerRealm_get_clientAddress(scRealmsTable[i]) == NULL) {
+      aflog(LOG_T_INIT, LOG_I_CRIT,
+          "Allocating memory for client addresses failed... exiting");
+      exit(1);
+    }
 		
-    for (j=0; j<config.realmtable[i].clinum; ++j) {
-      SslFd_set_ssl(ConnectClient_get_sslFd(config.realmtable[i].clitable[j]), SSL_new(ctx));
-  		if (SslFd_get_ssl(ConnectClient_get_sslFd(config.realmtable[i].clitable[j])) == NULL) {
+    for (j = 0; j < ServerRealm_get_clientsLimit(scRealmsTable[i]); ++j) {
+      SslFd_set_ssl(ConnectClient_get_sslFd(srClientsTable[j]), SSL_new(ctx));
+  		if (SslFd_get_ssl(ConnectClient_get_sslFd(srClientsTable[j])) == NULL) {
   			aflog(LOG_T_INIT, LOG_I_CRIT,
-            "Creating of ssl object failed... exiting");
+            "Creation of ssl object failed... exiting");
   			exit(1);
   		}
     }
     
-    for (j=0; j<config.realmtable[i].raclinum; ++j) {
-      SslFd_set_ssl(ConnectClient_get_sslFd(config.realmtable[i].raclitable[j]), SSL_new(ctx));
-  		if (SslFd_get_ssl(ConnectClient_get_sslFd(config.realmtable[i].raclitable[j])) == NULL) {
+    for (j = 0; j < ServerRealm_get_raClientsLimit(scRealmsTable[i]); ++j) {
+      SslFd_set_ssl(ConnectClient_get_sslFd(srRaClientsTable[j]), SSL_new(ctx));
+  		if (SslFd_get_ssl(ConnectClient_get_sslFd(srRaClientsTable[j])) == NULL) {
   			aflog(LOG_T_INIT, LOG_I_CRIT,
-            "Creating of ssl object failed... exiting");
+            "Creation of ssl object failed... exiting");
   			exit(1);
   		}
     }
 	
-    for (j = 0; j < config.realmtable[i].usrclinum; ++j) {
-  		FD_SET(UsrCli_get_manageFd(config.realmtable[i].usrclitable[j]), &allset);
-  		maxfdp1 = (maxfdp1 > (UsrCli_get_manageFd(config.realmtable[i].usrclitable[j]) + 1)) ?
-        maxfdp1 : (UsrCli_get_manageFd(config.realmtable[i].usrclitable[j]) + 1);
+    for (j = 0; j < ServerRealm_get_userClientPairs(scRealmsTable[i]); ++j) {
+  		FD_SET(UsrCli_get_manageFd(srUsersClientsTable[j]), &allset);
+  		maxfdp1 = (maxfdp1 > (UsrCli_get_manageFd(srUsersClientsTable[j]) + 1)) ?
+        maxfdp1 : (UsrCli_get_manageFd(srUsersClientsTable[j]) + 1);
     }
-    if (config.realmtable[i].baseport == 0) {
-      for (j = 0; j < config.realmtable[i].usrclinum; ++j) {
-  		  FD_SET(UsrCli_get_listenFd(config.realmtable[i].usrclitable[j]), &allset);
-  		  maxfdp1 = (maxfdp1 > (UsrCli_get_listenFd(config.realmtable[i].usrclitable[j]) + 1)) ?
-          maxfdp1 : (UsrCli_get_listenFd(config.realmtable[i].usrclitable[j]) + 1);
+    if (ServerRealm_get_basePortOn(scRealmsTable[i]) == 0) {
+      for (j = 0; j < ServerRealm_get_userClientPairs(scRealmsTable[i]); ++j) {
+  		  FD_SET(UsrCli_get_listenFd(srUsersClientsTable[j]), &allset);
+  		  maxfdp1 = (maxfdp1 > (UsrCli_get_listenFd(srUsersClientsTable[j]) + 1)) ?
+          maxfdp1 : (UsrCli_get_listenFd(srUsersClientsTable[j]) + 1);
       }
     }
-		config.realmtable[i].usercon = 0;
-		config.realmtable[i].clicon = 0;
-		config.realmtable[i].raclicon = 0;
-    for (j=0; j<config.realmtable[i].clinum; ++j) {
-      ConnectClient_set_timer(config.realmtable[i].clitable[j], timeval_create(config.realmtable[i].tmout, 0));
-      ConnectClient_set_limit(config.realmtable[i].clitable[j], config.realmtable[i].upcnum);
-      if (ConnectClient_create_users(config.realmtable[i].clitable[j])) {
+    ServerRealm_set_connectedUsers(scRealmsTable[i], 0);
+    ServerRealm_set_connectedClients(scRealmsTable[i], 0);
+    ServerRealm_set_connectedRaClients(scRealmsTable[i], 0);
+    for (j = 0; j < ServerRealm_get_clientsLimit(scRealmsTable[i]); ++j) {
+      ConnectClient_set_timer(srClientsTable[j], timeval_create(ServerRealm_get_timeout(scRealmsTable[i]), 0));
+      ConnectClient_set_limit(srClientsTable[j], ServerRealm_get_usersPerClient(scRealmsTable[i]));
+      if (ConnectClient_create_users(srClientsTable[j])) {
         aflog(LOG_T_INIT, LOG_I_CRIT,
             "Calloc error - try define smaller amount of usrpcli (or users)");
         exit(1);
       }
     }
-    for (j=0; j<config.realmtable[i].raclinum; ++j) {
-      ConnectClient_set_timer(config.realmtable[i].raclitable[j], timeval_create(config.realmtable[i].tmout,0));
+    for (j = 0; j < ServerRealm_get_raClientsLimit(scRealmsTable[i]); ++j) {
+      ConnectClient_set_timer(srRaClientsTable[j],
+          timeval_create(ServerRealm_get_timeout(scRealmsTable[i]), 0));
     }
   }
 
 	aflog(LOG_T_MAIN, LOG_I_INFO,
-      "SERVER STARTED realms: %d", config.size);
-  time(&config.starttime);
+      "SERVER STARTED realms: %d", ServerConfiguration_get_realmsNumber(config));
+  time(&now);
+  ServerConfiguration_set_startTime(config, now);
 	
 	for ( ; ; ) {
 		rset = allset;
@@ -792,22 +888,24 @@ main(int argc, char **argv)
 		if (manconnecting) {
 			/* find out, in what realm client is trying to connect */
       l = -1;
-			for (k = 0; k < config.size; ++k) {
-        for (j=0; j < config.realmtable[k].clinum; ++j) {
-				  if ((ConnectClient_get_state(config.realmtable[k].clitable[j]) == CONNECTCLIENT_STATE_CONNECTING) ||
-              (ConnectClient_get_state(config.realmtable[k].clitable[j]) == CONNECTCLIENT_STATE_AUTHORIZING)) {
+			for (k = 0; k < ServerConfiguration_get_realmsNumber(config); ++k) {
+        srClientsTable = ServerRealm_get_clientsTable(scRealmsTable[k]);
+        for (j=0; j < ServerRealm_get_clientsLimit(scRealmsTable[k]); ++j) {
+				  if ((ConnectClient_get_state(srClientsTable[j]) == CONNECTCLIENT_STATE_CONNECTING) ||
+              (ConnectClient_get_state(srClientsTable[j]) == CONNECTCLIENT_STATE_AUTHORIZING)) {
             i = k;
-            k = config.size;
+            k = ServerConfiguration_get_realmsNumber(config);
             l = 0;
 				  	break; /* so i points to first good realm and j to good client */
 				  }
         }
         if (l == -1) {
-          for (j=0; j < config.realmtable[k].raclinum; ++j) {
-            if ((ConnectClient_get_state(config.realmtable[k].raclitable[j])==CONNECTCLIENT_STATE_CONNECTING) ||
-                (ConnectClient_get_state(config.realmtable[k].raclitable[j])==CONNECTCLIENT_STATE_AUTHORIZING)) {
+          srRaClientsTable = ServerRealm_get_raClientsTable(scRealmsTable[k]);
+          for (j=0; j < ServerRealm_get_raClientsLimit(scRealmsTable[k]); ++j) {
+            if ((ConnectClient_get_state(srRaClientsTable[j])==CONNECTCLIENT_STATE_CONNECTING) ||
+                (ConnectClient_get_state(srRaClientsTable[j])==CONNECTCLIENT_STATE_AUTHORIZING)) {
               i = k;
-              k = config.size;
+              k = ServerConfiguration_get_realmsNumber(config);
               l = 1;
   				  	break; /* so i points to first good realm and j to good client */
   				  }
@@ -815,29 +913,31 @@ main(int argc, char **argv)
         }
 			}
       if (!l) {
-  			if (select(maxfdp1,&rset,&tmpset,NULL,ConnectClient_get_timerp(config.realmtable[i].clitable[j])) == 0) {
-          close(SslFd_get_fd(ConnectClient_get_sslFd(config.realmtable[i].clitable[j])));
-          FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(config.realmtable[i].clitable[j])), &allset);
-          SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(config.realmtable[i].clitable[j])));
-          ConnectClient_set_state(config.realmtable[i].clitable[j], CONNECTCLIENT_STATE_FREE);
+        srClientsTable = ServerRealm_get_clientsTable(scRealmsTable[i]);
+  			if (select(maxfdp1,&rset,&tmpset,NULL,ConnectClient_get_timerp(srClientsTable[j])) == 0) {
+          close(SslFd_get_fd(ConnectClient_get_sslFd(srClientsTable[j])));
+          FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(srClientsTable[j])), &allset);
+          SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(srClientsTable[j])));
+          ConnectClient_set_state(srClientsTable[j], CONNECTCLIENT_STATE_FREE);
           manconnecting--;
-          config.realmtable[i].clicon--;
+          ServerRealm_decrease_connectedClients(scRealmsTable[i]);
           aflog(LOG_T_CLIENT, LOG_I_WARNING,
               "realm[%s]: Client[%s]: SSL_accept failed (timeout)",
-              get_realmname(&config, i), get_clientname(pointer, j));
+              get_realmname(config, i), get_clientname(scRealmsTable[i], j));
   			}
       }
       else {
-  			if (select(maxfdp1,&rset,&tmpset,NULL,ConnectClient_get_timerp(config.realmtable[i].raclitable[j]))==0) {
-          close(SslFd_get_fd(ConnectClient_get_sslFd(config.realmtable[i].raclitable[j])));
-          FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(config.realmtable[i].raclitable[j])), &allset);
-          SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(config.realmtable[i].raclitable[j])));
-          ConnectClient_set_state(config.realmtable[i].raclitable[j], CONNECTCLIENT_STATE_FREE);
+        srRaClientsTable = ServerRealm_get_raClientsTable(scRealmsTable[i]);
+  			if (select(maxfdp1,&rset,&tmpset,NULL,ConnectClient_get_timerp(srRaClientsTable[j]))==0) {
+          close(SslFd_get_fd(ConnectClient_get_sslFd(srRaClientsTable[j])));
+          FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(srRaClientsTable[j])), &allset);
+          SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(srRaClientsTable[j])));
+          ConnectClient_set_state(srRaClientsTable[j], CONNECTCLIENT_STATE_FREE);
 				  manconnecting--;
-          config.realmtable[i].clicon--;
+          ServerRealm_decrease_connectedClients(scRealmsTable[i]);
           aflog(LOG_T_CLIENT, LOG_I_WARNING,
               "realm[%s]: Client[%s] (ra): SSL_accept failed (timeout)",
-              get_realmname(&config, i), get_raclientname(pointer, j));
+              get_realmname(config, i), get_raclientname(scRealmsTable[i], j));
   			}
       }
 		}
@@ -847,35 +947,39 @@ main(int argc, char **argv)
 		aflog(LOG_T_MAIN, LOG_I_DDEBUG,
         "after select...");
 
-    for (j = 0; j < config.size; ++j) {
-      pointer = (&(config.realmtable[j]));
-      for (i = 0; i <pointer->usernum; ++i) {
-        if ((ConnectUser_get_state(pointer->contable[i]) == S_STATE_OPEN) ||
-            (ConnectUser_get_state(pointer->contable[i]) == S_STATE_STOPPED))
-          if (FD_ISSET(ConnectUser_get_connFd(pointer->contable[i]), &rset)) {
-            k = eval_usernum(pointer->clitable[ConnectUser_get_whatClient(pointer->contable[i])], i);
+    for (j = 0; j < ServerConfiguration_get_realmsNumber(config); ++j) {
+      pointer = scRealmsTable[j];
+      srUsersTable = ServerRealm_get_usersTable(pointer);
+      srClientsTable = ServerRealm_get_clientsTable(pointer);
+      srRaClientsTable = ServerRealm_get_raClientsTable(pointer);
+      srUsersClientsTable = ServerRealm_get_usersClientsTable(pointer);
+      for (i = 0; i < ServerRealm_get_usersLimit(pointer); ++i) {
+        if ((ConnectUser_get_state(srUsersTable[i]) == S_STATE_OPEN) ||
+            (ConnectUser_get_state(srUsersTable[i]) == S_STATE_STOPPED))
+          if (FD_ISSET(ConnectUser_get_connFd(srUsersTable[i]), &rset)) {
+            k = eval_usernum(srClientsTable[ConnectUser_get_whatClient(srUsersTable[i])], i);
             aflog(LOG_T_USER, LOG_I_DDEBUG,
-                "realm[%s]: Client[%s]: user[%d]: FD_ISSET", get_realmname(&config, j),
-                get_clientname(pointer, ConnectUser_get_whatClient(pointer->contable[i])),
+                "realm[%s]: Client[%s]: user[%d]: FD_ISSET", get_realmname(config, j),
+                get_clientname(pointer, ConnectUser_get_whatClient(srUsersTable[i])),
                 get_username(pointer,i));
-            if (TYPE_IS_TCP(pointer->type)) { /* forwarding tcp packets */
-              n = read(ConnectUser_get_connFd(pointer->contable[i]), &buff[5], 8091);
+            if (TYPE_IS_TCP(ServerRealm_get_realmType(pointer))) { /* forwarding tcp packets */
+              n = read(ConnectUser_get_connFd(srUsersTable[i]), &buff[5], 8091);
               if (n == -1) {
                 if (errno == EAGAIN) {
                   continue;
                 }
                 aflog(LOG_T_USER, LOG_I_ERR,
-                    "realm[%s]: Client[%s]: user[%d]: READ ERROR (%d)", get_realmname(&config, j),
-                    get_clientname(pointer, ConnectUser_get_whatClient(pointer->contable[i])),
+                    "realm[%s]: Client[%s]: user[%d]: READ ERROR (%d)", get_realmname(config, j),
+                    get_clientname(pointer, ConnectUser_get_whatClient(srUsersTable[i])),
                     get_username(pointer, i), errno);
                 n = 0;
               }
               if (n) {
                 aflog(LOG_T_USER, LOG_I_DEBUG,
-                    "realm[%s]: Client[%s]: FROM user[%d]: MESSAGE length=%d", get_realmname(&config, j),
-                    get_clientname(pointer, ConnectUser_get_whatClient(pointer->contable[i])),
+                    "realm[%s]: Client[%s]: FROM user[%d]: MESSAGE length=%d", get_realmname(config, j),
+                    get_clientname(pointer, ConnectUser_get_whatClient(srUsersTable[i])),
                     get_username(pointer, i), n);
-                UserStats_add_upload(ConnectUser_get_stats(pointer->contable[i]), n);
+                UserStats_add_upload(ConnectUser_get_stats(srUsersTable[i]), n);
                 if ((buff[5] == AF_S_MESSAGE) && (buff[6] == AF_S_LOGIN) && (buff[7] == AF_S_MESSAGE)) {
                   aflog(LOG_T_USER, LOG_I_WARNING,
                       "WARNING: got packet similiar to udp");
@@ -885,53 +989,53 @@ main(int argc, char **argv)
                 buff[2] = k;		/* low bits of user number */
                 buff[3] = n >> 8;	/* high bits of message length */
                 buff[4] = n;		/* low bits of message length */
-                SslFd_send_message(pointer->type,
+                SslFd_send_message(ServerRealm_get_realmType(pointer),
                     ConnectClient_get_sslFd(
-                      pointer->clitable[ConnectUser_get_whatClient(pointer->contable[i])]),
+                      srClientsTable[ConnectUser_get_whatClient(srUsersTable[i])]),
                     buff, n+5);
               }
               else {
                 aflog(LOG_T_USER, LOG_I_INFO,
-                    "realm[%s]: Client[%s]: user[%d]: CLOSED", get_realmname(&config, j),
-                    get_clientname(pointer, ConnectUser_get_whatClient(pointer->contable[i])),
+                    "realm[%s]: Client[%s]: user[%d]: CLOSED", get_realmname(config, j),
+                    get_clientname(pointer, ConnectUser_get_whatClient(srUsersTable[i])),
                     get_username(pointer, i));
                 time(&now);
                 aflog(LOG_T_USER, LOG_I_NOTICE,
                     "REALM: %s CLIENT: %s USER: %d IP: %s PORT: %s DURATION: %s",
-                    get_realmname(&config, j),
-                    get_clientname(pointer, ConnectUser_get_whatClient(pointer->contable[i])),
+                    get_realmname(config, j),
+                    get_clientname(pointer, ConnectUser_get_whatClient(srUsersTable[i])),
                     get_username(pointer, i),
-                    ConnectUser_get_nameBuf(pointer->contable[i]),
-                    ConnectUser_get_portBuf(pointer->contable[i]),
-                    timeperiod(now - ConnectUser_get_connectTime(pointer->contable[i])));
-                if (pointer->audit) {
+                    ConnectUser_get_nameBuf(srUsersTable[i]),
+                    ConnectUser_get_portBuf(srUsersTable[i]),
+                    timeperiod(now - ConnectUser_get_connectTime(srUsersTable[i])));
+                if (ServerRealm_get_auditOn(pointer)) {
                   AuditList_insert_back(
                       ConnectClient_get_auditList(
-                        pointer->clitable[ConnectUser_get_whatClient(pointer->contable[i])]),
+                        srClientsTable[ConnectUser_get_whatClient(srUsersTable[i])]),
                       AuditListNode_new_entry(
                         get_username(pointer, i),
-                        ConnectUser_get_nameBuf(pointer->contable[i]),
-                        ConnectUser_get_portBuf(pointer->contable[i]),
-                        ConnectUser_get_connectTime(pointer->contable[i]),
-                        now - ConnectUser_get_connectTime(pointer->contable[i]))
+                        ConnectUser_get_nameBuf(srUsersTable[i]),
+                        ConnectUser_get_portBuf(srUsersTable[i]),
+                        ConnectUser_get_connectTime(srUsersTable[i]),
+                        now - ConnectUser_get_connectTime(srUsersTable[i]))
                       );
                 }
-                close(ConnectUser_get_connFd(pointer->contable[i]));
-                FD_CLR(ConnectUser_get_connFd(pointer->contable[i]), &allset);
-                FD_CLR(ConnectUser_get_connFd(pointer->contable[i]), &wset);
-                ConnectUser_set_state(pointer->contable[i], S_STATE_CLOSING);
-                BufList_clear(ConnectUser_get_bufList(pointer->contable[i]));
+                close(ConnectUser_get_connFd(srUsersTable[i]));
+                FD_CLR(ConnectUser_get_connFd(srUsersTable[i]), &allset);
+                FD_CLR(ConnectUser_get_connFd(srUsersTable[i]), &wset);
+                ConnectUser_set_state(srUsersTable[i], S_STATE_CLOSING);
+                BufList_clear(ConnectUser_get_bufList(srUsersTable[i]));
                 buff[0] = AF_S_CONCLOSED; /* closing connection */
                 buff[1] = k >> 8;	/* high bits of user number */
                 buff[2] = k;		/* low bits of user number */
-                SslFd_send_message(pointer->type,
+                SslFd_send_message(ServerRealm_get_realmType(pointer),
                     ConnectClient_get_sslFd(
-                      pointer->clitable[ConnectUser_get_whatClient(pointer->contable[i])]),
+                      srClientsTable[ConnectUser_get_whatClient(srUsersTable[i])]),
                     buff, 5);
               }
             }
             else { /* when forwarding udp packets */
-              n = readn(ConnectUser_get_connFd(pointer->contable[i]), buff, 5 );
+              n = readn(ConnectUser_get_connFd(srUsersTable[i]), buff, 5 );
               if (n != 5) {
                 n = 0;
               }
@@ -940,17 +1044,17 @@ main(int argc, char **argv)
                   length = buff[3];
                   length = length << 8;
                   length += buff[4]; /* this is length of message */
-                  if ((n = readn(ConnectUser_get_connFd(pointer->contable[i]), &buff[5], length)) != 0) {
+                  if ((n = readn(ConnectUser_get_connFd(srUsersTable[i]), &buff[5], length)) != 0) {
                     aflog(LOG_T_USER, LOG_I_DEBUG,
                         "realm[%s]: Client[%s]: FROM user[%d]: MESSAGE length=%d",
-                        get_realmname(&config, j),
-                        get_clientname(pointer, ConnectUser_get_whatClient(pointer->contable[i])),
+                        get_realmname(config, j),
+                        get_clientname(pointer, ConnectUser_get_whatClient(srUsersTable[i])),
                         get_username(pointer, i), n);
                     buff[1] = k >> 8;	/* high bits of user number */
                     buff[2] = k;		/* low bits of user number */
-                    SslFd_send_message(pointer->type,
+                    SslFd_send_message(ServerRealm_get_realmType(pointer),
                         ConnectClient_get_sslFd(
-                          pointer->clitable[ConnectUser_get_whatClient(pointer->contable[i])]),
+                          srClientsTable[ConnectUser_get_whatClient(srUsersTable[i])]),
                         buff, n+5);
                   }
                 }
@@ -961,29 +1065,29 @@ main(int argc, char **argv)
 
               if (n == 0) {
                 aflog(LOG_T_USER, LOG_I_INFO,
-                    "realm[%s]: Client[%s]: user[%d]: CLOSED (udp mode)", get_realmname(&config, j),
+                    "realm[%s]: Client[%s]: user[%d]: CLOSED (udp mode)", get_realmname(config, j),
                     get_clientname(pointer,
-                      ConnectUser_get_whatClient(pointer->contable[i])), get_username(pointer, i));
+                      ConnectUser_get_whatClient(srUsersTable[i])), get_username(pointer, i));
                 time(&now);
                 aflog(LOG_T_USER, LOG_I_NOTICE,
                     "REALM: %s CLIENT: %s USER: %d IP: %s PORT: %s DURATION: %s",
-                    get_realmname(&config, j),
-                    get_clientname(pointer, ConnectUser_get_whatClient(pointer->contable[i])),
+                    get_realmname(config, j),
+                    get_clientname(pointer, ConnectUser_get_whatClient(srUsersTable[i])),
                     get_username(pointer, i),
-                    ConnectUser_get_nameBuf(pointer->contable[i]),
-                    ConnectUser_get_portBuf(pointer->contable[i]),
-                    timeperiod(now - ConnectUser_get_connectTime(pointer->contable[i])));
-                close(ConnectUser_get_connFd(pointer->contable[i]));
-                FD_CLR(ConnectUser_get_connFd(pointer->contable[i]), &allset);
-                FD_CLR(ConnectUser_get_connFd(pointer->contable[i]), &wset);
-                ConnectUser_set_state(pointer->contable[i], S_STATE_CLOSING);
-                BufList_clear(ConnectUser_get_bufList(pointer->contable[i]));
+                    ConnectUser_get_nameBuf(srUsersTable[i]),
+                    ConnectUser_get_portBuf(srUsersTable[i]),
+                    timeperiod(now - ConnectUser_get_connectTime(srUsersTable[i])));
+                close(ConnectUser_get_connFd(srUsersTable[i]));
+                FD_CLR(ConnectUser_get_connFd(srUsersTable[i]), &allset);
+                FD_CLR(ConnectUser_get_connFd(srUsersTable[i]), &wset);
+                ConnectUser_set_state(srUsersTable[i], S_STATE_CLOSING);
+                BufList_clear(ConnectUser_get_bufList(srUsersTable[i]));
                 buff[0] = AF_S_CONCLOSED; /* closing connection */
                 buff[1] = k >> 8;	/* high bits of user number */
                 buff[2] = k;		/* low bits of user number */
-                SslFd_send_message(pointer->type,
+                SslFd_send_message(ServerRealm_get_realmType(pointer),
                     ConnectClient_get_sslFd(
-                      pointer->clitable[ConnectUser_get_whatClient(pointer->contable[i])]),
+                      srClientsTable[ConnectUser_get_whatClient(srUsersTable[i])]),
                     buff, 5);
               }
 
@@ -991,149 +1095,149 @@ main(int argc, char **argv)
           }
       }
       /* ------------------------------------ */
-      for (i = 0; i <pointer->usernum; ++i) {
-        if (ConnectUser_get_state(pointer->contable[i]) == S_STATE_STOPPED)
-          if (FD_ISSET(ConnectUser_get_connFd(pointer->contable[i]), &tmpset)) {
-            k = eval_usernum(pointer->clitable[ConnectUser_get_whatClient(pointer->contable[i])], i);
+      for (i = 0; i < ServerRealm_get_usersLimit(pointer); ++i) {
+        if (ConnectUser_get_state(srUsersTable[i]) == S_STATE_STOPPED)
+          if (FD_ISSET(ConnectUser_get_connFd(srUsersTable[i]), &tmpset)) {
+            k = eval_usernum(srClientsTable[ConnectUser_get_whatClient(srUsersTable[i])], i);
             aflog(LOG_T_USER, LOG_I_DDEBUG,
-                "realm[%s]: Client[%s]: user[%d]: FD_ISSET - WRITE", get_realmname(&config, j),
-                get_clientname(pointer, ConnectUser_get_whatClient(pointer->contable[i])),
+                "realm[%s]: Client[%s]: user[%d]: FD_ISSET - WRITE", get_realmname(config, j),
+                get_clientname(pointer, ConnectUser_get_whatClient(srUsersTable[i])),
                 get_username(pointer, i));
-            n = BufListNode_readMessageLength(BufList_get_first(ConnectUser_get_bufList(pointer->contable[i])));
-            sent = write(ConnectUser_get_connFd(pointer->contable[i]),
-                BufListNode_readMessage(BufList_get_first(ConnectUser_get_bufList(pointer->contable[i]))), n);
+            n = BufListNode_readMessageLength(BufList_get_first(ConnectUser_get_bufList(srUsersTable[i])));
+            sent = write(ConnectUser_get_connFd(srUsersTable[i]),
+                BufListNode_readMessage(BufList_get_first(ConnectUser_get_bufList(srUsersTable[i]))), n);
             if ((sent > 0) && (sent != n)) {
-              BufListNode_set_actPtr(BufList_get_first(ConnectUser_get_bufList(pointer->contable[i])),
-                  BufListNode_get_actPtr(BufList_get_first(ConnectUser_get_bufList(pointer->contable[i]))) + sent);
+              BufListNode_set_actPtr(BufList_get_first(ConnectUser_get_bufList(srUsersTable[i])),
+                  BufListNode_get_actPtr(BufList_get_first(ConnectUser_get_bufList(srUsersTable[i]))) + sent);
               aflog(LOG_T_USER, LOG_I_DDEBUG,
-                  "realm[%s]: Client[%s]: user[%d]: (%d/%d)", get_realmname(&config, j),
-                  get_clientname(pointer, ConnectUser_get_whatClient(pointer->contable[i])),
+                  "realm[%s]: Client[%s]: user[%d]: (%d/%d)", get_realmname(config, j),
+                  get_clientname(pointer, ConnectUser_get_whatClient(srUsersTable[i])),
                   get_username(pointer, i), sent, n);
             }
             else if ((sent == -1) && (errno == EAGAIN)) {
               aflog(LOG_T_USER, LOG_I_DDEBUG,
-                  "realm[%s]: Client[%s]: user[%d]: EAGAIN", get_realmname(&config, j),
-                  get_clientname(pointer, ConnectUser_get_whatClient(pointer->contable[i])),
+                  "realm[%s]: Client[%s]: user[%d]: EAGAIN", get_realmname(config, j),
+                  get_clientname(pointer, ConnectUser_get_whatClient(srUsersTable[i])),
                   get_username(pointer, i));
             }
             else if (sent == -1) {
               aflog(LOG_T_USER, LOG_I_INFO,
-                  "realm[%s]: Client[%s]: user[%d]: CLOSED", get_realmname(&config, j),
-                  get_clientname(pointer, ConnectUser_get_whatClient(pointer->contable[i])),
+                  "realm[%s]: Client[%s]: user[%d]: CLOSED", get_realmname(config, j),
+                  get_clientname(pointer, ConnectUser_get_whatClient(srUsersTable[i])),
                   get_username(pointer, i));
               time(&now);
               aflog(LOG_T_USER, LOG_I_NOTICE,
                   "REALM: %s CLIENT: %s USER: %d IP: %s PORT: %s DURATION: %s",
-                  get_realmname(&config, j),
-                  get_clientname(pointer, ConnectUser_get_whatClient(pointer->contable[i])),
+                  get_realmname(config, j),
+                  get_clientname(pointer, ConnectUser_get_whatClient(srUsersTable[i])),
                   get_username(pointer, i),
-                  ConnectUser_get_nameBuf(pointer->contable[i]),
-                  ConnectUser_get_portBuf(pointer->contable[i]),
-                  timeperiod(now - ConnectUser_get_connectTime(pointer->contable[i])));
-              close(ConnectUser_get_connFd(pointer->contable[i]));
-              FD_CLR(ConnectUser_get_connFd(pointer->contable[i]), &allset);
-              FD_CLR(ConnectUser_get_connFd(pointer->contable[i]), &wset);
-              ConnectUser_set_state(pointer->contable[i], S_STATE_CLOSING);
-              BufList_clear(ConnectUser_get_bufList(pointer->contable[i]));
+                  ConnectUser_get_nameBuf(srUsersTable[i]),
+                  ConnectUser_get_portBuf(srUsersTable[i]),
+                  timeperiod(now - ConnectUser_get_connectTime(srUsersTable[i])));
+              close(ConnectUser_get_connFd(srUsersTable[i]));
+              FD_CLR(ConnectUser_get_connFd(srUsersTable[i]), &allset);
+              FD_CLR(ConnectUser_get_connFd(srUsersTable[i]), &wset);
+              ConnectUser_set_state(srUsersTable[i], S_STATE_CLOSING);
+              BufList_clear(ConnectUser_get_bufList(srUsersTable[i]));
               buff[0] = AF_S_CONCLOSED; /* closing connection */
               buff[1] = k >> 8;	/* high bits of user number */
               buff[2] = k;		/* low bits of user number */
-              SslFd_send_message(pointer->type,
+              SslFd_send_message(ServerRealm_get_realmType(pointer),
                   ConnectClient_get_sslFd(
-                    pointer->clitable[ConnectUser_get_whatClient(pointer->contable[i])]),
+                    srClientsTable[ConnectUser_get_whatClient(srUsersTable[i])]),
                   buff, 5);
             }
             else {
               aflog(LOG_T_USER, LOG_I_DDEBUG,
-                  "realm[%s]: Client[%s]: user[%d]: (%d/%d)", get_realmname(&config, j),
-                  get_clientname(pointer, ConnectUser_get_whatClient(pointer->contable[i])),
+                  "realm[%s]: Client[%s]: user[%d]: (%d/%d)", get_realmname(config, j),
+                  get_clientname(pointer, ConnectUser_get_whatClient(srUsersTable[i])),
                   get_username(pointer, i), sent, n);
-              BufList_delete_first(ConnectUser_get_bufList(pointer->contable[i]));
-              if (BufList_get_first(ConnectUser_get_bufList(pointer->contable[i])) == NULL) {
-                ConnectUser_set_state(pointer->contable[i], S_STATE_OPEN);
-                FD_CLR(ConnectUser_get_connFd(pointer->contable[i]), &wset);
+              BufList_delete_first(ConnectUser_get_bufList(srUsersTable[i]));
+              if (BufList_get_first(ConnectUser_get_bufList(srUsersTable[i])) == NULL) {
+                ConnectUser_set_state(srUsersTable[i], S_STATE_OPEN);
+                FD_CLR(ConnectUser_get_connFd(srUsersTable[i]), &wset);
                 buff[0] = AF_S_CAN_SEND; /* stopping transfer */
                 buff[1] = k >> 8;	/* high bits of user number */
                 buff[2] = k;		/* low bits of user number */
                 aflog(LOG_T_USER, LOG_I_DDEBUG,
                     "realm[%s]: Client[%s]: TO user[%d]: BUFFERING MESSAGE ENDED",
-                    get_realmname(&config, j),
-                    get_clientname(pointer, ConnectUser_get_whatClient(pointer->contable[i])),
+                    get_realmname(config, j),
+                    get_clientname(pointer, ConnectUser_get_whatClient(srUsersTable[i])),
                     get_username(pointer, i));
-                SslFd_send_message(pointer->type,
+                SslFd_send_message(ServerRealm_get_realmType(pointer),
                     ConnectClient_get_sslFd(
-                      pointer->clitable[ConnectUser_get_whatClient(pointer->contable[i])]),
+                      srClientsTable[ConnectUser_get_whatClient(srUsersTable[i])]),
                     buff, 5);
               }
             }
           }
       }
       /* ------------------------------------ */
-      if (pointer->baseport == 0) {
-        for (l = 0; l < pointer->usrclinum; ++l) {
-          if (FD_ISSET(UsrCli_get_listenFd(pointer->usrclitable[l]), &rset)) {
-            len = pointer->addrlen;
-            sent = accept(UsrCli_get_listenFd(pointer->usrclitable[l]), pointer->cliaddr, &len);
+      if (ServerRealm_get_basePortOn(pointer) == 0) {
+        for (l = 0; l < ServerRealm_get_userClientPairs(pointer); ++l) {
+          if (FD_ISSET(UsrCli_get_listenFd(srUsersClientsTable[l]), &rset)) {
+            len = ServerRealm_get_addressLength(pointer);
+            sent = accept(UsrCli_get_listenFd(srUsersClientsTable[l]), ServerRealm_get_clientAddress(pointer), &len);
             if (sent == -1) {
               if (errno == EAGAIN) {
                 aflog(LOG_T_USER, LOG_I_DDEBUG,
-                    "realm[%s]: listenfd: FD_ISSET --> EAGAIN", get_realmname(&config, j));
+                    "realm[%s]: listenfd: FD_ISSET --> EAGAIN", get_realmname(config, j));
               }
               else {
                 aflog(LOG_T_USER, LOG_I_DDEBUG,
-                    "realm[%s]: listenfd: FD_ISSET --> errno=%d", get_realmname(&config, j), errno);
+                    "realm[%s]: listenfd: FD_ISSET --> errno=%d", get_realmname(config, j), errno);
               }
               continue;
             }
             flags = fcntl(sent, F_GETFL, 0);
             fcntl(sent, F_SETFL, flags | O_NONBLOCK);
             aflog(LOG_T_USER, LOG_I_DDEBUG,
-                "realm[%s]: listenfd: FD_ISSET", get_realmname(&config, j));
-            k = find_client(pointer, pointer->climode, l);
-            if (ConnectClient_get_state(pointer->clitable[k]) == CONNECTCLIENT_STATE_ACCEPTED) {
-              if (pointer->usercon == pointer->usernum) {
+                "realm[%s]: listenfd: FD_ISSET", get_realmname(config, j));
+            k = find_client(pointer, ServerRealm_get_clientMode(pointer), l);
+            if (ConnectClient_get_state(srClientsTable[k]) == CONNECTCLIENT_STATE_ACCEPTED) {
+              if (ServerRealm_get_connectedUsers(pointer) == ServerRealm_get_usersLimit(pointer)) {
                 close(sent);
                 aflog(LOG_T_USER, LOG_I_WARNING,
-                    "realm[%s]: user limit EXCEEDED", get_realmname(&config, j));
+                    "realm[%s]: user limit EXCEEDED", get_realmname(config, j));
               }
-              else if (ConnectClient_get_connected(pointer->clitable[k]) ==
-                  ConnectClient_get_limit(pointer->clitable[k])) {
+              else if (ConnectClient_get_connected(srClientsTable[k]) ==
+                  ConnectClient_get_limit(srClientsTable[k])) {
                 close(sent);
                 aflog(LOG_T_USER, LOG_I_WARNING,
                     "realm[%s]: Client[%s]: usrpcli limit EXCEEDED",
-                    get_realmname(&config, j), get_clientname(pointer, k));
+                    get_realmname(config, j), get_clientname(pointer, k));
               }
               else {
-                for (i = 0; i < pointer->usernum; ++i) {
-                  if (ConnectUser_get_state(pointer->contable[i]) == S_STATE_CLEAR) {
-                    ConnectUser_set_userId(pointer->contable[i], pointer->usercounter);
-                    ++(pointer->usercounter);
+                for (i = 0; i < ServerRealm_get_usersLimit(pointer); ++i) {
+                  if (ConnectUser_get_state(srUsersTable[i]) == S_STATE_CLEAR) {
+                    ConnectUser_set_userId(srUsersTable[i], ServerRealm_get_usersCounter(pointer));
+                    ServerRealm_increase_usersCounter(pointer);
                     aflog(LOG_T_USER, LOG_I_INFO,
                         "realm[%s]: Client[%s]: new user: CONNECTING from IP: %s",
-                        get_realmname(&config, j), get_clientname(pointer, k),
-                        sock_ntop(pointer->cliaddr, len, ConnectUser_get_nameBuf(pointer->contable[i]),
-                          ConnectUser_get_portBuf(pointer->contable[i]), pointer->dnslookups));
-                    ConnectUser_set_connFd(pointer->contable[i], sent);
-                    ConnectUser_set_state(pointer->contable[i], S_STATE_OPENING);
-                    ConnectUser_set_whatClient(pointer->contable[i], k);
+                        get_realmname(config, j), get_clientname(pointer, k),
+                        sock_ntop(ServerRealm_get_clientAddress(pointer), len, ConnectUser_get_nameBuf(srUsersTable[i]),
+                          ConnectUser_get_portBuf(srUsersTable[i]), ServerRealm_get_dnsLookupsOn(pointer)));
+                    ConnectUser_set_connFd(srUsersTable[i], sent);
+                    ConnectUser_set_state(srUsersTable[i], S_STATE_OPENING);
+                    ConnectUser_set_whatClient(srUsersTable[i], k);
                     time(&now);
-                    ConnectUser_set_connectTime(pointer->contable[i], now);
-                    UserStats_clear(ConnectUser_get_stats(pointer->contable[i]));
-                    UserStats_set_lastActivity(ConnectUser_get_stats(pointer->contable[i]), now);
-                    pointer->usercon++;
-                    ConnectClient_increase_connected(pointer->clitable[k]);
-                    memcpy(&buff[5], ConnectUser_get_nameBuf(pointer->contable[i]), 128);
-                    memcpy(&buff[133], ConnectUser_get_portBuf(pointer->contable[i]), 7);
+                    ConnectUser_set_connectTime(srUsersTable[i], now);
+                    UserStats_clear(ConnectUser_get_stats(srUsersTable[i]));
+                    UserStats_set_lastActivity(ConnectUser_get_stats(srUsersTable[i]), now);
+                    ServerRealm_increase_connectedUsers(pointer);
+                    ConnectClient_increase_connected(srClientsTable[k]);
+                    memcpy(&buff[5], ConnectUser_get_nameBuf(srUsersTable[i]), 128);
+                    memcpy(&buff[133], ConnectUser_get_portBuf(srUsersTable[i]), 7);
                     n = 135;
-                    i = find_usernum(pointer->clitable[k], i);
+                    i = find_usernum(srClientsTable[k], i);
                     buff[0] = AF_S_CONOPEN; /* opening connection */
                     buff[1] = i >> 8;	/* high bits of user number */
                     buff[2] = i;		/* low bits of user number */
                     buff[3] = n >> 8;	/* high bits of message length */
                     buff[4] = n;		/* low bits of message length */
-                    SslFd_send_message(pointer->type,
+                    SslFd_send_message(ServerRealm_get_realmType(pointer),
                         ConnectClient_get_sslFd(
-                          pointer->clitable[k]),
+                          srClientsTable[k]),
                         buff, n+5);
                     break;
                   }
@@ -1144,26 +1248,26 @@ main(int argc, char **argv)
               close(sent);
               aflog(LOG_T_USER, LOG_I_ERR,
                   "realm[%s]: Client(%d) is NOT CONNECTED",
-                  get_realmname(&config, j), k);
+                  get_realmname(config, j), k);
             }
           }
         }
       }
       /* ------------------------------------ */
-      if (pointer->baseport == 1) {
-        for (k = 0; k < pointer->clinum; ++k) {
-          if (ConnectClient_get_state(pointer->clitable[k]) == CONNECTCLIENT_STATE_ACCEPTED) {
-            if (FD_ISSET(ConnectClient_get_listenFd(pointer->clitable[k]), &rset)) {
-              len = pointer->addrlen;
-              sent = accept(ConnectClient_get_listenFd(pointer->clitable[k]), pointer->cliaddr, &len);
+      if (ServerRealm_get_basePortOn(pointer) == 1) {
+        for (k = 0; k < ServerRealm_get_clientsLimit(pointer); ++k) {
+          if (ConnectClient_get_state(srClientsTable[k]) == CONNECTCLIENT_STATE_ACCEPTED) {
+            if (FD_ISSET(ConnectClient_get_listenFd(srClientsTable[k]), &rset)) {
+              len = ServerRealm_get_addressLength(pointer);
+              sent = accept(ConnectClient_get_listenFd(srClientsTable[k]), ServerRealm_get_clientAddress(pointer), &len);
               if (sent == -1) {
                 if (errno == EAGAIN) {
                   aflog(LOG_T_USER, LOG_I_DDEBUG,
-                      "realm[%s]: listenfd: FD_ISSET --> EAGAIN", get_realmname(&config, j));
+                      "realm[%s]: listenfd: FD_ISSET --> EAGAIN", get_realmname(config, j));
                 }
                 else {
                   aflog(LOG_T_USER, LOG_I_DDEBUG,
-                      "realm[%s]: listenfd: FD_ISSET --> errno=%d", get_realmname(&config, j), errno);
+                      "realm[%s]: listenfd: FD_ISSET --> errno=%d", get_realmname(config, j), errno);
                 }
                 continue;
               }
@@ -1171,51 +1275,51 @@ main(int argc, char **argv)
               fcntl(sent, F_SETFL, flags | O_NONBLOCK);
               aflog(LOG_T_USER, LOG_I_DDEBUG,
                   "realm[%s]: Client[%s]: listenfd: FD_ISSET",
-                  get_realmname(&config, j), get_clientname(pointer, k));
-              if (pointer->usercon == pointer->usernum) {
+                  get_realmname(config, j), get_clientname(pointer, k));
+              if (ServerRealm_get_connectedUsers(pointer) == ServerRealm_get_usersLimit(pointer)) {
                 close(sent);
                 aflog(LOG_T_USER, LOG_I_WARNING,
-                    "realm[%s]: user limit EXCEEDED", get_realmname(&config, j));
+                    "realm[%s]: user limit EXCEEDED", get_realmname(config, j));
               }
-              else if(ConnectClient_get_connected(pointer->clitable[k]) ==
-                  ConnectClient_get_limit(pointer->clitable[k])) {
+              else if(ConnectClient_get_connected(srClientsTable[k]) ==
+                  ConnectClient_get_limit(srClientsTable[k])) {
                 close(sent);
                 aflog(LOG_T_USER, LOG_I_WARNING,
                     "realm[%s]: Client[%s]: usrpcli limit EXCEEDED",
-                    get_realmname(&config, j), get_clientname(pointer, k));
+                    get_realmname(config, j), get_clientname(pointer, k));
               }
               else {
-                for (i = 0; i < pointer->usernum; ++i) {
-                  if (ConnectUser_get_state(pointer->contable[i]) == S_STATE_CLEAR) {
-                    ConnectUser_set_userId(pointer->contable[i], pointer->usercounter);
-                    ++(pointer->usercounter);
+                for (i = 0; i < ServerRealm_get_usersLimit(pointer); ++i) {
+                  if (ConnectUser_get_state(srUsersTable[i]) == S_STATE_CLEAR) {
+                    ConnectUser_set_userId(srUsersTable[i], ServerRealm_get_usersCounter(pointer));
+                    ServerRealm_increase_usersCounter(pointer);
                     aflog(LOG_T_USER, LOG_I_INFO,
                         "realm[%s]: Client[%s]: new user: CONNECTING from IP: %s",
-                        get_realmname(&config, j), get_clientname(pointer, k),
-                        sock_ntop(pointer->cliaddr, len,
-                          ConnectUser_get_nameBuf(pointer->contable[i]),
-                          ConnectUser_get_portBuf(pointer->contable[i]), pointer->dnslookups));
-                    ConnectUser_set_connFd(pointer->contable[i], sent);
-                    ConnectUser_set_state(pointer->contable[i], S_STATE_OPENING);
-                    ConnectUser_set_whatClient(pointer->contable[i], k);
+                        get_realmname(config, j), get_clientname(pointer, k),
+                        sock_ntop(ServerRealm_get_clientAddress(pointer), len,
+                          ConnectUser_get_nameBuf(srUsersTable[i]),
+                          ConnectUser_get_portBuf(srUsersTable[i]), ServerRealm_get_dnsLookupsOn(pointer)));
+                    ConnectUser_set_connFd(srUsersTable[i], sent);
+                    ConnectUser_set_state(srUsersTable[i], S_STATE_OPENING);
+                    ConnectUser_set_whatClient(srUsersTable[i], k);
                     time(&now);
-                    ConnectUser_set_connectTime(pointer->contable[i], now);
-                    UserStats_clear(ConnectUser_get_stats(pointer->contable[i]));
-                    UserStats_set_lastActivity(ConnectUser_get_stats(pointer->contable[i]), now);
-                    pointer->usercon++;
-                    ConnectClient_increase_connected(pointer->clitable[k]);
-                    memcpy(&buff[5], ConnectUser_get_nameBuf(pointer->contable[i]), 128);
-                    memcpy(&buff[133], ConnectUser_get_portBuf(pointer->contable[i]), 7);
+                    ConnectUser_set_connectTime(srUsersTable[i], now);
+                    UserStats_clear(ConnectUser_get_stats(srUsersTable[i]));
+                    UserStats_set_lastActivity(ConnectUser_get_stats(srUsersTable[i]), now);
+                    ServerRealm_increase_connectedUsers(pointer);
+                    ConnectClient_increase_connected(srClientsTable[k]);
+                    memcpy(&buff[5], ConnectUser_get_nameBuf(srUsersTable[i]), 128);
+                    memcpy(&buff[133], ConnectUser_get_portBuf(srUsersTable[i]), 7);
                     n = 135;
-                    i = find_usernum(pointer->clitable[k], i);
+                    i = find_usernum(srClientsTable[k], i);
                     buff[0] = AF_S_CONOPEN; /* opening connection */
                     buff[1] = i >> 8;	/* high bits of user number */
                     buff[2] = i;		/* low bits of user number */
                     buff[3] = n >> 8;	/* high bits of message length */
                     buff[4] = n;		/* low bits of message length */
-                    SslFd_send_message(pointer->type,
+                    SslFd_send_message(ServerRealm_get_realmType(pointer),
                         ConnectClient_get_sslFd(
-                          pointer->clitable[k]),
+                          srClientsTable[k]),
                         buff, n+5);
                     break;
                   }
@@ -1226,25 +1330,25 @@ main(int argc, char **argv)
         }
       }
       /* ------------------------------------ */
-      for (k = 0; k < pointer->clinum; ++k)
-        if ((ConnectClient_get_state(pointer->clitable[k]) > CONNECTCLIENT_STATE_FREE) &&
-            (FD_ISSET(SslFd_get_fd(ConnectClient_get_sslFd(pointer->clitable[k])), &rset))) {
-          if (ConnectClient_get_state(pointer->clitable[k]) == CONNECTCLIENT_STATE_CONNECTING) {
-            make_ssl_initialize(ConnectClient_get_sslFd(pointer->clitable[k]));
+      for (k = 0; k < ServerRealm_get_clientsLimit(pointer); ++k)
+        if ((ConnectClient_get_state(srClientsTable[k]) > CONNECTCLIENT_STATE_FREE) &&
+            (FD_ISSET(SslFd_get_fd(ConnectClient_get_sslFd(srClientsTable[k])), &rset))) {
+          if (ConnectClient_get_state(srClientsTable[k]) == CONNECTCLIENT_STATE_CONNECTING) {
+            make_ssl_initialize(ConnectClient_get_sslFd(srClientsTable[k]));
             aflog(LOG_T_CLIENT, LOG_I_DDEBUG,
                 "realm[%s]: new Client[%s]: SSL_accept",
-                get_realmname(&config, j), get_clientname(pointer, k));
-            switch (make_ssl_accept(ConnectClient_get_sslFd(pointer->clitable[k]))) {
+                get_realmname(config, j), get_clientname(pointer, k));
+            switch (make_ssl_accept(ConnectClient_get_sslFd(srClientsTable[k]))) {
               case 2: {
-                        close(SslFd_get_fd(ConnectClient_get_sslFd(pointer->clitable[k])));
-                        FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(pointer->clitable[k])), &allset);
-                        SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(pointer->clitable[k])));
-                        ConnectClient_set_state(pointer->clitable[k], CONNECTCLIENT_STATE_FREE);
+                        close(SslFd_get_fd(ConnectClient_get_sslFd(srClientsTable[k])));
+                        FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(srClientsTable[k])), &allset);
+                        SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(srClientsTable[k])));
+                        ConnectClient_set_state(srClientsTable[k], CONNECTCLIENT_STATE_FREE);
                         manconnecting--;
-                        pointer->clicon--;
+                        ServerRealm_decrease_connectedClients(pointer);
                         aflog(LOG_T_CLIENT, LOG_I_ERR,
                             "realm[%s]: new Client[%s]: DENIED by SSL_accept",
-                            get_realmname(&config, j), get_clientname(pointer, k));
+                            get_realmname(config, j), get_clientname(pointer, k));
                       }
               case 1: {
                         continue;
@@ -1252,38 +1356,38 @@ main(int argc, char **argv)
               default: {
                          aflog(LOG_T_CLIENT, LOG_I_DEBUG,
                              "realm[%s]: new Client[%s]: ACCEPTED by SSL_accept",
-                             get_realmname(&config, j), get_clientname(pointer, k));
-                         ConnectClient_set_state(pointer->clitable[k], CONNECTCLIENT_STATE_AUTHORIZING);
+                             get_realmname(config, j), get_clientname(pointer, k));
+                         ConnectClient_set_state(srClientsTable[k], CONNECTCLIENT_STATE_AUTHORIZING);
                          continue;
                        }
             }
           }
           aflog(LOG_T_CLIENT, LOG_I_DDEBUG,
               "realm[%s]: Client[%s]: commfd: FD_ISSET",
-              get_realmname(&config, j), get_clientname(pointer, k));
-          if (ConnectClient_get_state(pointer->clitable[k]) == CONNECTCLIENT_STATE_AUTHORIZING) {
-            n = SslFd_get_message(pointer->type | TYPE_SSL | TYPE_ZLIB,
+              get_realmname(config, j), get_clientname(pointer, k));
+          if (ConnectClient_get_state(srClientsTable[k]) == CONNECTCLIENT_STATE_AUTHORIZING) {
+            n = SslFd_get_message(ServerRealm_get_realmType(pointer) | TYPE_SSL | TYPE_ZLIB,
                 ConnectClient_get_sslFd(
-                  pointer->clitable[k]),
-                buff, (-1) * HeaderBuffer_to_read(ConnectClient_get_header(pointer->clitable[k])));
+                  srClientsTable[k]),
+                buff, (-1) * HeaderBuffer_to_read(ConnectClient_get_header(srClientsTable[k])));
           }
           else {
-            n = SslFd_get_message(pointer->type,
+            n = SslFd_get_message(ServerRealm_get_realmType(pointer),
                 ConnectClient_get_sslFd(
-                  pointer->clitable[k]),
-                buff, (-1) * HeaderBuffer_to_read(ConnectClient_get_header(pointer->clitable[k])));
+                  srClientsTable[k]),
+                buff, (-1) * HeaderBuffer_to_read(ConnectClient_get_header(srClientsTable[k])));
           }
           if (n == -1) {
             if (errno == EAGAIN) {
               aflog(LOG_T_CLIENT, LOG_I_DDEBUG,
                   "realm[%s]: Client[%s]: commfd: EAGAIN",
-                  get_realmname(&config, j), get_clientname(pointer, k));
+                  get_realmname(config, j), get_clientname(pointer, k));
               continue;
             }
             else {
               aflog(LOG_T_CLIENT, LOG_I_ERR,
                   "realm[%s]: Client[%s]: commfd: ERROR: %d",
-                  get_realmname(&config, j), get_clientname(pointer, k), errno);
+                  get_realmname(config, j), get_clientname(pointer, k), errno);
               n = 0;
             }
           }
@@ -1291,10 +1395,10 @@ main(int argc, char **argv)
             if (n != 0) {
               aflog(LOG_T_CLIENT, LOG_I_DEBUG,
                   "realm[%s]: Client[%s]: header length = %d --> buffering",
-                  get_realmname(&config, j), get_clientname(pointer, k), n);
-              HeaderBuffer_store(ConnectClient_get_header(pointer->clitable[k]), buff, n);
-              if (HeaderBuffer_to_read(ConnectClient_get_header(pointer->clitable[k])) == 0) {
-                HeaderBuffer_restore(ConnectClient_get_header(pointer->clitable[k]), buff);
+                  get_realmname(config, j), get_clientname(pointer, k), n);
+              HeaderBuffer_store(ConnectClient_get_header(srClientsTable[k]), buff, n);
+              if (HeaderBuffer_to_read(ConnectClient_get_header(srClientsTable[k])) == 0) {
+                HeaderBuffer_restore(ConnectClient_get_header(srClientsTable[k]), buff);
                 n = 5;
               }
               else {
@@ -1305,35 +1409,35 @@ main(int argc, char **argv)
           if (n==0) { 
             aflog(LOG_T_CLIENT, LOG_I_INFO,
                 "realm[%s]: Client[%s]: commfd: CLOSED",
-                get_realmname(&config, j), get_clientname(pointer, k));
+                get_realmname(config, j), get_clientname(pointer, k));
             time(&now);
             aflog(LOG_T_CLIENT, LOG_I_NOTICE,
                 "REALM: %s CLIENT: %s IP: %s PORT: %s DURATION: %s",
-                get_realmname(&config, j),
+                get_realmname(config, j),
                 get_clientname(pointer, k),
-                ConnectClient_get_nameBuf(pointer->clitable[k]),
-                ConnectClient_get_portBuf(pointer->clitable[k]),
-                timeperiod(now - ConnectClient_get_connectTime(pointer->clitable[k])));
-            if (pointer->audit) {
-              while (AuditList_get_first(ConnectClient_get_auditList(pointer->clitable[k]))) {
+                ConnectClient_get_nameBuf(srClientsTable[k]),
+                ConnectClient_get_portBuf(srClientsTable[k]),
+                timeperiod(now - ConnectClient_get_connectTime(srClientsTable[k])));
+            if (ServerRealm_get_auditOn(pointer)) {
+              while (AuditList_get_first(ConnectClient_get_auditList(srClientsTable[k]))) {
                 aflog(LOG_T_CLIENT, LOG_I_NOTICE,
                     "USERID: %d IP: %s PORT: %s CONNECTED: %s DURATION: %s",
                     AuditListNode_get_userId(
                       AuditList_get_first(
-                        ConnectClient_get_auditList(pointer->clitable[k]))),
+                        ConnectClient_get_auditList(srClientsTable[k]))),
                     AuditListNode_get_nameBuf(
                       AuditList_get_first(
-                        ConnectClient_get_auditList(pointer->clitable[k]))),
+                        ConnectClient_get_auditList(srClientsTable[k]))),
                     AuditListNode_get_portBuf(
                       AuditList_get_first(
-                        ConnectClient_get_auditList(pointer->clitable[k]))),
+                        ConnectClient_get_auditList(srClientsTable[k]))),
                     localdate(AuditListNode_get_connectTimep(
                         AuditList_get_first(
-                          ConnectClient_get_auditList(pointer->clitable[k])))),
+                          ConnectClient_get_auditList(srClientsTable[k])))),
                     timeperiod(AuditListNode_get_duration(
                         AuditList_get_first(
-                          ConnectClient_get_auditList(pointer->clitable[k])))));
-                AuditList_delete_first(ConnectClient_get_auditList(pointer->clitable[k]));
+                          ConnectClient_get_auditList(srClientsTable[k])))));
+                AuditList_delete_first(ConnectClient_get_auditList(srClientsTable[k]));
               }
             }
             remove_client(pointer, k, &allset, &wset, &manconnecting);
@@ -1347,17 +1451,17 @@ main(int argc, char **argv)
           length = length << 8;
           length += buff[4]; /* this is length of message */ 
 
-          if ((k == pointer->clinum) && (buff[0] != AF_S_LOGIN) &&
+          if ((k == ServerRealm_get_clientsLimit(pointer)) && (buff[0] != AF_S_LOGIN) &&
               (buff[0] != AF_S_ADMIN_LOGIN) && (buff[0] != AF_S_ADMIN_CMD)) {
             buff[0] = AF_S_WRONG;
           }
-          if (ConnectClient_get_state(pointer->clitable[k]) < CONNECTCLIENT_STATE_AUTHORIZING) {
+          if (ConnectClient_get_state(srClientsTable[k]) < CONNECTCLIENT_STATE_AUTHORIZING) {
             aflog(LOG_T_CLIENT, LOG_I_WARNING,
                 "realm[%s]: Client[%s]: Impossible behaviour --> ignoring",
-                get_realmname(&config, j), get_clientname(pointer, k));
+                get_realmname(config, j), get_clientname(pointer, k));
             continue;
           }
-          if ((ConnectClient_get_state(pointer->clitable[k]) == CONNECTCLIENT_STATE_AUTHORIZING) &&
+          if ((ConnectClient_get_state(srClientsTable[k]) == CONNECTCLIENT_STATE_AUTHORIZING) &&
               (buff[0] != AF_S_LOGIN) && (buff[0] != AF_S_ADMIN_LOGIN)) {
             buff[0] = AF_S_WRONG;
           }
@@ -1366,42 +1470,42 @@ main(int argc, char **argv)
             case AF_S_CONCLOSED : {
                                     n = numofcon;
                                     numofcon = eval_numofcon(pointer, k, numofcon);
-                                    if ((numofcon>=0) && (numofcon<(pointer->usernum)) &&
-                                        (ConnectClient_get_state(pointer->clitable[k]) ==
+                                    if ((numofcon>=0) && (numofcon<(ServerRealm_get_usersLimit(pointer))) &&
+                                        (ConnectClient_get_state(srClientsTable[k]) ==
                                          CONNECTCLIENT_STATE_ACCEPTED)) {
-                                      pointer->usercon--;
-                                      ConnectClient_decrease_connected(pointer->clitable[k]);
-                                      ConnectClient_get_users(pointer->clitable[k])[n] = -1;
-                                      if (ConnectUser_get_state(pointer->contable[numofcon]) == S_STATE_CLOSING) {
-                                        ConnectUser_set_state(pointer->contable[numofcon], S_STATE_CLEAR);
+                                      ServerRealm_decrease_connectedUsers(pointer);
+                                      ConnectClient_decrease_connected(srClientsTable[k]);
+                                      ConnectClient_get_users(srClientsTable[k])[n] = -1;
+                                      if (ConnectUser_get_state(srUsersTable[numofcon]) == S_STATE_CLOSING) {
+                                        ConnectUser_set_state(srUsersTable[numofcon], S_STATE_CLEAR);
                                         aflog(LOG_T_USER, LOG_I_DEBUG,
                                             "realm[%s]: user[%d]: CLOSE CONFIRMED",
-                                            get_realmname(&config, j), get_username(pointer, numofcon));
+                                            get_realmname(config, j), get_username(pointer, numofcon));
                                       }
-                                      else if ((ConnectUser_get_state(pointer->contable[numofcon]) == S_STATE_OPEN) ||
-                                          (ConnectUser_get_state(pointer->contable[numofcon]) == S_STATE_STOPPED)) {
+                                      else if ((ConnectUser_get_state(srUsersTable[numofcon]) == S_STATE_OPEN) ||
+                                          (ConnectUser_get_state(srUsersTable[numofcon]) == S_STATE_STOPPED)) {
                                         aflog(LOG_T_USER, LOG_I_INFO,
                                             "realm[%s]: user[%d]: KICKED",
-                                            get_realmname(&config, j), get_username(pointer, numofcon));
+                                            get_realmname(config, j), get_username(pointer, numofcon));
                                         time(&now);
                                         aflog(LOG_T_USER, LOG_I_NOTICE,
                                             "REALM: %s USER: %d IP: %s PORT: %s DURATION: %s",
-                                            get_realmname(&config, j),
+                                            get_realmname(config, j),
                                             get_username(pointer, numofcon),
-                                            ConnectUser_get_nameBuf(pointer->contable[numofcon]),
-                                            ConnectUser_get_portBuf(pointer->contable[numofcon]),
-                                            timeperiod(now - ConnectUser_get_connectTime(pointer->contable[numofcon])));
-                                        close(ConnectUser_get_connFd(pointer->contable[numofcon]));
-                                        FD_CLR(ConnectUser_get_connFd(pointer->contable[numofcon]), &allset);
-                                        FD_CLR(ConnectUser_get_connFd(pointer->contable[numofcon]), &wset);
-                                        ConnectUser_set_state(pointer->contable[numofcon], S_STATE_CLEAR);
-                                        BufList_clear(ConnectUser_get_bufList(pointer->contable[numofcon]));
+                                            ConnectUser_get_nameBuf(srUsersTable[numofcon]),
+                                            ConnectUser_get_portBuf(srUsersTable[numofcon]),
+                                            timeperiod(now - ConnectUser_get_connectTime(srUsersTable[numofcon])));
+                                        close(ConnectUser_get_connFd(srUsersTable[numofcon]));
+                                        FD_CLR(ConnectUser_get_connFd(srUsersTable[numofcon]), &allset);
+                                        FD_CLR(ConnectUser_get_connFd(srUsersTable[numofcon]), &wset);
+                                        ConnectUser_set_state(srUsersTable[numofcon], S_STATE_CLEAR);
+                                        BufList_clear(ConnectUser_get_bufList(srUsersTable[numofcon]));
                                         buff[0] = AF_S_CONCLOSED; /* closing connection */
                                         buff[1] = numofcon >> 8;	/* high bits of user number */
                                         buff[2] = numofcon;		/* low bits of user number */
-                                        SslFd_send_message(pointer->type,
+                                        SslFd_send_message(ServerRealm_get_realmType(pointer),
                                             ConnectClient_get_sslFd(
-                                              pointer->clitable[k]),
+                                              srClientsTable[k]),
                                             buff, 5);
                                       }
                                     }
@@ -1412,17 +1516,32 @@ main(int argc, char **argv)
                                   }
             case AF_S_CONOPEN : {
                                   numofcon = eval_numofcon(pointer, k, numofcon);
-                                  if ((numofcon>=0) && (numofcon<(pointer->usernum)) &&
-                                      (ConnectClient_get_state(pointer->clitable[k]) ==
+                                  if ((numofcon>=0) && (numofcon<(ServerRealm_get_usersLimit(pointer))) &&
+                                      (ConnectClient_get_state(srClientsTable[k]) ==
                                        CONNECTCLIENT_STATE_ACCEPTED)) {
-                                    if (ConnectUser_get_state(pointer->contable[numofcon]) == S_STATE_OPENING) {
+                                    if (ConnectUser_get_state(srUsersTable[numofcon]) ==
+                                          S_STATE_OPENING) {
                                       aflog(LOG_T_USER, LOG_I_INFO,
                                           "realm[%s]: user[%d]: NEW",
-                                          get_realmname(&config, j), get_username(pointer, numofcon));
-                                      FD_SET(ConnectUser_get_connFd(pointer->contable[numofcon]), &allset);
-                                      maxfdp1 = (maxfdp1 > (ConnectUser_get_connFd(pointer->contable[numofcon]) + 1)) ?
-                                        maxfdp1 : (ConnectUser_get_connFd(pointer->contable[numofcon]) + 1);
-                                      ConnectUser_set_state(pointer->contable[numofcon], S_STATE_OPEN);
+                                          get_realmname(config, j), get_username(pointer, numofcon));
+                                      FD_SET(ConnectUser_get_connFd(srUsersTable[numofcon]), &allset);
+                                      maxfdp1 = (maxfdp1 > (ConnectUser_get_connFd(srUsersTable[numofcon]) + 1)) ?
+                                        maxfdp1 : (ConnectUser_get_connFd(srUsersTable[numofcon]) + 1);
+                                      ConnectUser_set_state(srUsersTable[numofcon], S_STATE_OPEN);
+                                    }
+                                    if (ConnectUser_get_state(srUsersTable[numofcon]) ==
+                                         S_STATE_OPENING_CLOSED) {
+                                      aflog(LOG_T_USER, LOG_I_INFO,
+                                          "realm[%s]: user[%d]: delayed CLOSING",
+                                          get_realmname(config, j), get_username(pointer, numofcon));
+                                      ConnectUser_set_state(srUsersTable[numofcon], S_STATE_CLOSING);
+                                      buff[0] = AF_S_CONCLOSED; /* closing connection */
+                                      buff[1] = numofcon >> 8;	/* high bits of user number */
+                                      buff[2] = numofcon;		/* low bits of user number */
+                                      SslFd_send_message(ServerRealm_get_realmType(pointer),
+                                          ConnectClient_get_sslFd(
+                                            srClientsTable[k]),
+                                          buff, 5);
                                     }
                                   }
                                   else {
@@ -1433,18 +1552,24 @@ main(int argc, char **argv)
             case AF_S_CANT_OPEN : {
                                     n = numofcon;
                                     numofcon = eval_numofcon(pointer, k, numofcon);
-                                    if ((numofcon>=0) && (numofcon<(pointer->usernum)) &&
-                                        (ConnectClient_get_state(pointer->clitable[k]) ==
+                                    if ((numofcon>=0) && (numofcon<(ServerRealm_get_usersLimit(pointer))) &&
+                                        (ConnectClient_get_state(srClientsTable[k]) ==
                                          CONNECTCLIENT_STATE_ACCEPTED)) {
-                                      if (ConnectUser_get_state(pointer->contable[numofcon]) == S_STATE_OPENING) {
+                                      if ((ConnectUser_get_state(srUsersTable[numofcon]) ==
+                                          S_STATE_OPENING) ||
+                                        (ConnectUser_get_state(srUsersTable[numofcon]) ==
+                                         S_STATE_OPENING_CLOSED)) {
                                         aflog(LOG_T_USER, LOG_I_INFO,
                                             "realm[%s]: user[%d]: DROPPED",
-                                            get_realmname(&config, j), get_username(pointer, numofcon));
-                                        pointer->usercon--;
-                                        ConnectClient_decrease_connected(pointer->clitable[k]);
-                                        ConnectClient_get_users(pointer->clitable[k])[n] = -1;
-                                        close(ConnectUser_get_connFd(pointer->contable[numofcon]));
-                                        ConnectUser_set_state(pointer->contable[numofcon], S_STATE_CLEAR);
+                                            get_realmname(config, j), get_username(pointer, numofcon));
+                                        ServerRealm_decrease_connectedUsers(pointer);
+                                        ConnectClient_decrease_connected(srClientsTable[k]);
+                                        ConnectClient_get_users(srClientsTable[k])[n] = -1;
+                                        if (ConnectUser_get_state(srUsersTable[numofcon]) ==
+                                            S_STATE_OPENING) {
+                                          close(ConnectUser_get_connFd(srUsersTable[numofcon]));
+                                        }
+                                        ConnectUser_set_state(srUsersTable[numofcon], S_STATE_CLEAR);
                                       }
                                     }
                                     else {
@@ -1453,190 +1578,190 @@ main(int argc, char **argv)
                                     break;
                                   }						    
             case AF_S_MESSAGE : {
-                                  if (ConnectClient_get_state(pointer->clitable[k]) !=
+                                  if (ConnectClient_get_state(srClientsTable[k]) !=
                                       CONNECTCLIENT_STATE_ACCEPTED) {
                                     remove_client(pointer, k, &allset, &wset, &manconnecting);
                                     break;
                                   }
-                                  if (TYPE_IS_UDP(pointer->type)) { /* udp */
-                                    n = SslFd_get_message(pointer->type,
+                                  if (TYPE_IS_UDP(ServerRealm_get_realmType(pointer))) { /* udp */
+                                    n = SslFd_get_message(ServerRealm_get_realmType(pointer),
                                         ConnectClient_get_sslFd(
-                                          pointer->clitable[k]),
+                                          srClientsTable[k]),
                                         &buff[5], length);
                                   }
                                   else {
-                                    n = SslFd_get_message(pointer->type,
+                                    n = SslFd_get_message(ServerRealm_get_realmType(pointer),
                                         ConnectClient_get_sslFd(
-                                          pointer->clitable[k]),
+                                          srClientsTable[k]),
                                         buff, length);
                                   }
                                   numofcon = eval_numofcon(pointer, k, numofcon);
-                                  if ((numofcon>=0) && (numofcon<(pointer->usernum))) {
-                                    if (ConnectUser_get_state(pointer->contable[numofcon]) == S_STATE_OPEN) {
+                                  if ((numofcon>=0) && (numofcon<(ServerRealm_get_usersLimit(pointer)))) {
+                                    if (ConnectUser_get_state(srUsersTable[numofcon]) == S_STATE_OPEN) {
                                       aflog(LOG_T_USER, LOG_I_DEBUG,
                                           "realm[%s]: TO user[%d]: MESSAGE length=%d",
-                                          get_realmname(&config, j), get_username(pointer, numofcon), n);
-                                      UserStats_add_download(ConnectUser_get_stats(pointer->contable[numofcon]), n);
-                                      if (TYPE_IS_UDP(pointer->type)) { /* udp */
+                                          get_realmname(config, j), get_username(pointer, numofcon), n);
+                                      UserStats_add_download(ConnectUser_get_stats(srUsersTable[numofcon]), n);
+                                      if (TYPE_IS_UDP(ServerRealm_get_realmType(pointer))) { /* udp */
                                         buff[1] = AF_S_LOGIN;
                                         buff[2] = AF_S_MESSAGE;
                                         buff[3] = n >> 8; /* high bits of message length */
                                         buff[4] = n;      /* low bits of message length */
-                                        sent = write(ConnectUser_get_connFd(pointer->contable[numofcon]), buff, n+5);
+                                        sent = write(ConnectUser_get_connFd(srUsersTable[numofcon]), buff, n+5);
                                         if (sent == -1) {
                                           aflog(LOG_T_USER, LOG_I_INFO,
                                               "realm[%s]: user[%d]: CLOSED (write-udp)",
-                                              get_realmname(&config, j), get_username(pointer, numofcon));
+                                              get_realmname(config, j), get_username(pointer, numofcon));
                                           time(&now);
                                           aflog(LOG_T_USER, LOG_I_NOTICE,
                                               "REALM: %s USER: %d IP: %s PORT: %s DURATION: %s",
-                                              get_realmname(&config, j),
+                                              get_realmname(config, j),
                                               get_username(pointer, numofcon),
-                                              ConnectUser_get_nameBuf(pointer->contable[numofcon]),
-                                              ConnectUser_get_portBuf(pointer->contable[numofcon]),
-                                              timeperiod(now - ConnectUser_get_connectTime(pointer->contable[numofcon])));
-                                          close(ConnectUser_get_connFd(pointer->contable[numofcon]));
-                                          FD_CLR(ConnectUser_get_connFd(pointer->contable[numofcon]), &allset);
-                                          FD_CLR(ConnectUser_get_connFd(pointer->contable[numofcon]), &wset);
-                                          ConnectUser_set_state(pointer->contable[numofcon], S_STATE_CLOSING);
-                                          BufList_clear(ConnectUser_get_bufList(pointer->contable[numofcon]));
+                                              ConnectUser_get_nameBuf(srUsersTable[numofcon]),
+                                              ConnectUser_get_portBuf(srUsersTable[numofcon]),
+                                              timeperiod(now - ConnectUser_get_connectTime(srUsersTable[numofcon])));
+                                          close(ConnectUser_get_connFd(srUsersTable[numofcon]));
+                                          FD_CLR(ConnectUser_get_connFd(srUsersTable[numofcon]), &allset);
+                                          FD_CLR(ConnectUser_get_connFd(srUsersTable[numofcon]), &wset);
+                                          ConnectUser_set_state(srUsersTable[numofcon], S_STATE_CLOSING);
+                                          BufList_clear(ConnectUser_get_bufList(srUsersTable[numofcon]));
                                           buff[0] = AF_S_CONCLOSED; /* closing connection */
                                           buff[1] = numofcon >> 8;	/* high bits of user number */
                                           buff[2] = numofcon;		/* low bits of user number */
-                                          SslFd_send_message(pointer->type,
+                                          SslFd_send_message(ServerRealm_get_realmType(pointer),
                                               ConnectClient_get_sslFd(
-                                                pointer->clitable[k]),
+                                                srClientsTable[k]),
                                               buff, 5);
                                         }
                                       }
                                       else { /* tcp */
-                                        sent = write(ConnectUser_get_connFd(pointer->contable[numofcon]), buff, n);
+                                        sent = write(ConnectUser_get_connFd(srUsersTable[numofcon]), buff, n);
                                         if ((sent > 0) && (sent != n)) {
-                                          BufList_insert_back(ConnectUser_get_bufList(pointer->contable[numofcon]),
+                                          BufList_insert_back(ConnectUser_get_bufList(srUsersTable[numofcon]),
                                               BufListNode_new_message(sent, n, buff));
-                                          ConnectUser_set_state(pointer->contable[numofcon], S_STATE_STOPPED);
-                                          FD_SET(ConnectUser_get_connFd(pointer->contable[numofcon]), &wset);
+                                          ConnectUser_set_state(srUsersTable[numofcon], S_STATE_STOPPED);
+                                          FD_SET(ConnectUser_get_connFd(srUsersTable[numofcon]), &wset);
                                           buff[0] = AF_S_DONT_SEND; /* stopping transfer */
                                           buff[1] = numofcon >> 8;	/* high bits of user number */
                                           buff[2] = numofcon;		/* low bits of user number */
                                           aflog(LOG_T_USER, LOG_I_DDEBUG,
                                               "realm[%s]: TO user[%d]: BUFFERING MESSAGE STARTED (%d/%d)",
-                                              get_realmname(&config, j), get_username(pointer, numofcon), sent, n);
-                                          SslFd_send_message(pointer->type,
+                                              get_realmname(config, j), get_username(pointer, numofcon), sent, n);
+                                          SslFd_send_message(ServerRealm_get_realmType(pointer),
                                               ConnectClient_get_sslFd(
-                                                pointer->clitable[k]),
+                                                srClientsTable[k]),
                                               buff, 5);
                                         }
                                         else if ((sent == -1) && (errno == EAGAIN)) {
-                                          BufList_insert_back(ConnectUser_get_bufList(pointer->contable[numofcon]),
+                                          BufList_insert_back(ConnectUser_get_bufList(srUsersTable[numofcon]),
                                               BufListNode_new_message(0, n, buff));
-                                          ConnectUser_set_state(pointer->contable[numofcon], S_STATE_STOPPED);
-                                          FD_SET(ConnectUser_get_connFd(pointer->contable[numofcon]), &wset);
+                                          ConnectUser_set_state(srUsersTable[numofcon], S_STATE_STOPPED);
+                                          FD_SET(ConnectUser_get_connFd(srUsersTable[numofcon]), &wset);
                                           buff[0] = AF_S_DONT_SEND; /* stopping transfer */
                                           buff[1] = numofcon >> 8;	/* high bits of user number */
                                           buff[2] = numofcon;		/* low bits of user number */
                                           aflog(LOG_T_USER, LOG_I_DDEBUG,
                                               "realm[%s]: TO user[%d]: BUFFERING MESSAGE STARTED (%d/%d)",
-                                              get_realmname(&config, j), get_username(pointer, numofcon), sent, n);
-                                          SslFd_send_message(pointer->type,
+                                              get_realmname(config, j), get_username(pointer, numofcon), sent, n);
+                                          SslFd_send_message(ServerRealm_get_realmType(pointer),
                                               ConnectClient_get_sslFd(
-                                                pointer->clitable[k]),
+                                                srClientsTable[k]),
                                               buff, 5);
                                         }
                                         else if (sent == -1) {
                                           aflog(LOG_T_USER, LOG_I_INFO,
                                               "realm[%s]: user[%d]: CLOSED (write-tcp)",
-                                              get_realmname(&config, j), get_username(pointer, numofcon));
+                                              get_realmname(config, j), get_username(pointer, numofcon));
                                           time(&now);
                                           aflog(LOG_T_USER, LOG_I_NOTICE,
                                               "REALM: %s USER: %d IP: %s PORT: %s DURATION: %s",
-                                              get_realmname(&config, j),
+                                              get_realmname(config, j),
                                               get_username(pointer, numofcon),
-                                              ConnectUser_get_nameBuf(pointer->contable[numofcon]),
-                                              ConnectUser_get_portBuf(pointer->contable[numofcon]),
-                                              timeperiod(now - ConnectUser_get_connectTime(pointer->contable[numofcon])));
-                                          close(ConnectUser_get_connFd(pointer->contable[numofcon]));
-                                          FD_CLR(ConnectUser_get_connFd(pointer->contable[numofcon]), &allset);
-                                          FD_CLR(ConnectUser_get_connFd(pointer->contable[numofcon]), &wset);
-                                          ConnectUser_set_state(pointer->contable[numofcon], S_STATE_CLOSING);
-                                          BufList_clear(ConnectUser_get_bufList(pointer->contable[numofcon]));
+                                              ConnectUser_get_nameBuf(srUsersTable[numofcon]),
+                                              ConnectUser_get_portBuf(srUsersTable[numofcon]),
+                                              timeperiod(now - ConnectUser_get_connectTime(srUsersTable[numofcon])));
+                                          close(ConnectUser_get_connFd(srUsersTable[numofcon]));
+                                          FD_CLR(ConnectUser_get_connFd(srUsersTable[numofcon]), &allset);
+                                          FD_CLR(ConnectUser_get_connFd(srUsersTable[numofcon]), &wset);
+                                          ConnectUser_set_state(srUsersTable[numofcon], S_STATE_CLOSING);
+                                          BufList_clear(ConnectUser_get_bufList(srUsersTable[numofcon]));
                                           buff[0] = AF_S_CONCLOSED; /* closing connection */
                                           buff[1] = numofcon >> 8;	/* high bits of user number */
                                           buff[2] = numofcon;		/* low bits of user number */
-                                          SslFd_send_message(pointer->type,
+                                          SslFd_send_message(ServerRealm_get_realmType(pointer),
                                               ConnectClient_get_sslFd(
-                                                pointer->clitable[k]),
+                                                srClientsTable[k]),
                                               buff, 5);
                                         }
                                       }
                                     }
-                                    else if (ConnectUser_get_state(pointer->contable[numofcon]) == S_STATE_STOPPED) {
+                                    else if (ConnectUser_get_state(srUsersTable[numofcon]) == S_STATE_STOPPED) {
                                       aflog(LOG_T_USER, LOG_I_DDEBUG,
                                           "realm[%s]: TO user[%d]: BUFFERING MESSAGE (%d)",
-                                          get_realmname(&config, j), get_username(pointer, numofcon), n);
-                                      if (TYPE_IS_UDP(pointer->type)) { /* udp */
+                                          get_realmname(config, j), get_username(pointer, numofcon), n);
+                                      if (TYPE_IS_UDP(ServerRealm_get_realmType(pointer))) { /* udp */
                                         buff[1] = AF_S_LOGIN;
                                         buff[2] = AF_S_MESSAGE;
                                         buff[3] = n >> 8; /* high bits of message length */
                                         buff[4] = n;      /* low bits of message length */
-                                        BufList_insert_back(ConnectUser_get_bufList(pointer->contable[numofcon]),
+                                        BufList_insert_back(ConnectUser_get_bufList(srUsersTable[numofcon]),
                                             BufListNode_new_message(0, n+5, buff));
                                       }
                                       else {
-                                        BufList_insert_back(ConnectUser_get_bufList(pointer->contable[numofcon]),
+                                        BufList_insert_back(ConnectUser_get_bufList(srUsersTable[numofcon]),
                                             BufListNode_new_message(0, n, buff));
                                       }
                                     }
-                                    else if (ConnectUser_get_state(pointer->contable[numofcon]) == S_STATE_CLOSING) {
+                                    else if (ConnectUser_get_state(srUsersTable[numofcon]) == S_STATE_CLOSING) {
                                       aflog(LOG_T_USER, LOG_I_WARNING,
                                           "realm[%s]: TO user[%d]: IGNORED message length=%d",
-                                          get_realmname(&config, j), get_username(pointer, numofcon), n);
+                                          get_realmname(config, j), get_username(pointer, numofcon), n);
                                     }
                                     else {
                                       aflog(LOG_T_USER, LOG_I_WARNING,
                                           "realm[%s]: TO user[%d]: user in wrong state - IGNORED",
-                                          get_realmname(&config, j), get_username(pointer, numofcon));
+                                          get_realmname(config, j), get_username(pointer, numofcon));
                                     }
                                   }
                                   else {
                                       aflog(LOG_T_USER, LOG_I_WARNING,
                                           "realm[%s]: message to non-existing user - IGNORED",
-                                          get_realmname(&config, j));
+                                          get_realmname(config, j));
                                   }
                                   break;
                                 }
             case AF_S_LOGIN : {
-                                if ((ConnectClient_get_state(pointer->clitable[k]) ==
+                                if ((ConnectClient_get_state(srClientsTable[k]) ==
                                       CONNECTCLIENT_STATE_AUTHORIZING) &&
-                                    (numofcon==(pointer->pass[0]*256+pointer->pass[1])) &&
-                                    (length==(pointer->pass[2]*256+pointer->pass[3]))) {
-                                  if (k != pointer->clinum) {
-                                    ConnectClient_set_state(pointer->clitable[k], CONNECTCLIENT_STATE_ACCEPTED);
+                                    (numofcon==(ServerRealm_get_password(pointer)[0]*256+ServerRealm_get_password(pointer)[1])) &&
+                                    (length==(ServerRealm_get_password(pointer)[2]*256+ServerRealm_get_password(pointer)[3]))) {
+                                  if (k != ServerRealm_get_clientsLimit(pointer)) {
+                                    ConnectClient_set_state(srClientsTable[k], CONNECTCLIENT_STATE_ACCEPTED);
                                     aflog(LOG_T_CLIENT, LOG_I_INFO,
                                         "realm[%s]: Client[%s]: pass ok - ACCESS GRANTED",
-                                        get_realmname(&config, j), get_clientname(pointer, k));
+                                        get_realmname(config, j), get_clientname(pointer, k));
                                     buff[0] = AF_S_LOGIN; /* sending message */
                                     buff[1] = ConnectClient_get_limit(
-                                        pointer->clitable[k]) >> 8;/* high bits of user number */
+                                        srClientsTable[k]) >> 8;/* high bits of user number */
                                     buff[2] = ConnectClient_get_limit(
-                                        pointer->clitable[k]);     /* low bits of user number */
-                                    buff[3] = pointer->type;	/* type of connection */
-                                    SslFd_send_message(pointer->type | TYPE_SSL | TYPE_ZLIB,
+                                        srClientsTable[k]);     /* low bits of user number */
+                                    buff[3] = ServerRealm_get_realmType(pointer);	/* type of connection */
+                                    SslFd_send_message(ServerRealm_get_realmType(pointer) | TYPE_SSL | TYPE_ZLIB,
                                         ConnectClient_get_sslFd(
-                                          pointer->clitable[k]),
+                                          srClientsTable[k]),
                                         buff, 5);
                                     manconnecting--;
-                                    if (pointer->baseport == 1) {
+                                    if (ServerRealm_get_basePortOn(pointer) == 1) {
                                       long tmp_val;
                                       char tmp_tab[6];
                                       if (check_long(
                                             UsrCli_get_listenPortName(
-                                              pointer->usrclitable[
-                                              ConnectClient_get_usrCliPair(pointer->clitable[k])]),
+                                              srUsersClientsTable[
+                                              ConnectClient_get_usrCliPair(srClientsTable[k])]),
                                             &tmp_val)) {
                                         aflog(LOG_T_CLIENT, LOG_I_ERR,
                                             "realm[%s]: INVALID listenport - removing Client[%s]",
-                                            get_realmname(&config, j), get_clientname(pointer, k));
+                                            get_realmname(config, j), get_clientname(pointer, k));
                                         remove_client(pointer, k, &allset, &wset, &manconnecting);
                                         break;
                                       }
@@ -1645,63 +1770,64 @@ main(int argc, char **argv)
                                       sprintf(tmp_tab, "%d", (int)tmp_val);
                                       ipfam = 0x01;
 #ifdef AF_INET6
-                                      if (TYPE_IS_IPV4(pointer->type)) {
+                                      if (TYPE_IS_IPV4(ServerRealm_get_realmType(pointer))) {
                                         ipfam |= 0x02;
                                       }
-                                      else if (TYPE_IS_IPV6(pointer->type)) {
+                                      else if (TYPE_IS_IPV6(ServerRealm_get_realmType(pointer))) {
                                         ipfam |= 0x04;
                                       }
 #endif
-                                      while (ip_listen(ConnectClient_get_listenFdp(pointer->clitable[k]),
-                                            UsrCli_get_listenHostName(pointer->usrclitable[
-                                              ConnectClient_get_usrCliPair(pointer->clitable[k])]) ?
-                                            UsrCli_get_listenHostName(pointer->usrclitable[
-                                              ConnectClient_get_usrCliPair(pointer->clitable[k])]) :
-                                            pointer->hostname,
-                                            tmp_tab, (&(pointer->addrlen)), ipfam)) {
+                                      while (ip_listen(ConnectClient_get_listenFdp(srClientsTable[k]),
+                                            UsrCli_get_listenHostName(srUsersClientsTable[
+                                              ConnectClient_get_usrCliPair(srClientsTable[k])]) ?
+                                            UsrCli_get_listenHostName(srUsersClientsTable[
+                                              ConnectClient_get_usrCliPair(srClientsTable[k])]) :
+                                            ServerRealm_get_hostName(pointer),
+                                            tmp_tab, (&len), ipfam)) {
                                         tmp_val = (tmp_val+1)%65536;
                                         memset(tmp_tab, 0, 6);
                                         sprintf(tmp_tab, "%d", (int)tmp_val);
                                       }
-                                      FD_SET(ConnectClient_get_listenFd(pointer->clitable[k]), &allset);
-                                      maxfdp1 = (maxfdp1>(ConnectClient_get_listenFd(pointer->clitable[k])+1)) ?
-                                        maxfdp1 : (ConnectClient_get_listenFd(pointer->clitable[k]) + 1);
+                                      ServerRealm_set_addressLength(pointer, len);
+                                      FD_SET(ConnectClient_get_listenFd(srClientsTable[k]), &allset);
+                                      maxfdp1 = (maxfdp1>(ConnectClient_get_listenFd(srClientsTable[k])+1)) ?
+                                        maxfdp1 : (ConnectClient_get_listenFd(srClientsTable[k]) + 1);
                                       aflog(LOG_T_CLIENT, LOG_I_INFO,
                                           "realm[%s]: Client[%s]: listenport=%s",
-                                          get_realmname(&config, j), get_clientname(pointer, k), tmp_tab);
+                                          get_realmname(config, j), get_clientname(pointer, k), tmp_tab);
                                     }
                                   }
                                   else {
                                     aflog(LOG_T_CLIENT, LOG_I_WARNING,
-                                        "realm[%s]: client limit EXCEEDED", get_realmname(&config, j));
+                                        "realm[%s]: client limit EXCEEDED", get_realmname(config, j));
                                     buff[0] = AF_S_CANT_OPEN; /* sending message */
-                                    SslFd_send_message(pointer->type | TYPE_SSL,
+                                    SslFd_send_message(ServerRealm_get_realmType(pointer) | TYPE_SSL,
                                         ConnectClient_get_sslFd(
-                                          pointer->clitable[k]),
+                                          srClientsTable[k]),
                                         buff, 5);
                                     remove_client(pointer, k, &allset, &wset, &manconnecting);
                                   }
                                 }
-                                else if ((ConnectClient_get_state(pointer->clitable[k]) ==
+                                else if ((ConnectClient_get_state(srClientsTable[k]) ==
                                       CONNECTCLIENT_STATE_ACCEPTED) && (numofcon == 0)) {
-                                  n = SslFd_get_message(pointer->type,
+                                  n = SslFd_get_message(ServerRealm_get_realmType(pointer),
                                       ConnectClient_get_sslFd(
-                                        pointer->clitable[k]),
+                                        srClientsTable[k]),
                                       buff, length);
                                   buff[n] = 0;
                                   aflog(LOG_T_CLIENT, LOG_I_INFO,
                                       "realm[%s]: Client[%s]: ID received: %s",
-                                      get_realmname(&config, j), get_clientname(pointer, k), buff);
-                                  ConnectClient_set_sClientId(pointer->clitable[k], (char*) buff);
+                                      get_realmname(config, j), get_clientname(pointer, k), buff);
+                                  ConnectClient_set_sClientId(srClientsTable[k], (char*) buff);
                                 }
                                 else {
                                   aflog(LOG_T_CLIENT, LOG_I_ERR,
                                       "realm[%s]: Client[%s]: Wrong password - CLOSING",
-                                      get_realmname(&config, j), get_clientname(pointer, k));
+                                      get_realmname(config, j), get_clientname(pointer, k));
                                   buff[0] = AF_S_WRONG; /* sending message */
-                                  SslFd_send_message(pointer->type | TYPE_SSL,
+                                  SslFd_send_message(ServerRealm_get_realmType(pointer) | TYPE_SSL,
                                       ConnectClient_get_sslFd(
-                                        pointer->clitable[k]),
+                                        srClientsTable[k]),
                                       buff, 5);
                                   remove_client(pointer, k, &allset, &wset, &manconnecting);
                                 }
@@ -1710,97 +1836,97 @@ main(int argc, char **argv)
             case AF_S_DONT_SEND: {
                                    aflog(LOG_T_CLIENT, LOG_I_DEBUG,
                                        "realm[%s]: user[%d]: STOP READING",
-                                       get_realmname(&config, j), get_username(pointer, numofcon));
-                                   FD_CLR(ConnectUser_get_connFd(pointer->contable[numofcon]), &allset);
+                                       get_realmname(config, j), get_username(pointer, numofcon));
+                                   FD_CLR(ConnectUser_get_connFd(srUsersTable[numofcon]), &allset);
                                    break;
                                  }
             case AF_S_CAN_SEND: {
                                   aflog(LOG_T_CLIENT, LOG_I_DEBUG,
                                       "realm[%s]: user[%d]: START READING",
-                                      get_realmname(&config, j), get_username(pointer, numofcon));
-                                  FD_SET(ConnectUser_get_connFd(pointer->contable[numofcon]), &allset);
+                                      get_realmname(config, j), get_username(pointer, numofcon));
+                                  FD_SET(ConnectUser_get_connFd(srUsersTable[numofcon]), &allset);
                                   break;
                                 }
             case AF_S_WRONG: {
                                aflog(LOG_T_CLIENT, LOG_I_ERR,
                                    "realm[%s]: Client[%s]: Wrong message - CLOSING",
-                                   get_realmname(&config, j), get_clientname(pointer, k));
+                                   get_realmname(config, j), get_clientname(pointer, k));
                                remove_client(pointer, k, &allset, &wset, &manconnecting);
                                break;
                              }
             case AF_S_ADMIN_LOGIN: {
-                                     if ((ConnectClient_get_state(pointer->clitable[k]) ==
+                                     if ((ConnectClient_get_state(srClientsTable[k]) ==
                                            CONNECTCLIENT_STATE_AUTHORIZING) &&
-                                         (numofcon == (pointer->pass[0]*256 + pointer->pass[1])) &&
-                                         (length == (pointer->pass[2]*256 + pointer->pass[3]))) {
+                                         (numofcon == (ServerRealm_get_password(pointer)[0]*256 + ServerRealm_get_password(pointer)[1])) &&
+                                         (length == (ServerRealm_get_password(pointer)[2]*256 + ServerRealm_get_password(pointer)[3]))) {
                                        aflog(LOG_T_MANAGE, LOG_I_INFO,
                                            "realm[%s]: Client[%s]: NEW remote admin -- pass OK",
-                                           get_realmname(&config, j), get_clientname(pointer, k));
-                                       for (l = 0; l < pointer->raclinum; ++l) {
-                                         if (ConnectClient_get_state(pointer->raclitable[l]) ==
+                                           get_realmname(config, j), get_clientname(pointer, k));
+                                       for (l = 0; l < ServerRealm_get_raClientsLimit(pointer); ++l) {
+                                         if (ConnectClient_get_state(srRaClientsTable[l]) ==
                                              CONNECTCLIENT_STATE_FREE) {
                                            SslFd_set_fd(
-                                               ConnectClient_get_sslFd(pointer->raclitable[l]),
+                                               ConnectClient_get_sslFd(srRaClientsTable[l]),
                                                SslFd_get_fd(
-                                                 ConnectClient_get_sslFd(pointer->clitable[k])));
+                                                 ConnectClient_get_sslFd(srClientsTable[k])));
                                            ConnectClient_set_connectTime(
-                                               pointer->raclitable[l],
-                                               ConnectClient_get_connectTime(pointer->clitable[k]));
+                                               srRaClientsTable[l],
+                                               ConnectClient_get_connectTime(srClientsTable[k]));
 #ifdef HAVE_LIBPTHREAD
                                            ConnectClient_set_tunnelType(
-                                               pointer->raclitable[l],
-                                               ConnectClient_get_tunnelType(pointer->clitable[k]));
+                                               srRaClientsTable[l],
+                                               ConnectClient_get_tunnelType(srClientsTable[k]));
 #endif
                                            ConnectClient_set_clientId(
-                                               pointer->raclitable[l],
-                                               ConnectClient_get_clientId(pointer->clitable[k]));
+                                               srRaClientsTable[l],
+                                               ConnectClient_get_clientId(srClientsTable[k]));
                                            ConnectClient_set_nameBuf(
-                                               pointer->raclitable[l],
-                                               ConnectClient_get_nameBuf(pointer->clitable[k]));
+                                               srRaClientsTable[l],
+                                               ConnectClient_get_nameBuf(srClientsTable[k]));
                                            ConnectClient_set_portBuf(
-                                               pointer->raclitable[l],
-                                               ConnectClient_get_portBuf(pointer->clitable[k]));
+                                               srRaClientsTable[l],
+                                               ConnectClient_get_portBuf(srClientsTable[k]));
                                            tmp_ssl = SslFd_get_ssl(
-                                               ConnectClient_get_sslFd(pointer->raclitable[l]));
+                                               ConnectClient_get_sslFd(srRaClientsTable[l]));
                                            SslFd_set_ssl_nf(
-                                               ConnectClient_get_sslFd(pointer->raclitable[l]),
+                                               ConnectClient_get_sslFd(srRaClientsTable[l]),
                                                SslFd_get_ssl(
-                                                 ConnectClient_get_sslFd(pointer->clitable[k])));
+                                                 ConnectClient_get_sslFd(srClientsTable[k])));
                                            SslFd_set_ssl_nf(
-                                               ConnectClient_get_sslFd(pointer->clitable[k]),
+                                               ConnectClient_get_sslFd(srClientsTable[k]),
                                                tmp_ssl);
                                            ConnectClient_set_state(
-                                               pointer->clitable[k],
+                                               srClientsTable[k],
                                                CONNECTCLIENT_STATE_FREE);
                                            break;
                                          }
                                        }
-                                       if (l != pointer->raclinum) {
+                                       if (l != ServerRealm_get_raClientsLimit(pointer)) {
                                          ConnectClient_set_state(
-                                             pointer->raclitable[l],
+                                             srRaClientsTable[l],
                                              CONNECTCLIENT_STATE_ACCEPTED);
-                                         pointer->raclicon++;
+                                         ServerRealm_increase_connectedRaClients(pointer);
                                          manconnecting--;
                                          sprintf((char*) &buff[5], AF_VER("AFSERVER"));
                                          n = strlen((char*) &buff[5]);
                                          buff[0] = AF_S_ADMIN_LOGIN; /* sending message */
-                                         buff[1] = pointer->type;	/* type of connection */
+                                         buff[1] = ServerRealm_get_realmType(pointer);	/* type of connection */
                                          buff[2] = AF_RA_UNDEFINED;
                                          buff[3] = n >> 8; /* high bits of message length */
                                          buff[4] = n;      /* low bits of message length */
-                                         SslFd_send_message(pointer->type | TYPE_SSL,
+                                         SslFd_send_message(ServerRealm_get_realmType(pointer) | TYPE_SSL,
                                              ConnectClient_get_sslFd(
-                                               pointer->raclitable[l]),
+                                               srRaClientsTable[l]),
                                              buff, n+5);
                                        }
                                        else {
                                          aflog(LOG_T_MANAGE, LOG_I_WARNING,
                                              "realm[%s]: Client[%s]: remote admin -- limit EXCEEDED",
-                                             get_realmname(&config, j), get_clientname(pointer, k));
+                                             get_realmname(config, j), get_clientname(pointer, k));
                                          buff[0] = AF_S_CANT_OPEN; /* sending message */
-                                         SslFd_send_message(pointer->type | TYPE_SSL | TYPE_ZLIB,
+                                         SslFd_send_message(ServerRealm_get_realmType(pointer) | TYPE_SSL | TYPE_ZLIB,
                                              ConnectClient_get_sslFd(
-                                               pointer->clitable[k]),
+                                               srClientsTable[k]),
                                              buff, 5);
                                          remove_client(pointer, k, &allset, &wset, &manconnecting);
                                        }
@@ -1810,37 +1936,37 @@ main(int argc, char **argv)
             case AF_S_KEEP_ALIVE: {
                                     aflog(LOG_T_CLIENT, LOG_I_DEBUG,
                                         "realm[%s]: Client[%s]: Keep alive packet",
-                                        get_realmname(&config, j), get_clientname(pointer, k));
+                                        get_realmname(config, j), get_clientname(pointer, k));
                                     break;
                                   }
             default : {
                         aflog(LOG_T_CLIENT, LOG_I_ERR,
                             "realm[%s]: Client[%s]: Unrecognized message - CLOSING",
-                            get_realmname(&config, j), get_clientname(pointer, k));
+                            get_realmname(config, j), get_clientname(pointer, k));
                         remove_client(pointer, k, &allset, &wset, &manconnecting);
                       }
           }
         }
       /* ------------------------------------ */
-      for (k = 0; k < pointer->raclinum; ++k)
-        if ((ConnectClient_get_state(pointer->raclitable[k]) > CONNECTCLIENT_STATE_FREE) &&
-            (FD_ISSET(SslFd_get_fd(ConnectClient_get_sslFd(pointer->raclitable[k])), &rset))) {
-          if (ConnectClient_get_state(pointer->raclitable[k]) == CONNECTCLIENT_STATE_CONNECTING) {
-            make_ssl_initialize(ConnectClient_get_sslFd(pointer->raclitable[k]));
+      for (k = 0; k < ServerRealm_get_raClientsLimit(pointer); ++k)
+        if ((ConnectClient_get_state(srRaClientsTable[k]) > CONNECTCLIENT_STATE_FREE) &&
+            (FD_ISSET(SslFd_get_fd(ConnectClient_get_sslFd(srRaClientsTable[k])), &rset))) {
+          if (ConnectClient_get_state(srRaClientsTable[k]) == CONNECTCLIENT_STATE_CONNECTING) {
+            make_ssl_initialize(ConnectClient_get_sslFd(srRaClientsTable[k]));
             aflog(LOG_T_MANAGE, LOG_I_DDEBUG,
                 "realm[%s]: new Client[%s] (ra): SSL_accept",
-                get_realmname(&config, j), get_raclientname(pointer, k));
-            switch (make_ssl_accept(ConnectClient_get_sslFd(pointer->raclitable[k]))) {
+                get_realmname(config, j), get_raclientname(pointer, k));
+            switch (make_ssl_accept(ConnectClient_get_sslFd(srRaClientsTable[k]))) {
               case 2: {
-                        close (SslFd_get_fd(ConnectClient_get_sslFd(pointer->raclitable[k])));
-                        FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(pointer->raclitable[k])), &allset);
-                        SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(pointer->raclitable[k])));
-                        ConnectClient_set_state(pointer->raclitable[k], CONNECTCLIENT_STATE_FREE);
+                        close (SslFd_get_fd(ConnectClient_get_sslFd(srRaClientsTable[k])));
+                        FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(srRaClientsTable[k])), &allset);
+                        SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(srRaClientsTable[k])));
+                        ConnectClient_set_state(srRaClientsTable[k], CONNECTCLIENT_STATE_FREE);
                         manconnecting--;
-                        pointer->clicon--;
+                        ServerRealm_decrease_connectedClients(pointer);
                         aflog(LOG_T_MANAGE, LOG_I_ERR,
                             "realm[%s]: new Client[%s] (ra): DENIED by SSL_accept",
-                            get_realmname(&config, j), get_raclientname(pointer, k));
+                            get_realmname(config, j), get_raclientname(pointer, k));
                       }
               case 1: {
                         continue;
@@ -1848,30 +1974,30 @@ main(int argc, char **argv)
               default: {
                          aflog(LOG_T_MANAGE, LOG_I_DEBUG,
                              "realm[%s]: new Client[%s] (ra): ACCEPTED by SSL_accept",
-                             get_realmname(&config, j), get_raclientname(pointer, k));
-                         ConnectClient_set_state(pointer->raclitable[k], CONNECTCLIENT_STATE_AUTHORIZING);
+                             get_realmname(config, j), get_raclientname(pointer, k));
+                         ConnectClient_set_state(srRaClientsTable[k], CONNECTCLIENT_STATE_AUTHORIZING);
                          continue;
                        }
             }
           }
           aflog(LOG_T_MANAGE, LOG_I_DDEBUG,
               "realm[%s]: Client[%s] (ra): commfd: FD_ISSET",
-              get_realmname(&config, j), get_raclientname(pointer, k));
-          n = SslFd_get_message(pointer->type | TYPE_SSL | TYPE_ZLIB,
+              get_realmname(config, j), get_raclientname(pointer, k));
+          n = SslFd_get_message(ServerRealm_get_realmType(pointer) | TYPE_SSL | TYPE_ZLIB,
               ConnectClient_get_sslFd(
-                pointer->raclitable[k]),
-              buff, (-1) * HeaderBuffer_to_read(ConnectClient_get_header(pointer->raclitable[k])));
+                srRaClientsTable[k]),
+              buff, (-1) * HeaderBuffer_to_read(ConnectClient_get_header(srRaClientsTable[k])));
           if (n == -1) {
             if (errno == EAGAIN) {
               aflog(LOG_T_MANAGE, LOG_I_DDEBUG,
                   "realm[%s]: Client[%s] (ra): commfd: EAGAIN",
-                  get_realmname(&config, j), get_raclientname(pointer, k));
+                  get_realmname(config, j), get_raclientname(pointer, k));
               continue;
             }
             else {
               aflog(LOG_T_MANAGE, LOG_I_ERR,
                   "realm[%s]: Client[%s] (ra): commfd: ERROR: %d",
-                  get_realmname(&config, j), get_raclientname(pointer, k), errno);
+                  get_realmname(config, j), get_raclientname(pointer, k), errno);
               n = 0;
             }
           }
@@ -1879,10 +2005,10 @@ main(int argc, char **argv)
             if (n != 0) {
               aflog(LOG_T_MANAGE, LOG_I_WARNING,
                   "realm[%s]: Client[%s] (ra): header length = %d --> buffering",
-                  get_realmname(&config, j), get_raclientname(pointer, k), n);
-              HeaderBuffer_store(ConnectClient_get_header(pointer->raclitable[k]), buff, n);
-              if (HeaderBuffer_to_read(ConnectClient_get_header(pointer->raclitable[k])) == 0) {
-                HeaderBuffer_restore(ConnectClient_get_header(pointer->raclitable[k]), buff);
+                  get_realmname(config, j), get_raclientname(pointer, k), n);
+              HeaderBuffer_store(ConnectClient_get_header(srRaClientsTable[k]), buff, n);
+              if (HeaderBuffer_to_read(ConnectClient_get_header(srRaClientsTable[k])) == 0) {
+                HeaderBuffer_restore(ConnectClient_get_header(srRaClientsTable[k]), buff);
                 n = 5;
               }
               else {
@@ -1894,7 +2020,7 @@ main(int argc, char **argv)
             remove_raclient(pointer, k, &allset, &wset, &manconnecting);
             aflog(LOG_T_MANAGE, LOG_I_INFO,
                 "realm[%s]: Client[%s] (ra): commfd: CLOSED",
-                get_realmname(&config, j), get_raclientname(pointer, k));
+                get_realmname(config, j), get_raclientname(pointer, k));
             continue;
           }
 
@@ -1905,94 +2031,94 @@ main(int argc, char **argv)
           length = length << 8;
           length += buff[4]; /* this is length of message */ 
 
-          if (ConnectClient_get_state(pointer->raclitable[k]) < CONNECTCLIENT_STATE_AUTHORIZING) {
+          if (ConnectClient_get_state(srRaClientsTable[k]) < CONNECTCLIENT_STATE_AUTHORIZING) {
             aflog(LOG_T_MANAGE, LOG_I_WARNING,
                 "realm[%s]: Client[%s] (ra): Impossible behaviour --> ignoring",
-                get_realmname(&config, j), get_raclientname(pointer, k));
+                get_realmname(config, j), get_raclientname(pointer, k));
             continue;
           }
-          if ((ConnectClient_get_state(pointer->raclitable[k]) == CONNECTCLIENT_STATE_AUTHORIZING) &&
+          if ((ConnectClient_get_state(srRaClientsTable[k]) == CONNECTCLIENT_STATE_AUTHORIZING) &&
               (buff[0] != AF_S_LOGIN) && (buff[0] != AF_S_ADMIN_LOGIN)) {
             buff[0] = AF_S_WRONG;
           }
 
           switch (buff[0]) {
             case AF_S_LOGIN : {
-                                if ((ConnectClient_get_state(pointer->raclitable[k]) == 
+                                if ((ConnectClient_get_state(srRaClientsTable[k]) == 
                                       CONNECTCLIENT_STATE_AUTHORIZING) &&
-                                    (numofcon==(pointer->pass[0]*256+pointer->pass[1])) &&
-                                    (length==(pointer->pass[2]*256+pointer->pass[3]))) {
-                                  for (l = 0; l < pointer->clinum; ++l) {
-                                    if (ConnectClient_get_state(pointer->clitable[l]) ==
+                                    (numofcon==(ServerRealm_get_password(pointer)[0]*256+ServerRealm_get_password(pointer)[1])) &&
+                                    (length==(ServerRealm_get_password(pointer)[2]*256+ServerRealm_get_password(pointer)[3]))) {
+                                  for (l = 0; l < ServerRealm_get_clientsLimit(pointer); ++l) {
+                                    if (ConnectClient_get_state(srClientsTable[l]) ==
                                         CONNECTCLIENT_STATE_FREE) {
                                       aflog(LOG_T_MANAGE | LOG_T_CLIENT, LOG_I_INFO,
                                           "realm[%s]: Client[%s] (ra) --> Client[%s]",
-                                          get_realmname(&config, j),
+                                          get_realmname(config, j),
                                           get_raclientname(pointer, k), get_clientname(pointer, l));
                                       SslFd_set_fd(
-                                          ConnectClient_get_sslFd(pointer->clitable[l]),
+                                          ConnectClient_get_sslFd(srClientsTable[l]),
                                           SslFd_get_fd(
-                                            ConnectClient_get_sslFd(pointer->raclitable[k])));
+                                            ConnectClient_get_sslFd(srRaClientsTable[k])));
                                       ConnectClient_set_connectTime(
-                                          pointer->clitable[l],
-                                          ConnectClient_get_connectTime(pointer->raclitable[k]));
+                                          srClientsTable[l],
+                                          ConnectClient_get_connectTime(srRaClientsTable[k]));
 #ifdef HAVE_LIBPTHREAD
                                       ConnectClient_set_tunnelType(
-                                          pointer->clitable[l],
-                                          ConnectClient_get_tunnelType(pointer->raclitable[k]));
+                                          srClientsTable[l],
+                                          ConnectClient_get_tunnelType(srRaClientsTable[k]));
 #endif
                                       ConnectClient_set_clientId(
-                                          pointer->clitable[l],
-                                          ConnectClient_get_clientId(pointer->raclitable[k]));
+                                          srClientsTable[l],
+                                          ConnectClient_get_clientId(srRaClientsTable[k]));
                                       ConnectClient_set_nameBuf(
-                                          pointer->clitable[l],
-                                          ConnectClient_get_nameBuf(pointer->raclitable[k]));
+                                          srClientsTable[l],
+                                          ConnectClient_get_nameBuf(srRaClientsTable[k]));
                                       ConnectClient_set_portBuf(
-                                          pointer->clitable[l],
-                                          ConnectClient_get_portBuf(pointer->raclitable[k]));
+                                          srClientsTable[l],
+                                          ConnectClient_get_portBuf(srRaClientsTable[k]));
                                       tmp_ssl = SslFd_get_ssl(
-                                          ConnectClient_get_sslFd(pointer->clitable[l]));
+                                          ConnectClient_get_sslFd(srClientsTable[l]));
                                       SslFd_set_ssl_nf(
-                                          ConnectClient_get_sslFd(pointer->clitable[l]),
+                                          ConnectClient_get_sslFd(srClientsTable[l]),
                                           SslFd_get_ssl(
-                                            ConnectClient_get_sslFd(pointer->raclitable[k])));
+                                            ConnectClient_get_sslFd(srRaClientsTable[k])));
                                       SslFd_set_ssl_nf(
-                                          ConnectClient_get_sslFd(pointer->raclitable[k]),
+                                          ConnectClient_get_sslFd(srRaClientsTable[k]),
                                           tmp_ssl);
                                       ConnectClient_set_usrCliPair(
-                                          pointer->clitable[l],
-                                          ConnectClient_get_usrCliPair(pointer->raclitable[k]));
-                                      ConnectClient_set_state(pointer->raclitable[k], CONNECTCLIENT_STATE_FREE);
+                                          srClientsTable[l],
+                                          ConnectClient_get_usrCliPair(srRaClientsTable[k]));
+                                      ConnectClient_set_state(srRaClientsTable[k], CONNECTCLIENT_STATE_FREE);
                                       break;
                                     }
                                   }
-                                  if (l != pointer->clinum) {
-                                    ConnectClient_set_state(pointer->clitable[l], CONNECTCLIENT_STATE_ACCEPTED);
+                                  if (l != ServerRealm_get_clientsLimit(pointer)) {
+                                    ConnectClient_set_state(srClientsTable[l], CONNECTCLIENT_STATE_ACCEPTED);
                                     aflog(LOG_T_CLIENT, LOG_I_INFO,
                                         "realm[%s]: Client[%s]: pass ok - ACCESS GRANTED",
-                                        get_realmname(&config, j), get_clientname(pointer, l));
+                                        get_realmname(config, j), get_clientname(pointer, l));
                                     buff[0] = AF_S_LOGIN; /* sending message */
                                     buff[1] = ConnectClient_get_limit(
-                                        pointer->clitable[l]) >> 8;/* high bits of user number */
+                                        srClientsTable[l]) >> 8;/* high bits of user number */
                                     buff[2] = ConnectClient_get_limit(
-                                        pointer->clitable[l]);     /* low bits of user number */
-                                    buff[3] = pointer->type;	/* type of connection */
-                                    SslFd_send_message(pointer->type | TYPE_SSL | TYPE_ZLIB,
+                                        srClientsTable[l]);     /* low bits of user number */
+                                    buff[3] = ServerRealm_get_realmType(pointer);	/* type of connection */
+                                    SslFd_send_message(ServerRealm_get_realmType(pointer) | TYPE_SSL | TYPE_ZLIB,
                                         ConnectClient_get_sslFd(
-                                          pointer->clitable[l]),
+                                          srClientsTable[l]),
                                         buff, 5);
                                     manconnecting--;
-                                    if (pointer->baseport == 1) {
+                                    if (ServerRealm_get_basePortOn(pointer) == 1) {
                                       long tmp_val;
                                       char tmp_tab[6];
                                       if (check_long(
                                             UsrCli_get_listenPortName(
-                                              pointer->usrclitable[
-                                              ConnectClient_get_usrCliPair(pointer->clitable[l])]),
+                                              srUsersClientsTable[
+                                              ConnectClient_get_usrCliPair(srClientsTable[l])]),
                                             &tmp_val)) {
                                         aflog(LOG_T_CLIENT, LOG_I_ERR,
                                             "realm[%s]: INVALID listenport - removing Client[%s]",
-                                            get_realmname(&config, j), get_clientname(pointer, l));
+                                            get_realmname(config, j), get_clientname(pointer, l));
                                         remove_client(pointer, l, &allset, &wset, &manconnecting);
                                         break;
                                       }
@@ -2001,59 +2127,60 @@ main(int argc, char **argv)
                                       sprintf(tmp_tab, "%d", (int)tmp_val);
                                       ipfam = 0x01;
 #ifdef AF_INET6
-                                      if (TYPE_IS_IPV4(pointer->type)) {
+                                      if (TYPE_IS_IPV4(ServerRealm_get_realmType(pointer))) {
                                         ipfam |= 0x02;
                                       }
-                                      else if (TYPE_IS_IPV6(pointer->type)) {
+                                      else if (TYPE_IS_IPV6(ServerRealm_get_realmType(pointer))) {
                                         ipfam |= 0x04;
                                       }
 #endif
-                                      while (ip_listen(ConnectClient_get_listenFdp(pointer->clitable[l]),
-                                            UsrCli_get_listenHostName(pointer->usrclitable[
-                                              ConnectClient_get_usrCliPair(pointer->clitable[l])]) ?
-                                            UsrCli_get_listenHostName(pointer->usrclitable[
-                                              ConnectClient_get_usrCliPair(pointer->clitable[l])]) :
-                                            pointer->hostname,
-                                            tmp_tab, (&(pointer->addrlen)), ipfam)) {
+                                      while (ip_listen(ConnectClient_get_listenFdp(srClientsTable[l]),
+                                            UsrCli_get_listenHostName(srUsersClientsTable[
+                                              ConnectClient_get_usrCliPair(srClientsTable[l])]) ?
+                                            UsrCli_get_listenHostName(srUsersClientsTable[
+                                              ConnectClient_get_usrCliPair(srClientsTable[l])]) :
+                                            ServerRealm_get_hostName(pointer),
+                                            tmp_tab, (&len), ipfam)) {
                                         tmp_val = (tmp_val+1)%65536;
                                         memset(tmp_tab, 0, 6);
                                         sprintf(tmp_tab, "%d", (int)tmp_val);
                                       }
-                                      FD_SET(ConnectClient_get_listenFd(pointer->clitable[l]), &allset);
-                                      maxfdp1 = (maxfdp1>(ConnectClient_get_listenFd(pointer->clitable[l])+1)) ?
-                                        maxfdp1 : (ConnectClient_get_listenFd(pointer->clitable[l])+1);
+                                      ServerRealm_set_addressLength(pointer, len);
+                                      FD_SET(ConnectClient_get_listenFd(srClientsTable[l]), &allset);
+                                      maxfdp1 = (maxfdp1>(ConnectClient_get_listenFd(srClientsTable[l])+1)) ?
+                                        maxfdp1 : (ConnectClient_get_listenFd(srClientsTable[l])+1);
                                       aflog(LOG_T_CLIENT, LOG_I_INFO,
                                           "realm[%s]: Client[%s]: listenport=%s",
-                                          get_realmname(&config, j), get_clientname(pointer, l), tmp_tab);
+                                          get_realmname(config, j), get_clientname(pointer, l), tmp_tab);
                                     }
                                   }
                                   else {
                                     aflog(LOG_T_CLIENT, LOG_I_WARNING,
-                                        "realm[%s]: client limit EXCEEDED", get_realmname(&config, j));
+                                        "realm[%s]: client limit EXCEEDED", get_realmname(config, j));
                                     buff[0] = AF_S_CANT_OPEN; /* sending message */
-                                    SslFd_send_message(pointer->type | TYPE_SSL | TYPE_ZLIB,
+                                    SslFd_send_message(ServerRealm_get_realmType(pointer) | TYPE_SSL | TYPE_ZLIB,
                                         ConnectClient_get_sslFd(
-                                          pointer->raclitable[k]),
+                                          srRaClientsTable[k]),
                                         buff, 5);
                                     remove_raclient(pointer, k, &allset, &wset, &manconnecting);
                                   }
                                 }
-                                else if ((ConnectClient_get_state(pointer->raclitable[k]) ==
+                                else if ((ConnectClient_get_state(srRaClientsTable[k]) ==
                                       CONNECTCLIENT_STATE_ACCEPTED) && (numofcon == 0)) {
-                                  n = SslFd_get_message(pointer->type,
+                                  n = SslFd_get_message(ServerRealm_get_realmType(pointer),
                                       ConnectClient_get_sslFd(
-                                        pointer->raclitable[k]),
+                                        srRaClientsTable[k]),
                                       buff, length);
                                   buff[n] = 0;
                                   aflog(LOG_T_MANAGE, LOG_I_INFO,
                                       "realm[%s]: Client[%s] (ra): ID received: %s",
-                                      get_realmname(&config, j), get_raclientname(pointer, k), buff);
-                                  ConnectClient_set_sClientId(pointer->raclitable[k], (char*) buff);
+                                      get_realmname(config, j), get_raclientname(pointer, k), buff);
+                                  ConnectClient_set_sClientId(srRaClientsTable[k], (char*) buff);
                                 }
                                 else {
                                   aflog(LOG_T_MANAGE, LOG_I_ERR,
                                       "realm[%s]: Client[%s] (ra): Wrong password - CLOSING",
-                                      get_realmname(&config, j), get_raclientname(pointer, k));
+                                      get_realmname(config, j), get_raclientname(pointer, k));
                                   remove_raclient(pointer, k, &allset, &wset, &manconnecting);
                                 }
                                 break;
@@ -2061,104 +2188,105 @@ main(int argc, char **argv)
             case AF_S_WRONG: {
                                aflog(LOG_T_MANAGE, LOG_I_ERR,
                                    "realm[%s]: Client[%s] (ra): Wrong message - CLOSING",
-                                   get_realmname(&config, j), get_raclientname(pointer, k));
+                                   get_realmname(config, j), get_raclientname(pointer, k));
                                remove_raclient(pointer, k, &allset, &wset, &manconnecting);
                                break;
                              }
             case AF_S_ADMIN_LOGIN: {
-                                     if ((ConnectClient_get_state(pointer->raclitable[k]) ==
+                                     if ((ConnectClient_get_state(srRaClientsTable[k]) ==
                                            CONNECTCLIENT_STATE_AUTHORIZING) &&
-                                         (numofcon==(pointer->pass[0]*256+pointer->pass[1])) &&
-                                         (length==(pointer->pass[2]*256+pointer->pass[3]))) {
+                                         (numofcon==(ServerRealm_get_password(pointer)[0]*256+ServerRealm_get_password(pointer)[1])) &&
+                                         (length==(ServerRealm_get_password(pointer)[2]*256+ServerRealm_get_password(pointer)[3]))) {
                                        aflog(LOG_T_MANAGE, LOG_I_INFO,
                                            "realm[%s]: Client[%s] (ra): NEW remote admin -- pass OK",
-                                           get_realmname(&config, j), get_raclientname(pointer, k));
+                                           get_realmname(config, j), get_raclientname(pointer, k));
                                        ConnectClient_set_state(
-                                           pointer->raclitable[k],
+                                           srRaClientsTable[k],
                                            CONNECTCLIENT_STATE_ACCEPTED);
-                                       pointer->raclicon++;
+                                       ServerRealm_increase_connectedRaClients(pointer);
                                        manconnecting--;
                                        sprintf((char*) &buff[5], AF_VER("AFSERVER"));
                                        n = strlen((char*) &buff[5]);
                                        buff[0] = AF_S_ADMIN_LOGIN; /* sending message */
-                                       buff[1] = pointer->type;	/* type of connection */
+                                       buff[1] = ServerRealm_get_realmType(pointer);	/* type of connection */
                                        buff[2] = AF_RA_UNDEFINED;
                                        buff[3] = n >> 8; /* high bits of message length */
                                        buff[4] = n;      /* low bits of message length */
-                                       SslFd_send_message(pointer->type | TYPE_SSL | TYPE_ZLIB,
+                                       SslFd_send_message(ServerRealm_get_realmType(pointer) | TYPE_SSL | TYPE_ZLIB,
                                            ConnectClient_get_sslFd(
-                                             pointer->raclitable[k]),
+                                             srRaClientsTable[k]),
                                            buff, n+5);
                                      }
                                      break;
                                    }
             case AF_S_ADMIN_CMD: {
-                                   if (ConnectClient_get_state(pointer->raclitable[k]) ==
+                                   if (ConnectClient_get_state(srRaClientsTable[k]) ==
                                        CONNECTCLIENT_STATE_ACCEPTED) {
-                                     if ((n = serve_admin(&config, j, k, buff))) {
+                                     if ((n = serve_admin(config, j, k, buff))) {
                                        if (n == 1) {
                                          aflog(LOG_T_MANAGE, LOG_I_NOTICE,
                                              "realm[%s]: Client[%s] (ra): remote admin -- closing",
-                                             get_realmname(&config, j), get_raclientname(pointer, k));
+                                             get_realmname(config, j), get_raclientname(pointer, k));
                                          remove_raclient(pointer, k, &allset, &wset, &manconnecting);
                                        }
                                        else {
-                                         for (i = 0; i < config.size; ++i) {
-                                           l = get_clientnumber(&(config.realmtable[i]), n-2);
+                                         for (i = 0; i < ServerConfiguration_get_realmsNumber(config); ++i) {
+                                           srClientsTable = ServerRealm_get_clientsTable(scRealmsTable[i]);
+                                           l = get_clientnumber(scRealmsTable[i], n-2);
                                            if (l != -1) {
                                              aflog(LOG_T_MANAGE, LOG_I_NOTICE,
                                                  "realm[%s]: Client[%s] (ra): remote admin: KICKING realm[%s]: Client[%s]",
-                                                 get_realmname(&config, j), get_raclientname(pointer, k),
-                                                 get_realmname(&config, i),
-                                                 get_clientname(&(config.realmtable[i]), l));
+                                                 get_realmname(config, j), get_raclientname(pointer, k),
+                                                 get_realmname(config, i),
+                                                 get_clientname(scRealmsTable[i], l));
                                              buff[0] = AF_S_CLOSING; /* closing */
-                                             SslFd_send_message(config.realmtable[i].type,
+                                             SslFd_send_message(ServerRealm_get_realmType(scRealmsTable[i]),
                                                  ConnectClient_get_sslFd(
-                                                   config.realmtable[i].clitable[l]),
+                                                   srClientsTable[l]),
                                                  buff, 5);
                                              time(&now);
                                              aflog(LOG_T_CLIENT, LOG_I_NOTICE,
                                                  "REALM: %s CLIENT: %s IP: %s PORT: %s DURATION: %s",
-                                                 get_realmname(&config, j),
-                                                 get_clientname(&(config.realmtable[i]), l),
-                                                 ConnectClient_get_nameBuf(config.realmtable[i].clitable[l]),
-                                                 ConnectClient_get_portBuf(config.realmtable[i].clitable[l]),
+                                                 get_realmname(config, j),
+                                                 get_clientname(scRealmsTable[i], l),
+                                                 ConnectClient_get_nameBuf(srClientsTable[l]),
+                                                 ConnectClient_get_portBuf(srClientsTable[l]),
                                                  timeperiod(now - ConnectClient_get_connectTime(
-                                                     config.realmtable[i].clitable[l])));
-                                             if (config.realmtable[i].audit) {
+                                                     srClientsTable[l])));
+                                             if (ServerRealm_get_auditOn(scRealmsTable[i])) {
                                                while (AuditList_get_first(
                                                      ConnectClient_get_auditList(
-                                                       config.realmtable[i].clitable[l]))) {
+                                                       srClientsTable[l]))) {
                                                  aflog(LOG_T_CLIENT, LOG_I_NOTICE,
                                                      "USERID: %d IP: %s PORT: %s CONNECTED: %s DURATION: %s",
                                                      AuditListNode_get_userId(
                                                        AuditList_get_first(
                                                          ConnectClient_get_auditList(
-                                                           config.realmtable[i].clitable[l]))),
+                                                           srClientsTable[l]))),
                                                      AuditListNode_get_nameBuf(
                                                        AuditList_get_first(
                                                          ConnectClient_get_auditList(
-                                                           config.realmtable[i].clitable[l]))),
+                                                           srClientsTable[l]))),
                                                      AuditListNode_get_portBuf(
                                                        AuditList_get_first(
                                                          ConnectClient_get_auditList(
-                                                           config.realmtable[i].clitable[l]))),
+                                                           srClientsTable[l]))),
                                                      localdate(
                                                        AuditListNode_get_connectTimep(
                                                          AuditList_get_first(
                                                            ConnectClient_get_auditList(
-                                                             config.realmtable[i].clitable[l])))),
+                                                             srClientsTable[l])))),
                                                      timeperiod(
                                                        AuditListNode_get_duration(
                                                          AuditList_get_first(
                                                            ConnectClient_get_auditList(
-                                                             config.realmtable[i].clitable[l])))));
+                                                             srClientsTable[l])))));
                                                      AuditList_delete_first(
                                                          ConnectClient_get_auditList(
-                                                           config.realmtable[i].clitable[l]));
+                                                           srClientsTable[l]));
                                                }
                                              }
-                                             remove_client(&(config.realmtable[i]), l,
+                                             remove_client(scRealmsTable[i], l,
                                                  &allset, &wset, &manconnecting);
                                              break;
                                            }
@@ -2169,7 +2297,7 @@ main(int argc, char **argv)
                                    else {
                                      aflog(LOG_T_MANAGE, LOG_I_ERR,
                                          "realm[%s]: Client[%s] (ra): remote admin -- security VIOLATION",
-                                         get_realmname(&config, j), get_raclientname(pointer, k));
+                                         get_realmname(config, j), get_raclientname(pointer, k));
                                      remove_raclient(pointer, k, &allset, &wset, &manconnecting);
                                    }
                                    break;
@@ -2177,104 +2305,105 @@ main(int argc, char **argv)
             case AF_S_KEEP_ALIVE: {
                                     aflog(LOG_T_MANAGE, LOG_I_DEBUG,
                                         "realm[%s]: Client[%s] (ra): Keep alive packet",
-                                        get_realmname(&config, j), get_raclientname(pointer, k));
+                                        get_realmname(config, j), get_raclientname(pointer, k));
                                     break;
                                   }
             default : {
                         aflog(LOG_T_MANAGE, LOG_I_ERR,
                             "realm[%s]: Client[%s] (ra): Unrecognized message - CLOSING",
-                            get_realmname(&config, j), get_raclientname(pointer, k));
+                            get_realmname(config, j), get_raclientname(pointer, k));
                         remove_raclient(pointer, k, &allset, &wset, &manconnecting);
                       }
           }
         }
       /* ------------------------------------ */    
-      for (l = 0; l < pointer->usrclinum; ++l) {
-        if (FD_ISSET(UsrCli_get_manageFd(pointer->usrclitable[l]), &rset)) {
+      for (l = 0; l < ServerRealm_get_userClientPairs(pointer); ++l) {
+        if (FD_ISSET(UsrCli_get_manageFd(srUsersClientsTable[l]), &rset)) {
           aflog(LOG_T_CLIENT, LOG_I_DDEBUG,
-              "realm[%s]: managefd: FD_ISSET", get_realmname(&config, j));
-          len = pointer->addrlen;
+              "realm[%s]: managefd: FD_ISSET", get_realmname(config, j));
+          len = ServerRealm_get_addressLength(pointer);
 #ifdef HAVE_LIBPTHREAD
-          sent = get_new_socket(UsrCli_get_manageFd(pointer->usrclitable[l]),
-              pointer->tunneltype,pointer->cliaddr, &len, &tunneltype); 
+          sent = get_new_socket(UsrCli_get_manageFd(srUsersClientsTable[l]),
+              ServerRealm_get_tunnelType(pointer),ServerRealm_get_clientAddress(pointer), &len, &tunneltype); 
 #else
-          sent = accept(UsrCli_get_manageFd(pointer->usrclitable[l]), pointer->cliaddr, &len);
+          sent = accept(UsrCli_get_manageFd(srUsersClientsTable[l]), ServerRealm_get_clientAddress(pointer), &len);
 #endif
           if (sent == -1) {
             if (errno == EAGAIN) {
               aflog(LOG_T_USER, LOG_I_DDEBUG,
-                  "realm[%s]: managefd: FD_ISSET --> EAGAIN", get_realmname(&config, j));
+                  "realm[%s]: managefd: FD_ISSET --> EAGAIN", get_realmname(config, j));
             }
             else {
               aflog(LOG_T_USER, LOG_I_DDEBUG,
-                  "realm[%s]: managefd: FD_ISSET --> errno=%d", get_realmname(&config, j), errno);
+                  "realm[%s]: managefd: FD_ISSET --> errno=%d", get_realmname(config, j), errno);
             }
             continue;
           }
           flags = fcntl(sent, F_GETFL, 0);
           fcntl(sent, F_SETFL, flags | O_NONBLOCK);
-          for (k = 0; k < pointer->clinum; ++k) {
-            if (ConnectClient_get_state(pointer->clitable[k]) == CONNECTCLIENT_STATE_FREE) {
-              ConnectClient_set_clientId(pointer->clitable[k], pointer->clientcounter);
-              ++(pointer->clientcounter);
+          for (k = 0; k < ServerRealm_get_clientsLimit(pointer); ++k) {
+            if (ConnectClient_get_state(srClientsTable[k]) == CONNECTCLIENT_STATE_FREE) {
+              ConnectClient_set_clientId(srClientsTable[k], ServerRealm_get_clientsCounter(pointer));
+              ServerRealm_increase_clientsCounter(pointer);
               aflog(LOG_T_CLIENT, LOG_I_INFO,
                   "realm[%s]: new Client[%s]: CONNECTING",
-                  get_realmname(&config, j), get_clientname(pointer, k));
-              SslFd_set_fd(ConnectClient_get_sslFd(pointer->clitable[k]), sent);
-              ConnectClient_set_usrCliPair(pointer->clitable[k], l);
+                  get_realmname(config, j), get_clientname(pointer, k));
+              SslFd_set_fd(ConnectClient_get_sslFd(srClientsTable[k]), sent);
+              ConnectClient_set_usrCliPair(srClientsTable[k], l);
               time(&now);
-              ConnectClient_set_connectTime(pointer->clitable[k], now);
+              ConnectClient_set_connectTime(srClientsTable[k], now);
 #ifdef HAVE_LIBPTHREAD
-              ConnectClient_set_tunnelType(pointer->clitable[k], tunneltype);
+              ConnectClient_set_tunnelType(srClientsTable[k], tunneltype);
 #endif
               aflog(LOG_T_CLIENT, LOG_I_INFO,
-                  "realm[%s]: new Client[%s] IP:%s", get_realmname(&config, j), get_clientname(pointer, k),
-                  sock_ntop(pointer->cliaddr, len, ConnectClient_get_nameBuf(pointer->clitable[k]),
-                    ConnectClient_get_portBuf(pointer->clitable[k]), pointer->dnslookups));
-              FD_SET(SslFd_get_fd(ConnectClient_get_sslFd(pointer->clitable[k])), &allset);
-              maxfdp1 = (maxfdp1 > (SslFd_get_fd(ConnectClient_get_sslFd(pointer->clitable[k])) + 1)) ?
-                maxfdp1 : (SslFd_get_fd(ConnectClient_get_sslFd(pointer->clitable[k])) + 1);
-              pointer->clicon++;
-              ConnectClient_set_timer(pointer->clitable[k], timeval_create(pointer->tmout, 0));
+                  "realm[%s]: new Client[%s] IP:%s", get_realmname(config, j), get_clientname(pointer, k),
+                  sock_ntop(ServerRealm_get_clientAddress(pointer), len, ConnectClient_get_nameBuf(srClientsTable[k]),
+                    ConnectClient_get_portBuf(srClientsTable[k]), ServerRealm_get_dnsLookupsOn(pointer)));
+              FD_SET(SslFd_get_fd(ConnectClient_get_sslFd(srClientsTable[k])), &allset);
+              maxfdp1 = (maxfdp1 > (SslFd_get_fd(ConnectClient_get_sslFd(srClientsTable[k])) + 1)) ?
+                maxfdp1 : (SslFd_get_fd(ConnectClient_get_sslFd(srClientsTable[k])) + 1);
+              ServerRealm_increase_connectedClients(pointer);
+              ConnectClient_set_timer(srClientsTable[k], timeval_create(ServerRealm_get_timeout(pointer), 0));
               manconnecting++;
-              ConnectClient_set_state(pointer->clitable[k], CONNECTCLIENT_STATE_CONNECTING);
+              ConnectClient_set_state(srClientsTable[k], CONNECTCLIENT_STATE_CONNECTING);
               break;
             }
           }
-          if (k == pointer->clinum) {
-            for (k = 0; k < pointer->raclinum; ++k) {
-              if (ConnectClient_get_state(pointer->raclitable[k]) ==
+          if (k == ServerRealm_get_clientsLimit(pointer)) {
+            for (k = 0; k < ServerRealm_get_raClientsLimit(pointer); ++k) {
+              if (ConnectClient_get_state(srRaClientsTable[k]) ==
                   CONNECTCLIENT_STATE_FREE) {
-                ConnectClient_set_clientId(pointer->raclitable[k], pointer->clientcounter);
-                ++(pointer->clientcounter);
+                ConnectClient_set_clientId(srRaClientsTable[k], ServerRealm_get_clientsCounter(pointer));
+                ServerRealm_increase_clientsCounter(pointer);
                 aflog(LOG_T_MANAGE, LOG_I_INFO,
                     "realm[%s]: new Client[%s] (ra): CONNECTING",
-                    get_realmname(&config, j), get_raclientname(pointer, k));
-                SslFd_set_fd(ConnectClient_get_sslFd(pointer->raclitable[k]), sent);
-                ConnectClient_set_usrCliPair(pointer->raclitable[k], l);
+                    get_realmname(config, j), get_raclientname(pointer, k));
+                SslFd_set_fd(ConnectClient_get_sslFd(srRaClientsTable[k]), sent);
+                ConnectClient_set_usrCliPair(srRaClientsTable[k], l);
                 time(&now);
-                ConnectClient_set_connectTime(pointer->raclitable[k], now);
+                ConnectClient_set_connectTime(srRaClientsTable[k], now);
 #ifdef HAVE_LIBPTHREAD
-                ConnectClient_set_tunnelType(pointer->raclitable[k], tunneltype);
+                ConnectClient_set_tunnelType(srRaClientsTable[k], tunneltype);
 #endif
                 aflog(LOG_T_MANAGE, LOG_I_INFO,
                     "realm[%s]: new Client[%s] (ra) IP:%s",
-                    get_realmname(&config, j), get_raclientname(pointer, k),
-                    sock_ntop(pointer->cliaddr, len, ConnectClient_get_nameBuf(pointer->raclitable[k]),
-                      ConnectClient_get_portBuf(pointer->raclitable[k]), pointer->dnslookups));
-                FD_SET(SslFd_get_fd(ConnectClient_get_sslFd(pointer->raclitable[k])), &allset);
-                maxfdp1 = (maxfdp1 > (SslFd_get_fd(ConnectClient_get_sslFd(pointer->raclitable[k])) + 1)) ?
-                  maxfdp1 : (SslFd_get_fd(ConnectClient_get_sslFd(pointer->raclitable[k])) + 1);
-                pointer->clicon++;
-                ConnectClient_set_timer(pointer->raclitable[k], timeval_create(pointer->tmout, 0));
+                    get_realmname(config, j), get_raclientname(pointer, k),
+                    sock_ntop(ServerRealm_get_clientAddress(pointer), len, ConnectClient_get_nameBuf(srRaClientsTable[k]),
+                      ConnectClient_get_portBuf(srRaClientsTable[k]), ServerRealm_get_dnsLookupsOn(pointer)));
+                FD_SET(SslFd_get_fd(ConnectClient_get_sslFd(srRaClientsTable[k])), &allset);
+                maxfdp1 = (maxfdp1 > (SslFd_get_fd(ConnectClient_get_sslFd(srRaClientsTable[k])) + 1)) ?
+                  maxfdp1 : (SslFd_get_fd(ConnectClient_get_sslFd(srRaClientsTable[k])) + 1);
+                ServerRealm_increase_connectedClients(pointer);
+                ConnectClient_set_timer(srRaClientsTable[k],
+                    timeval_create(ServerRealm_get_timeout(pointer), 0));
                 manconnecting++;
-                ConnectClient_set_state(pointer->raclitable[k], CONNECTCLIENT_STATE_CONNECTING);
+                ConnectClient_set_state(srRaClientsTable[k], CONNECTCLIENT_STATE_CONNECTING);
                 break;
               }
             }
-            if (k == pointer->raclinum) {
+            if (k == ServerRealm_get_raClientsLimit(pointer)) {
               aflog(LOG_T_CLIENT | LOG_T_MANAGE, LOG_I_WARNING,
-                  "realm[%s]: client limit EXCEEDED", get_realmname(&config, j));
+                  "realm[%s]: client limit EXCEEDED", get_realmname(config, j));
               close(sent);
             }
           }
