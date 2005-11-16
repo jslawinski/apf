@@ -45,6 +45,10 @@ string_cp(char** dest, char* src)
   /* 1. releasing memory allocated by *dest */
   if (dest != NULL) {
     if ((*dest) != NULL) {
+      /* if *dest points to the same memory as src - we shouldn't do anything */
+      if ((*dest) == src) {
+        return (*dest);
+      }
       free((*dest));
       (*dest) = NULL;
     }

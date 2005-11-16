@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([Active port forwarder], [0.7.4], [jeremian@poczta.fm], [apf])
-AM_INIT_AUTOMAKE([apf], [0.7.4])
+AC_INIT([Active port forwarder], [0.7.5], [jeremian@poczta.fm], [apf])
+AM_INIT_AUTOMAKE([apf], [0.7.5])
 AC_COPYRIGHT([
 Copyright (C) 2003,2004,2005 jeremian - <jeremian [[at]] poczta.fm>
 ===================

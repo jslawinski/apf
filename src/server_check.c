@@ -31,7 +31,8 @@
 int
 check_value(char* what, char* info)
 {
-  long tmp = check_value_liberal(what, info);
+  long tmp;
+  tmp = check_value_liberal(what, info);
   
   if (tmp <= 0) {
     aflog(LOG_T_INIT, LOG_I_CRIT,
@@ -46,6 +47,7 @@ check_value_liberal(char* what, char* info)
 {
   char* znak;
   long tmp;
+  
   if ((tmp = strtol(what, &znak, 10)) >= INT_MAX) {
     aflog(LOG_T_INIT, LOG_I_CRIT,
         "%s: %s\n", info, what);

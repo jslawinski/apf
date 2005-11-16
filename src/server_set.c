@@ -20,12 +20,14 @@
 
 #include <stdlib.h>
 
+#include "string_functions.h"
+
 void
 set_value(char** dest, char* from, char* def)
 {
   if ((*dest) == NULL) {
     if (from != NULL) {
-      (*dest) = from;
+      string_cp(dest, from);
     }
     else {
       (*dest) = def;

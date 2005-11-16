@@ -108,7 +108,7 @@ main(int argc, char **argv)
   char* certif = NULL;
   char* keys = NULL;
   char* dateformat = NULL;
-  char* stemp = NULL;
+  static char* stemp = NULL;
 
 	SSL_METHOD* method;
 	SSL_CTX* ctx;
@@ -1367,14 +1367,12 @@ main(int argc, char **argv)
               get_realmname(config, j), get_clientname(pointer, k));
           if (ConnectClient_get_state(srClientsTable[k]) == CONNECTCLIENT_STATE_AUTHORIZING) {
             n = SslFd_get_message(ServerRealm_get_realmType(pointer) | TYPE_SSL | TYPE_ZLIB,
-                ConnectClient_get_sslFd(
-                  srClientsTable[k]),
+                ConnectClient_get_sslFd(srClientsTable[k]),
                 buff, (-1) * HeaderBuffer_to_read(ConnectClient_get_header(srClientsTable[k])));
           }
           else {
             n = SslFd_get_message(ServerRealm_get_realmType(pointer),
-                ConnectClient_get_sslFd(
-                  srClientsTable[k]),
+                ConnectClient_get_sslFd(srClientsTable[k]),
                 buff, (-1) * HeaderBuffer_to_read(ConnectClient_get_header(srClientsTable[k])));
           }
           if (n == -1) {

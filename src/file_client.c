@@ -196,7 +196,7 @@ cparsefile(char* name, int* status)
         ClientRealm_set_serverName(ClientConfiguration_get_realmsTable(cfg)[0], helpbuf2);
       }
       else if ((strcmp(helpbuf1, "m") == 0) || (strcmp(helpbuf1, "manageport") == 0)) {
-        ClientRealm_set_hostName(ClientConfiguration_get_realmsTable(cfg)[0], helpbuf2);
+        ClientRealm_set_managePort(ClientConfiguration_get_realmsTable(cfg)[0], helpbuf2);
       }
       else if ((strcmp(helpbuf1, "d") == 0) || (strcmp(helpbuf1, "hostname") == 0)) {
         ClientRealm_set_hostName(ClientConfiguration_get_realmsTable(cfg)[0], helpbuf2);

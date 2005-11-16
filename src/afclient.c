@@ -87,7 +87,6 @@ main(int argc, char **argv)
   struct sockaddr* clientAddress;
   fd_set rset, allset, wset, tmpset;
   struct timeval keepAlive;
-  int timeout = 0;
   char verbose = 0;
   HttpProxyOptions* hpo = HttpProxyOptions_new();
   char hpoUsed = 0;
@@ -792,9 +791,9 @@ main(int argc, char **argv)
       aflog(LOG_T_INIT, LOG_I_INFO,
           "Trying to reconnect...");
       mysleep(ArOptions_get_arDelay(ClientRealm_get_arOptions(pointer)));
+      ClientRealm_set_realmType(pointer, realmType);
     }
     if (temp == 0) {
-      ClientRealm_set_realmType(pointer, realmType);
       break;
     }
   } while (i);
@@ -847,7 +846,7 @@ main(int argc, char **argv)
         buff[0] = AF_S_KEEP_ALIVE;
         SslFd_send_message(ClientRealm_get_realmType(pointer),
             ClientRealm_get_masterSslFd(pointer), buff, 5);
-        keepAlive.tv_sec = timeout;
+        keepAlive.tv_sec = ClientRealm_get_keepAliveTimeout(pointer);
         keepAlive.tv_usec = 0;
         ClientRealm_set_keepAlive(pointer, keepAlive);
       }

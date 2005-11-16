@@ -1,3 +1,13 @@
+16.11.2005:
+           * it's time for new release containing several bugfixes
+
+14.11.2005:
+           * small bugs has appeared due to severe code rewrites. They are
+             fixed as they come.
+
+07.11.2005:
+           * apf 0.7.4 is available on the gray-world.net
+
 03.07.2005:
            * a lot of code cleanups and modifications have been made in order
              to make sources more portable. APF compile under Solaris 10.
