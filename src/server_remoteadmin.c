@@ -19,6 +19,7 @@
  */
 
 #include <config.h>
+#include <assert.h>
 
 #include "server_remoteadmin.h"
 
@@ -30,7 +31,7 @@ static char newmessage;
  *              parse pointer.
  * Arguments: buff - string to parse
  *            ret - buffer's parse pointer
- * Returns: Parsed integer value or -1, if something goes wrong.
+ * Returns: Parsed integer value or -1, if something went wrong.
  */
 
 static int
@@ -38,6 +39,10 @@ parse_int(unsigned char* buff, int* ret)
 {
   int intarg, i;
   char guard;
+  
+  assert(buff != NULL);
+  assert(ret != NULL);
+  
   if (((i = sscanf((char*) &buff[*ret], "%d%c", &intarg, &guard)) == 2) || (i == 1)) {
     if (i == 1) {
       guard = ' ';
@@ -71,11 +76,23 @@ parse_int(unsigned char* buff, int* ret)
   }
 }
 
+/*
+ * Function name: parse_cmd
+ * Description: This function parses the string as a command and updates the buffer's
+ *              parse pointer.
+ * Arguments: buff - string to parse
+ *            ret - buffer's parse pointer
+ * Returns: Parsed command number or 0, if something went wrong.
+ */
+
 static int
 parse_cmd(unsigned char* buff, int* ret)
 {
   int i, j, state;
   char cmd[31];
+  
+  assert(buff != NULL);
+  assert(ret != NULL);
 
   i = j = state = 0;
   newmessage = 1;
@@ -128,10 +145,23 @@ parse_cmd(unsigned char* buff, int* ret)
   return 0;
 }
 
+/*
+ * Function name: send_adm_message
+ * Description: Sends the message via the network.
+ * Arguments: type - the type of the connection
+ *            master - pointer to SslFd structure
+ *            buff - the message to send
+ *            st - the result of the command
+ */
+
 static void
 send_adm_message(char type, SslFd* master, unsigned char* buff, unsigned char st)
 {
   int n;
+  
+  assert(master != NULL);
+  assert(buff != NULL);
+  
   if (!newmessage) {
     n = strlen((char*) &buff[5]);
   }
@@ -146,11 +176,23 @@ send_adm_message(char type, SslFd* master, unsigned char* buff, unsigned char st
   SslFd_send_message(type, master, buff, n+5);
 }
 
+/*
+ * Function name: add_to_message
+ * Description: Adds text to the message.
+ * Arguments: buff - the message we are adding text to
+ *            format - the format of the text
+ *            ... - additional arguments
+ */
+
 static void
 add_to_message(unsigned char* buff, const char* format, ...)
 {
   va_list ap;
   int n;
+  
+  assert(buff != NULL);
+  assert(format != NULL);
+  
   if (!newmessage) {
     n = strlen((char*) &buff[5]);
   }
@@ -167,10 +209,21 @@ add_to_message(unsigned char* buff, const char* format, ...)
   va_end(ap);
 }
 
+/*
+ * Function name: add_uptime_to_message
+ * Description: Adds the formatted time period to the message.
+ * Arguments: buff - the message we are adding formatted time period to
+ *            info - the info which will be added to the message just before the time
+ *            period - the time period we are adding to the message
+ */
+
 static void
 add_uptime_to_message(unsigned char* buff, char* info, time_t period)
 {
   int hours, minutes, seconds;
+
+  assert(buff != NULL);
+  assert(info != NULL);
 
   hours = period/3600;
   minutes = (period/60)%60;
@@ -183,6 +236,18 @@ add_uptime_to_message(unsigned char* buff, char* info, time_t period)
     add_to_message(buff, "%s: %d:%02d", info, minutes, seconds);
   }
 }
+
+/*
+ * Function name: serve_admin
+ * Description: Function responsible for the reaction for user's admin commands.
+ * Arguments: config - the server configuration
+ *            realm - the realm number
+ *            client - the client number
+ *            buff - buffer containing the user's command
+ * Returns: 0 - do nothing,
+ *          1 - kick this client,
+ *          >1 - kick the specified client.
+ */
 
 int
 serve_admin(ServerConfiguration* config, int realm, int client, unsigned char* buff)
@@ -197,6 +262,9 @@ serve_admin(ServerConfiguration* config, int realm, int client, unsigned char* b
   ServerRealm* pointer = ServerConfiguration_get_realmsTable(config)[realm];
   char type = ServerRealm_get_realmType(pointer) | TYPE_SSL | TYPE_ZLIB;
   SslFd* master = ConnectClient_get_sslFd(ServerRealm_get_raClientsTable(pointer)[client]);
+ 
+  assert(config != NULL);
+  assert(buff != NULL);
   
   olddf[50] = newdf[50] = 0;
   length = buff[3];

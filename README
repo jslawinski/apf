@@ -1,4 +1,4 @@
-AF - Active Port Forwarder 0.7.5 - README
+AF - Active Port Forwarder 0.8 - README
 Copyright (C) 2003-2006 jeremian - <jeremian [at] poczta.fm>
 =================================================================
 
@@ -39,10 +39,11 @@ INTRO
 4. HTTP PROXY TUNNELS
 5. LOGGING
 6. MODULES
-7. EXAMPLES
-  7.1 tcp mode
-  7.2 reverse udp mode
-8. BUGS/PROBLEMS
+7. MULTI TUNNELS
+8. EXAMPLES
+  8.1 tcp mode
+  8.2 reverse udp mode
+9. BUGS/PROBLEMS
 
 NOTES
 
@@ -517,11 +518,28 @@ Modules have to be compiled with '-fPIC -shared' options.
 
 ================================================================================
 
+================
+7. MULTI TUNNELS
+================
+
+Since version 0.8  it's  possible  to  transfer  multiple  tunnels  in  the  one
+afclient <-> afserver connection.
+
+On the afserver we have to specify multiple listen ports with  the  same  manage
+port.
+
+When we set several '-p' options on the afclient, the new user connections  will
+be distributed according  to  the  sequence  of  the  options,  i.e.   new  user
+connecting to the second UsrCli pair  (with  the  same  manage  ports)  will  be
+transferred to the destination pointed by the second '-p' option.
+
+================================================================================
+
 ===========
-7. EXAMPLES
+8. EXAMPLES
 ===========
 
-  7.1 tcp mode
+  8.1 tcp mode
   ------------
 
                     local network   |FireWall|   Internet
@@ -570,7 +588,7 @@ on our computer and we are behind a masquerade or a firewall:
 6) We can now enter with a web-browser to: <name of  the  server>:50127  and  we
    will enter to our computer in the fact.
 
-  7.2 reverse udp mode
+  8.2 reverse udp mode
   --------------------
 
                     local network   |FireWall|   Internet
@@ -609,7 +627,7 @@ server on our computer (udp port 27960 on our machine):
 ================================================================================
 
 ================
-8. BUGS/PROBLEMS
+9. BUGS/PROBLEMS
 ================
 
 There are no known/open bugs at the moment.
@@ -652,3 +670,7 @@ LICENSE
   Public License v2.0  and is copyright (C)  2003-2006  jeremian  <jeremian
   [at] poczta.fm>. See the file COPYING for details.
 
+  In addition, as a special exception, the copyright holders give permission  to
+  link the code of portions of this  program  with  the  OpenSSL  library  under
+  certain conditions as described in each individual source file, and distribute
+  linked combinations including the two.

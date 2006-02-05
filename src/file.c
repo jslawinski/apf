@@ -30,6 +30,17 @@
 #include <limits.h>
 #include <ctype.h>
 
+/*
+ * Function name: parse_line
+ * Description: Splits the buffer into two parts: option and value.
+ * Arguments: buff - the buffer to split
+ *            tab1 - the place where option part will be stored
+ *            tab2 - the place where value part will be stored
+ * Returns: 0 - the buffer was empty,
+ *          1 - the buffer contains only option name,
+ *          2 - the buffer contains only value of the option.
+ */
+
 int
 parse_line(char* buff, char* tab1, char* tab2)
 {

@@ -18,12 +18,31 @@
  *
  */
 
+#include <assert.h>
+
 #include "server_remove.h"
+
+/*
+ * Function name: remove_client
+ * Description: Removes the client.
+ * Arguments: ptr - the server realm
+ *            client - the client number
+ *            set - the set of file descriptors for reading
+ *            wset - the set of file descriptors for writing
+ *            con - the connection counter
+ */
 
 void
 remove_client(ServerRealm* ptr, int client, fd_set* set, fd_set* wset, int* con)
 {
   int i;
+  
+  assert(ptr != NULL);
+  assert(client >= 0);
+  assert(set != NULL);
+  assert(wset != NULL);
+  assert(con != NULL);
+  
   if (ConnectClient_get_state(ServerRealm_get_clientsTable(ptr)[client]) == CONNECTCLIENT_STATE_ACCEPTED) {
     for (i = 0; i < ServerRealm_get_usersLimit(ptr); ++i) {
       if (ConnectUser_get_whatClient(ServerRealm_get_usersTable(ptr)[i]) == client) {
@@ -56,10 +75,27 @@ remove_client(ServerRealm* ptr, int client, fd_set* set, fd_set* wset, int* con)
   ServerRealm_decrease_connectedClients(ptr);
 }
 
+/*
+ * Function name: remove_raclient
+ * Description: Removes the remote admin client.
+ * Arguments: ptr - the server realm
+ *            client - the client number
+ *            set - the set of file descriptors for reading
+ *            wset - the set of file descriptors for writing
+ *            con - the connection counter
+ */
+
 void
 remove_raclient(ServerRealm* ptr, int client, fd_set* set, fd_set* wset, int* con)
 {
   int i;
+  
+  assert(ptr != NULL);
+  assert(client >= 0);
+  assert(set != NULL);
+  assert(wset != NULL);
+  assert(con != NULL);
+  
   for (i = 0; i < ConnectClient_get_limit(ServerRealm_get_raClientsTable(ptr)[client]); ++i) {
     ConnectClient_get_users(ServerRealm_get_raClientsTable(ptr)[client])[i] = -1;
   }

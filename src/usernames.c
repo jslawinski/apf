@@ -19,19 +19,39 @@
  */
 
 #include <config.h>
+#include <assert.h>
 
 #include "usernames.h"
+
+/*
+ * Function name: get_username
+ * Description: Returns the id of the user.
+ * Arguments: pointer - the server realm
+ *            user - the number of the user
+ * Returns: The id of the user.
+ */
 
 int
 get_username(ServerRealm* pointer, int user)
 {
+  assert(pointer != NULL);
   return ConnectUser_get_userId(ServerRealm_get_usersTable(pointer)[user]);
 }
+
+/*
+ * Function name: get_usernumber
+ * Description: Returns the number of the user.
+ * Arguments: pointer - the server realm
+ *            user - the id of the user
+ * Returns: The number of the user.
+ */
 
 int
 get_usernumber(ServerRealm* pointer, int userid)
 {
   int i;
+
+  assert(pointer != NULL);
 
   for (i = 0; i < ServerRealm_get_usersLimit(pointer); ++i) {
     if (userid == ConnectUser_get_userId(ServerRealm_get_usersTable(pointer)[i])) {

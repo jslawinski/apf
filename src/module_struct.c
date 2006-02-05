@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 #include <dlfcn.h>
+#include <assert.h>
 
 /*
  * Function name: Module_new
@@ -38,6 +39,7 @@ Module*
 Module_new()
 {
   Module* tmp = calloc(1, sizeof(Module));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
@@ -53,9 +55,11 @@ Module_new()
 void
 Module_free(Module** m)
 {
+  assert(m != NULL);
   if (m == NULL) {
     return;
   }
+  assert((*m) != NULL);
   if ((*m) == NULL) {
     return;
   }
@@ -78,6 +82,7 @@ Module_free(Module** m)
 void
 Module_set_fileName(Module* m, char* fileName)
 {
+  assert(m != NULL);
   if (m == NULL) {
     return;
   }
@@ -94,6 +99,7 @@ Module_set_fileName(Module* m, char* fileName)
 char*
 Module_get_fileName(Module* m)
 {
+  assert(m != NULL);
   if (m == NULL) {
     return NULL;
   }
@@ -160,6 +166,7 @@ Module_releaseModule(Module* m)
 int
 Module_isModuleLoaded(Module* m)
 {
+  assert(m != NULL);
   if (m == NULL) {
     return 0;
   }

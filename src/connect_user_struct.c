@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "activefor.h"
 #include "connect_user_struct.h"
@@ -36,15 +37,18 @@ ConnectUser*
 ConnectUser_new()
 {
   ConnectUser* tmp = calloc(1, sizeof(ConnectUser));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
   tmp->bufList = BufList_new();
+  assert(tmp->bufList != NULL);
   if (tmp->bufList == NULL) {
     ConnectUser_free(&tmp);
     return NULL;
   }
   tmp->stats = UserStats_new();
+  assert(tmp->stats != NULL);
   if (tmp->stats == NULL) {
     ConnectUser_free(&tmp);
     return NULL;
@@ -63,9 +67,11 @@ ConnectUser_free(ConnectUser** cu)
 {
   BufList* bftmp;
   UserStats* ustmp;
+  assert(cu != NULL);
   if (cu == NULL) {
     return;
   }
+  assert((*cu) != NULL);
   if ((*cu) == NULL) {
     return;
   }
@@ -87,6 +93,7 @@ ConnectUser_free(ConnectUser** cu)
 void
 ConnectUser_set_state(ConnectUser* cu, char state)
 {
+  assert(cu != NULL);
   if (cu == NULL) {
     return;
   }
@@ -103,6 +110,7 @@ ConnectUser_set_state(ConnectUser* cu, char state)
 void
 ConnectUser_set_connFd(ConnectUser* cu, int connFd)
 {
+  assert(cu != NULL);
   if (cu == NULL) {
     return;
   }
@@ -119,6 +127,7 @@ ConnectUser_set_connFd(ConnectUser* cu, int connFd)
 void
 ConnectUser_set_whatClient(ConnectUser* cu, int whatClient)
 {
+  assert(cu != NULL);
   if (cu == NULL) {
     return;
   }
@@ -135,6 +144,7 @@ ConnectUser_set_whatClient(ConnectUser* cu, int whatClient)
 void
 ConnectUser_set_userId(ConnectUser* cu, int userId)
 {
+  assert(cu != NULL);
   if (cu == NULL) {
     return;
   }
@@ -151,6 +161,7 @@ ConnectUser_set_userId(ConnectUser* cu, int userId)
 void
 ConnectUser_set_connectTime(ConnectUser* cu, time_t connectTime)
 {
+  assert(cu != NULL);
   if (cu == NULL) {
     return;
   }
@@ -167,6 +178,7 @@ ConnectUser_set_connectTime(ConnectUser* cu, time_t connectTime)
 void
 ConnectUser_set_nameBuf(ConnectUser* cu, char* nameBuf)
 {
+  assert(cu != NULL);
   if (cu == NULL) {
     return;
   }
@@ -184,6 +196,7 @@ ConnectUser_set_nameBuf(ConnectUser* cu, char* nameBuf)
 void
 ConnectUser_set_portBuf(ConnectUser* cu, char* portBuf)
 {
+  assert(cu != NULL);
   if (cu == NULL) {
     return;
   }
@@ -202,6 +215,7 @@ void
 ConnectUser_set_bufList(ConnectUser* cu, BufList* bufList)
 {
   BufList* bftmp;
+  assert(cu != NULL);
   if (cu == NULL) {
     return;
   }
@@ -221,6 +235,7 @@ void
 ConnectUser_set_stats(ConnectUser* cu, UserStats* stats)
 {
   UserStats* ustmp;
+  assert(cu != NULL);
   if (cu == NULL) {
     return;
   }
@@ -239,6 +254,7 @@ ConnectUser_set_stats(ConnectUser* cu, UserStats* stats)
 char
 ConnectUser_get_state(ConnectUser* cu)
 {
+  assert(cu != NULL);
   if (cu == NULL) {
     return S_STATE_CLEAR;
   }
@@ -255,6 +271,7 @@ ConnectUser_get_state(ConnectUser* cu)
 int
 ConnectUser_get_connFd(ConnectUser* cu)
 {
+  assert(cu != NULL);
   if (cu == NULL) {
     return -1;
   }
@@ -271,6 +288,7 @@ ConnectUser_get_connFd(ConnectUser* cu)
 int
 ConnectUser_get_whatClient(ConnectUser* cu)
 {
+  assert(cu != NULL);
   if (cu == NULL) {
     return -1;
   }
@@ -287,6 +305,7 @@ ConnectUser_get_whatClient(ConnectUser* cu)
 int
 ConnectUser_get_userId(ConnectUser* cu)
 {
+  assert(cu != NULL);
   if (cu == NULL) {
     return -1;
   }
@@ -303,6 +322,7 @@ ConnectUser_get_userId(ConnectUser* cu)
 time_t
 ConnectUser_get_connectTime(ConnectUser* cu)
 {
+  assert(cu != NULL);
   if (cu == NULL) {
     return 0;
   }
@@ -319,6 +339,7 @@ ConnectUser_get_connectTime(ConnectUser* cu)
 char*
 ConnectUser_get_nameBuf(ConnectUser* cu)
 {
+  assert(cu != NULL);
   if (cu == NULL) {
     return NULL;
   }
@@ -335,6 +356,7 @@ ConnectUser_get_nameBuf(ConnectUser* cu)
 char*
 ConnectUser_get_portBuf(ConnectUser* cu)
 {
+  assert(cu != NULL);
   if (cu == NULL) {
     return NULL;
   }
@@ -351,6 +373,7 @@ ConnectUser_get_portBuf(ConnectUser* cu)
 BufList*
 ConnectUser_get_bufList(ConnectUser* cu)
 {
+  assert(cu != NULL);
   if (cu == NULL) {
     return NULL;
   }
@@ -367,6 +390,7 @@ ConnectUser_get_bufList(ConnectUser* cu)
 UserStats*
 ConnectUser_get_stats(ConnectUser* cu)
 {
+  assert(cu != NULL);
   if (cu == NULL) {
     return NULL;
   }

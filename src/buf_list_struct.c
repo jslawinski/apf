@@ -22,12 +22,13 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "buf_list_struct.h"
 
 /*
  * Function name: BufList_new
- * Description: Create and initialize new BufList structure.
+ * Description: Creates and initializes new BufList structure.
  * Returns: Newly created BufList structure.
  */
 
@@ -35,6 +36,7 @@ BufList*
 BufList_new()
 {
   BufList* tmp = calloc(1, sizeof(BufList));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
@@ -43,16 +45,18 @@ BufList_new()
 
 /*
  * Function name: BufList_free
- * Description: Free the memory allocated for BufList structure.
+ * Description: Frees the memory allocated for BufList structure.
  * Arguments: bl - pointer to pointer to BufList structure.
  */
 
 void
 BufList_free(BufList** bl)
 {
+  assert(bl != NULL);
   if (bl == NULL) {
     return;
   }
+  assert((*bl) != NULL);
   if ((*bl) == NULL) {
     return;
   }
@@ -63,7 +67,7 @@ BufList_free(BufList** bl)
 
 /*
  * Function name: BufList_insert_back
- * Description: Insert new node at the end of the list.
+ * Description: Inserts new node at the end of the list.
  * Arguments: bl - pointer to BufList structure
  *            bln - pointer to BufListNode structure
  */
@@ -71,9 +75,11 @@ BufList_free(BufList** bl)
 void
 BufList_insert_back(BufList* bl, BufListNode* bln)
 {
+  assert(bl != NULL);
   if (bl == NULL) {
     return;
   }
+  assert(bln != NULL);
   if (bln == NULL) {
     return;
   }
@@ -97,6 +103,7 @@ BufList_insert_back(BufList* bl, BufListNode* bln)
 BufListNode*
 BufList_get_first(BufList* bl)
 {
+  assert(bl != NULL);
   if (bl == NULL) {
     return NULL;
   }
@@ -113,6 +120,7 @@ void
 BufList_delete_first(BufList* bl)
 {
   BufListNode* tmp = BufList_get_first(bl);
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return;
   }
@@ -134,6 +142,10 @@ BufList_delete_first(BufList* bl)
 void
 BufList_clear(BufList* bl)
 {
+  assert(bl != NULL);
+  if (bl == NULL) {
+    return;
+  }
   while (BufList_get_first(bl)) {
     BufList_delete_first(bl);
   }

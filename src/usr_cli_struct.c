@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "usr_cli_struct.h"
 #include "string_functions.h"
@@ -36,6 +37,7 @@ UsrCli*
 UsrCli_new()
 {
   UsrCli* tmp = calloc(1, sizeof(UsrCli));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
@@ -51,9 +53,11 @@ UsrCli_new()
 void
 UsrCli_free(UsrCli** uc)
 {
+  assert(uc != NULL);
   if (uc == NULL) {
     return;
   }
+  assert((*uc) != NULL);
   if ((*uc) == NULL) {
     return;
   }
@@ -79,6 +83,9 @@ void
 UsrCli_set_listenPortName(UsrCli* uc, char* listenPortName)
 {
   char* tmp;
+  
+  assert(uc != NULL);
+  
   if (uc == NULL) {
     return;
   }
@@ -104,6 +111,9 @@ void
 UsrCli_set_managePortName(UsrCli* uc, char* managePortName)
 {
   char* tmp;
+
+  assert(uc != NULL);
+  
   if (uc == NULL) {
     return;
   }
@@ -128,6 +138,7 @@ UsrCli_set_managePortName(UsrCli* uc, char* managePortName)
 void
 UsrCli_set_listenFd(UsrCli* uc, int listenFd)
 {
+  assert(uc != NULL);
   if (uc == NULL) {
     return;
   }
@@ -144,10 +155,29 @@ UsrCli_set_listenFd(UsrCli* uc, int listenFd)
 void
 UsrCli_set_manageFd(UsrCli* uc, int manageFd)
 {
+  assert(uc != NULL);
   if (uc == NULL) {
     return;
   }
   uc->manageFd = manageFd;
+}
+
+/*
+ * Function name: UsrCli_set_number
+ * Description: Sets the UsrCli number in the structures connected with manage port.
+ * Arguments: uc - pointer to UsrCli structure
+ *            number - the number of the UsrCli structure
+ */
+
+void
+UsrCli_set_number(UsrCli* uc, int number)
+{
+  assert(uc != NULL);
+  assert(number >= 0);
+  if (uc == NULL) {
+    return;
+  }
+  uc->number = number;
 }
 
 /* Function name: UsrCli_get_listenPortName
@@ -159,6 +189,7 @@ UsrCli_set_manageFd(UsrCli* uc, int manageFd)
 char*
 UsrCli_get_listenPortName(UsrCli* uc)
 {
+  assert(uc != NULL);
   if (uc == NULL) {
     return NULL;
   }
@@ -175,6 +206,7 @@ UsrCli_get_listenPortName(UsrCli* uc)
 char*
 UsrCli_get_managePortName(UsrCli* uc)
 {
+  assert(uc != NULL);
   if (uc == NULL) {
     return NULL;
   }
@@ -191,6 +223,7 @@ UsrCli_get_managePortName(UsrCli* uc)
 int
 UsrCli_get_listenFd(UsrCli* uc)
 {
+  assert(uc != NULL);
   if (uc == NULL) {
     return -1;
   }
@@ -207,6 +240,7 @@ UsrCli_get_listenFd(UsrCli* uc)
 int
 UsrCli_get_manageFd(UsrCli* uc)
 {
+  assert(uc != NULL);
   if (uc == NULL) {
     return -1;
   }
@@ -223,6 +257,7 @@ UsrCli_get_manageFd(UsrCli* uc)
 char*
 UsrCli_get_listenHostName(UsrCli* uc)
 {
+  assert(uc != NULL);
   if (uc == NULL) {
     return NULL;
   }
@@ -239,8 +274,26 @@ UsrCli_get_listenHostName(UsrCli* uc)
 char*
 UsrCli_get_manageHostName(UsrCli* uc)
 {
+  assert(uc != NULL);
   if (uc == NULL) {
     return NULL;
   }
   return uc->manageHostName;
+}
+
+/*
+ * Function name: UsrCli_get_number
+ * Description: Gets the number of the UsrCli structure.
+ * Arguments: uc - pointer to UsrCli structure
+ * Returns: The number of the UsrCli structure.
+ */
+
+int
+UsrCli_get_number(UsrCli* uc)
+{
+  assert(uc != NULL);
+  if (uc == NULL) {
+    return -1;
+  }
+  return uc->number;
 }

@@ -22,6 +22,18 @@
 
 #include "client_remoteadmin.h"
 
+/*
+ * Function name: client_admin
+ * Description: This function is responsible for client part of the admin panel.
+ * Arguments: type - the type of the realm
+ *            master - pointer to the SslFd structure representing the connection with afserver
+ *            buff - buffer which will be used for communication
+ *            connectfd - the optional descriptor which can be used instead of the stdin
+ *            id - the realm's id
+ * Returns: 0 - connection was closed normally,
+ *          1 - something went bad.
+ */
+
 int
 client_admin(char type, SslFd* master, unsigned char* buff, int connectfd, char* id)
 {

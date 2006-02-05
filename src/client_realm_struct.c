@@ -22,10 +22,12 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "string_functions.h"
 #include "client_realm_struct.h"
 #include "client_shutdown.h"
+#include "logging.h"
 
 /*
  * Function name: ClientRealm_new
@@ -37,6 +39,7 @@ ClientRealm*
 ClientRealm_new()
 {
   ClientRealm* tmp = calloc(1, sizeof(ClientRealm));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
@@ -45,27 +48,32 @@ ClientRealm_new()
   tmp->password[2] = 3;
   tmp->password[3] = 4;
   tmp->masterSslFd = SslFd_new();
+  assert(tmp->masterSslFd != NULL);
   if (tmp->masterSslFd == NULL) {
     ClientRealm_free(&tmp);
     return NULL;
   }
   tmp->arOptions = ArOptions_new();
+  assert(tmp->arOptions != NULL);
   if (tmp->arOptions == NULL) {
     ClientRealm_free(&tmp);
     return NULL;
   }
   tmp->httpProxyOptions = HttpProxyOptions_new();
+  assert(tmp->httpProxyOptions != NULL);
   if (tmp->httpProxyOptions == NULL) {
     ClientRealm_free(&tmp);
     return NULL;
   }
 #ifdef HAVE_LIBDL
   tmp->userModule = Module_new();
+  assert(tmp->userModule != NULL);
   if (tmp->userModule == NULL) {
     ClientRealm_free(&tmp);
     return NULL;
   }
   tmp->serviceModule = Module_new();
+  assert(tmp->serviceModule != NULL);
   if (tmp->serviceModule == NULL) {
     ClientRealm_free(&tmp);
     return NULL;
@@ -83,50 +91,33 @@ ClientRealm_new()
 void
 ClientRealm_free(ClientRealm** cr)
 {
-  int i;
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
+  assert((*cr) != NULL);
   if ((*cr) == NULL) {
     return;
   }
-  if ((*cr)->serverName) {
-    free((*cr)->serverName);
-    (*cr)->serverName = NULL;
-  }
-  if ((*cr)->managePort) {
-    free((*cr)->managePort);
-    (*cr)->managePort = NULL;
-  }
-  if ((*cr)->hostName) {
-    free((*cr)->hostName);
-    (*cr)->hostName = NULL;
-  }
-  if ((*cr)->destinationPort) {
-    free((*cr)->destinationPort);
-    (*cr)->destinationPort = NULL;
-  }
-  if ((*cr)->sKeepAliveTimeout) {
-    free((*cr)->sKeepAliveTimeout);
-    (*cr)->sKeepAliveTimeout = NULL;
-  }
-  if ((*cr)->realmName) {
-    free((*cr)->realmName);
-    (*cr)->realmName = NULL;
-  }
-  if ((*cr)->clientAddress) {
-    free((*cr)->clientAddress);
-    (*cr)->clientAddress = NULL;
-  }
-  if ((*cr)->usersTable) {
-    for (i = 0; i < (*cr)->usersLimit; ++i) {
-      if ((*cr)->usersTable[i]) {
-        ConnectUser_free(&((*cr)->usersTable[i]));
-      }
-    }
-    free((*cr)->usersTable);
-    (*cr)->usersTable = NULL;
-  }
+  ClientRealm_set_serverName((*cr), NULL);
+  ClientRealm_set_managePort((*cr), NULL);
+  ClientRealm_set_hostName((*cr), NULL);
+  ClientRealm_set_realmName((*cr), NULL);
+  ClientRealm_set_sKeepAliveTimeout((*cr), NULL);
+  ClientRealm_set_realmId((*cr), NULL);
+  ClientRealm_set_localName((*cr), NULL);
+  ClientRealm_set_localPort((*cr), NULL);
+  ClientRealm_set_localDestinationName((*cr), NULL);
+  ClientRealm_set_clientAddress((*cr), NULL);
+  ClientRealm_set_masterSslFd((*cr), NULL);
+  ClientRealm_set_httpProxyOptions((*cr), NULL);
+  ClientRealm_set_arOptions((*cr), NULL);
+  ClientRealm_set_destinationPorts((*cr), NULL);
+  ClientRealm_set_usersTable((*cr), NULL);
+#ifdef HAVE_LIBDL
+  ClientRealm_set_userModule((*cr), NULL);
+  ClientRealm_set_serviceModule((*cr), NULL);
+#endif
   free((*cr));
   (*cr) = NULL;
 }
@@ -141,6 +132,7 @@ ClientRealm_free(ClientRealm** cr)
 void
 ClientRealm_set_serverName(ClientRealm* cr, char* serverName)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -157,6 +149,7 @@ ClientRealm_set_serverName(ClientRealm* cr, char* serverName)
 void
 ClientRealm_set_managePort(ClientRealm* cr, char* managePort)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -173,6 +166,7 @@ ClientRealm_set_managePort(ClientRealm* cr, char* managePort)
 void
 ClientRealm_set_hostName(ClientRealm* cr, char* hostName)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -180,19 +174,23 @@ ClientRealm_set_hostName(ClientRealm* cr, char* hostName)
 }
 
 /*
- * Function name: ClientRealm_set_destinationPort
- * Description: Set realm's destination port description.
+ * Function name: ClientRealm_set_destinationPorts
+ * Description: Set realm's destination ports list.
  * Arguments: cr - pointer to ClientRealm structure
- *            destinationPort - realm's destination port description
+ *            destinationPorts - realm's destination ports list
  */
 
 void
-ClientRealm_set_destinationPort(ClientRealm* cr, char* destinationPort)
+ClientRealm_set_destinationPorts(ClientRealm* cr, PortList* destinationPorts)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
-  string_cp(&(cr->destinationPort), destinationPort);
+  if (cr->destinationPorts) {
+    PortList_free(&(cr->destinationPorts));
+  }
+  cr->destinationPorts = destinationPorts;
 }
 
 /*
@@ -205,6 +203,7 @@ ClientRealm_set_destinationPort(ClientRealm* cr, char* destinationPort)
 void
 ClientRealm_set_sKeepAliveTimeout(ClientRealm* cr, char* sKeepAliveTimeout)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -221,6 +220,7 @@ ClientRealm_set_sKeepAliveTimeout(ClientRealm* cr, char* sKeepAliveTimeout)
 void
 ClientRealm_set_realmName(ClientRealm* cr, char* realmName)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -237,6 +237,7 @@ ClientRealm_set_realmName(ClientRealm* cr, char* realmName)
 void
 ClientRealm_set_realmId(ClientRealm* cr, char* realmId)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -253,6 +254,7 @@ ClientRealm_set_realmId(ClientRealm* cr, char* realmId)
 void
 ClientRealm_set_localName(ClientRealm* cr, char* localName)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -269,6 +271,7 @@ ClientRealm_set_localName(ClientRealm* cr, char* localName)
 void
 ClientRealm_set_localPort(ClientRealm* cr, char* localPort)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -285,6 +288,7 @@ ClientRealm_set_localPort(ClientRealm* cr, char* localPort)
 void
 ClientRealm_set_localDestinationName(ClientRealm* cr, char* localDestinationName)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -301,6 +305,7 @@ ClientRealm_set_localDestinationName(ClientRealm* cr, char* localDestinationName
 void
 ClientRealm_set_password(ClientRealm* cr, unsigned char* password)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -317,6 +322,7 @@ ClientRealm_set_password(ClientRealm* cr, unsigned char* password)
 void
 ClientRealm_set_connectedUsers(ClientRealm* cr, int connectedUsers)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -333,6 +339,7 @@ ClientRealm_set_connectedUsers(ClientRealm* cr, int connectedUsers)
 void
 ClientRealm_set_usersLimit(ClientRealm* cr, int usersLimit)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -349,6 +356,7 @@ ClientRealm_set_usersLimit(ClientRealm* cr, int usersLimit)
 void
 ClientRealm_set_keepAliveTimeout(ClientRealm* cr, int keepAliveTimeout)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -365,6 +373,7 @@ ClientRealm_set_keepAliveTimeout(ClientRealm* cr, int keepAliveTimeout)
 void
 ClientRealm_set_clientMode(ClientRealm* cr, int clientMode)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -381,6 +390,7 @@ ClientRealm_set_clientMode(ClientRealm* cr, int clientMode)
 void
 ClientRealm_set_ipFamily(ClientRealm* cr, char ipFamily)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -397,6 +407,7 @@ ClientRealm_set_ipFamily(ClientRealm* cr, char ipFamily)
 void
 ClientRealm_set_realmType(ClientRealm* cr, char realmType)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -413,6 +424,7 @@ ClientRealm_set_realmType(ClientRealm* cr, char realmType)
 void
 ClientRealm_set_tunnelType(ClientRealm* cr, char tunnelType)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -429,6 +441,7 @@ ClientRealm_set_tunnelType(ClientRealm* cr, char tunnelType)
 void
 ClientRealm_set_keepAlive(ClientRealm* cr, struct timeval keepAlive)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -445,6 +458,7 @@ ClientRealm_set_keepAlive(ClientRealm* cr, struct timeval keepAlive)
 void
 ClientRealm_set_addressLength(ClientRealm* cr, socklen_t addressLength)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -461,6 +475,7 @@ ClientRealm_set_addressLength(ClientRealm* cr, socklen_t addressLength)
 void
 ClientRealm_set_clientAddress(ClientRealm* cr, struct sockaddr* clientAddress)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -481,6 +496,7 @@ ClientRealm_set_clientAddress(ClientRealm* cr, struct sockaddr* clientAddress)
 void
 ClientRealm_set_masterSslFd(ClientRealm* cr, SslFd* masterSslFd)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -500,6 +516,7 @@ ClientRealm_set_masterSslFd(ClientRealm* cr, SslFd* masterSslFd)
 void
 ClientRealm_set_httpProxyOptions(ClientRealm* cr, HttpProxyOptions* httpProxyOptions)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -519,6 +536,7 @@ ClientRealm_set_httpProxyOptions(ClientRealm* cr, HttpProxyOptions* httpProxyOpt
 void
 ClientRealm_set_arOptions(ClientRealm* cr, ArOptions* arOptions)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -539,6 +557,7 @@ void
 ClientRealm_set_usersTable(ClientRealm* cr, ConnectUser** usersTable)
 {
   int i;
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -565,6 +584,7 @@ ClientRealm_set_usersTable(ClientRealm* cr, ConnectUser** usersTable)
 void
 ClientRealm_set_userModule(ClientRealm* cr, Module* userModule)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -584,6 +604,7 @@ ClientRealm_set_userModule(ClientRealm* cr, Module* userModule)
 void
 ClientRealm_set_serviceModule(ClientRealm* cr, Module* serviceModule)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -604,6 +625,7 @@ ClientRealm_set_serviceModule(ClientRealm* cr, Module* serviceModule)
 char*
 ClientRealm_get_serverName(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
@@ -620,6 +642,7 @@ ClientRealm_get_serverName(ClientRealm* cr)
 char*
 ClientRealm_get_managePort(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
@@ -636,6 +659,7 @@ ClientRealm_get_managePort(ClientRealm* cr)
 char*
 ClientRealm_get_hostName(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
@@ -643,19 +667,20 @@ ClientRealm_get_hostName(ClientRealm* cr)
 }
 
 /*
- * Function name: ClientRealm_get_destinationPort
- * Description: Get realm's destination port description.
+ * Function name: ClientRealm_get_destinationPorts
+ * Description: Get realm's destination ports list.
  * Arguments: cr - pointer to ClientRealm structure
- * Returns: Realm's destination port description.
+ * Returns: Realm's destination ports list.
  */
 
-char*
-ClientRealm_get_destinationPort(ClientRealm* cr)
+PortList*
+ClientRealm_get_destinationPorts(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
-  return cr->destinationPort;
+  return cr->destinationPorts;
 }
 
 /*
@@ -668,6 +693,7 @@ ClientRealm_get_destinationPort(ClientRealm* cr)
 char*
 ClientRealm_get_sKeepAliveTimeout(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
@@ -684,6 +710,7 @@ ClientRealm_get_sKeepAliveTimeout(ClientRealm* cr)
 char*
 ClientRealm_get_realmName(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
@@ -700,6 +727,7 @@ ClientRealm_get_realmName(ClientRealm* cr)
 char*
 ClientRealm_get_realmId(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
@@ -717,6 +745,7 @@ ClientRealm_get_realmId(ClientRealm* cr)
 char*
 ClientRealm_get_localName(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
@@ -734,6 +763,7 @@ ClientRealm_get_localName(ClientRealm* cr)
 char*
 ClientRealm_get_localPort(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
@@ -751,6 +781,7 @@ ClientRealm_get_localPort(ClientRealm* cr)
 char*
 ClientRealm_get_localDestinationName(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
@@ -767,6 +798,7 @@ ClientRealm_get_localDestinationName(ClientRealm* cr)
 unsigned char*
 ClientRealm_get_password(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
@@ -783,6 +815,7 @@ ClientRealm_get_password(ClientRealm* cr)
 int
 ClientRealm_get_connectedUsers(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return -1;
   }
@@ -799,6 +832,7 @@ ClientRealm_get_connectedUsers(ClientRealm* cr)
 int
 ClientRealm_get_usersLimit(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return -1;
   }
@@ -815,6 +849,7 @@ ClientRealm_get_usersLimit(ClientRealm* cr)
 int
 ClientRealm_get_keepAliveTimeout(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return 0;
   }
@@ -831,6 +866,7 @@ ClientRealm_get_keepAliveTimeout(ClientRealm* cr)
 int
 ClientRealm_get_clientMode(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return 0;
   }
@@ -847,6 +883,7 @@ ClientRealm_get_clientMode(ClientRealm* cr)
 char
 ClientRealm_get_ipFamily(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return 0;
   }
@@ -863,6 +900,7 @@ ClientRealm_get_ipFamily(ClientRealm* cr)
 char
 ClientRealm_get_realmType(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return 0;
   }
@@ -879,6 +917,7 @@ ClientRealm_get_realmType(ClientRealm* cr)
 char
 ClientRealm_get_tunnelType(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return 0;
   }
@@ -896,6 +935,7 @@ struct timeval
 ClientRealm_get_keepAlive(ClientRealm* cr)
 {
   struct timeval tmp = {0, 0};
+  assert(cr != NULL);
   if (cr == NULL) {
     return tmp;
   }
@@ -912,6 +952,7 @@ ClientRealm_get_keepAlive(ClientRealm* cr)
 socklen_t
 ClientRealm_get_addressLength(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return 0;
   }
@@ -928,6 +969,7 @@ ClientRealm_get_addressLength(ClientRealm* cr)
 struct sockaddr*
 ClientRealm_get_clientAddress(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
@@ -944,6 +986,7 @@ ClientRealm_get_clientAddress(ClientRealm* cr)
 SslFd*
 ClientRealm_get_masterSslFd(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
@@ -960,6 +1003,7 @@ ClientRealm_get_masterSslFd(ClientRealm* cr)
 HttpProxyOptions*
 ClientRealm_get_httpProxyOptions(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
@@ -976,6 +1020,7 @@ ClientRealm_get_httpProxyOptions(ClientRealm* cr)
 ArOptions*
 ClientRealm_get_arOptions(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
@@ -992,6 +1037,7 @@ ClientRealm_get_arOptions(ClientRealm* cr)
 ConnectUser**
 ClientRealm_get_usersTable(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
@@ -1009,6 +1055,7 @@ ClientRealm_get_usersTable(ClientRealm* cr)
 Module*
 ClientRealm_get_userModule(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
@@ -1025,6 +1072,7 @@ ClientRealm_get_userModule(ClientRealm* cr)
 Module*
 ClientRealm_get_serviceModule(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
@@ -1041,6 +1089,7 @@ ClientRealm_get_serviceModule(ClientRealm* cr)
 void
 ClientRealm_increase_connectedUsers(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -1056,6 +1105,7 @@ ClientRealm_increase_connectedUsers(ClientRealm* cr)
 void
 ClientRealm_decrease_connectedUsers(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -1064,13 +1114,14 @@ ClientRealm_decrease_connectedUsers(ClientRealm* cr)
 
 /*
  * Function name: ClientRealm_closeUsersConnections
- * Description: Close all users' connections and free usersTable
+ * Description: Close all users' connections and free usersTable.
  * Arguments: cr - pointer to ClientRealm structure
  */
 
 void
 ClientRealm_closeUsersConnections(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return;
   }
@@ -1079,16 +1130,76 @@ ClientRealm_closeUsersConnections(ClientRealm* cr)
 
 /*
  * Function name: ClientRealm_get_keepAlivePointer
- * Description: Get pointer to keep-alive structure
+ * Description: Get pointer to keep-alive structure.
  * Arguments: cr - pointer to ClientRealm structure
- * Returns: Pointer to keep-alive structure
+ * Returns: Pointer to keep-alive structure.
  */
 
 struct timeval*
 ClientRealm_get_keepAlivePointer(ClientRealm* cr)
 {
+  assert(cr != NULL);
   if (cr == NULL) {
     return NULL;
   }
   return (&(cr->keepAlive));
+}
+
+/*
+ * Function name: ClientRealm_send_realmId
+ * Description: Sends the realm's id to the afserver.
+ * Arguments: cr - pointer to ClientRealm structure
+ *            buff - buffer used for message creation
+ */
+
+void
+ClientRealm_send_realmId(ClientRealm* cr, unsigned char* buff)
+{
+  int n;
+  assert(cr != NULL);
+  if (cr == NULL) {
+    return;
+  }
+  assert(buff != NULL);
+  if (buff == NULL) {
+    return;
+  }
+  if (ClientRealm_get_realmId(cr) != NULL) {
+    buff[0] = AF_S_LOGIN;
+    buff[1] = buff[2] = 0;
+    n = strlen(ClientRealm_get_realmId(cr));
+    memcpy(&buff[5], ClientRealm_get_realmId(cr), n);
+    buff[3] = n >> 8; /* high bits of message length */
+    buff[4] = n;    /* low bits of message length */
+    SslFd_send_message(ClientRealm_get_realmType(cr),
+        ClientRealm_get_masterSslFd(cr), buff, n+5);
+    aflog(LOG_T_CLIENT, LOG_I_INFO,
+        "ID SENT: %s", ClientRealm_get_realmId(cr));
+  }
+}
+
+/*
+ * Function name: ClientRealm_enable_multi
+ * Description: Enables the MULTI mode on the afserver, if supported.
+ * Arguments: cr - pointer to ClientRealm structure
+ */
+
+void
+ClientRealm_enable_multi(ClientRealm* cr)
+{
+  unsigned char buff[5];
+  assert(cr != NULL);
+  if (cr == NULL) {
+    return;
+  }
+  if ((TYPE_IS_SUPPORTED_MULTI(ClientRealm_get_realmType(cr))) &&
+      (PortList_get_size(ClientRealm_get_destinationPorts(cr)) > 1)) {
+    buff[0] = AF_S_ENABLE_MULTI;
+    buff[1] = PortList_get_size(ClientRealm_get_destinationPorts(cr));
+    buff[2] = buff[3] = buff[4] = 0;
+    SslFd_send_message(ClientRealm_get_realmType(cr),
+        ClientRealm_get_masterSslFd(cr), buff, 5);
+    aflog(LOG_T_CLIENT, LOG_I_INFO,
+        "ENABLED: MULTI (multiple tunnels managed by one afclient)");
+  }
 }

@@ -40,6 +40,16 @@ typedef struct {
   SSL_CTX* ctx;
 } sproxy_argT;
 
+/*
+ * Function name: afserver_connect
+ * Description: Connects new http proxy connection to the afserver.
+ * Arguments: sockfd - the file descriptor which will be used for communication with afserver
+ *            afserverfd - the afserver's file descriptor
+ *            cliaddr - pointer to sockaddr structure
+ *            addrlenp - pointer to the length of the sockaddr structure
+ *            type - the type of the connection
+ */
+
 int
 afserver_connect(int* sockfd, int afserverfd, struct sockaddr* cliaddr, socklen_t* addrlenp, char type)
 {
@@ -54,7 +64,7 @@ afserver_connect(int* sockfd, int afserverfd, struct sockaddr* cliaddr, socklen_
     return 3;
   }
   if (write(afserverfd, addrlenp, 4) != 4) {
-    return 3;
+    return 4;
   }
   if (write(afserverfd, cliaddr, *addrlenp) != *addrlenp) {
     return 5;
@@ -62,6 +72,12 @@ afserver_connect(int* sockfd, int afserverfd, struct sockaddr* cliaddr, socklen_
   (*sockfd) = sockets[1];
   return 0;
 }
+
+/*
+ * Function name: http_proxy_server
+ * Description: Function responsible for the server part of the http proxy connection.
+ * Arguments: vptr - the structure with all the information needed for http proxy tunnel.
+ */
 
 void*
 http_proxy_server(void *vptr)
@@ -486,6 +502,20 @@ http_proxy_server(void *vptr)
 	return 0;
 }
 
+/*
+ * Function name: initialize_http_proxy_server
+ * Description: Initializes the thread responsible for http proxy connection.
+ * Arguments: sockfd - the new connection descriptor will be stored here
+ *            host - the name of the host on which we will be listening on
+ *            serv - the port on which we will be listening on
+ *            addrlenp - pointer to the length of the sockaddr structure
+ *            type - the type of the connection
+ *            limit - the limit for user's connections
+ *            https - if the connection should be https instead of http
+ *            ctx - the pointer to SSL_CTX structure
+ * Returns: 0 - success,
+ *          !0 - failure.
+ */
 
 int
 initialize_http_proxy_server(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, const char type, int limit, char https, SSL_CTX* ctx)

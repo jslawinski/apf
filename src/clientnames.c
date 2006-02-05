@@ -22,12 +22,18 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 #include "clientnames.h"
 
 char*
 get_clientname(ServerRealm* pointer, int client)
 {
   static char clientname[10];
+  
+  assert(pointer != NULL);
+  if (pointer == NULL) {
+    return NULL;
+  }
   
   if (ConnectClient_get_sClientId(ServerRealm_get_clientsTable(pointer)[client]) == NULL) {
     memset(clientname, 0, 10);
@@ -43,6 +49,16 @@ get_clientid(ServerRealm* pointer, char* clientname)
 {
   int i, n;
   char guard;
+  
+  assert(pointer != NULL);
+  if (pointer == NULL) {
+    return -1;
+  }
+
+  assert(clientname != NULL);
+  if (clientname == NULL) {
+    return -1;
+  }
   
   for (i = 0; i < ServerRealm_get_clientsLimit(pointer); ++i) {
     if (ConnectClient_get_sClientId(ServerRealm_get_clientsTable(pointer)[i]) != NULL) {
@@ -67,6 +83,12 @@ int
 get_clientnumber(ServerRealm* pointer, int clientid)
 {
   int i;
+  
+  assert(pointer != NULL);
+  if (pointer == NULL) {
+    return -1;
+  }
+  
   for (i = 0; i < ServerRealm_get_clientsLimit(pointer); ++i) {
     if (ConnectClient_get_clientId(ServerRealm_get_clientsTable(pointer)[i]) == clientid) {
       return i;
@@ -80,6 +102,11 @@ char*
 get_raclientname(ServerRealm* pointer, int client)
 {
   static char clientname[10];
+  
+  assert(pointer != NULL);
+  if (pointer == NULL) {
+    return NULL;
+  }
   
   if (ConnectClient_get_sClientId(ServerRealm_get_raClientsTable(pointer)[client]) == NULL) {
     memset(clientname, 0, 10);
@@ -95,6 +122,16 @@ get_raclientid(ServerRealm* pointer, char* clientname)
 {
   int i, n;
   char guard;
+  
+  assert(pointer != NULL);
+  if (pointer == NULL) {
+    return -1;
+  }
+
+  assert(clientname != NULL);
+  if (clientname == NULL) {
+    return -1;
+  }
   
   for (i = 0; i < ServerRealm_get_raClientsLimit(pointer); ++i) {
     if (ConnectClient_get_sClientId(ServerRealm_get_raClientsTable(pointer)[i]) != NULL) {
@@ -120,6 +157,12 @@ int
 get_raclientnumber(ServerRealm* pointer, int clientid)
 {
   int i;
+  
+  assert(pointer != NULL);
+  if (pointer == NULL) {
+    return -1;
+  }
+  
   for (i = 0; i < ServerRealm_get_raClientsLimit(pointer); ++i) {
     if (ConnectClient_get_clientId(ServerRealm_get_raClientsTable(pointer)[i]) == clientid) {
       return i;

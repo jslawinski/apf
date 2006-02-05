@@ -17,4 +17,5 @@ afclient_SOURCES = afclient.c network.c file.c stats.c buf_list_node_struct.c bu
 									 string_functions.c ar_options_struct.c audit_list_node_struct.c audit_list_struct.c \
 									 ssl_fd_struct.c timeval_functions.c server_realm_struct.c server_configuration_struct.c \
 									 usr_cli_struct.c connect_client_struct.c header_buffer_struct.c \
-									 client_configuration_struct.c file_client.c client_realm_struct.c
+									 client_configuration_struct.c file_client.c client_realm_struct.c \
+									 port_list_node_struct.c port_list_struct.c

@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "audit_list_node_struct.h"
 
@@ -35,6 +36,7 @@ AuditListNode*
 AuditListNode_new()
 {
   AuditListNode* tmp = calloc(1, sizeof(AuditListNode));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
@@ -57,6 +59,7 @@ AuditListNode_new_entry(int userId, char* nameBuf, char* portBuf,
         time_t connectTime, time_t duration)
 {
   AuditListNode* tmp = calloc(1, sizeof(AuditListNode));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
@@ -77,9 +80,11 @@ AuditListNode_new_entry(int userId, char* nameBuf, char* portBuf,
 void
 AuditListNode_free(AuditListNode** aln)
 {
+  assert(aln != NULL);
   if (aln == NULL) {
     return;
   }
+  assert((*aln) != NULL);
   if ((*aln) == NULL) {
     return;
   }
@@ -97,6 +102,7 @@ AuditListNode_free(AuditListNode** aln)
 void
 AuditListNode_set_userId(AuditListNode* aln, int userId)
 {
+  assert(aln != NULL);
   if (aln == NULL) {
     return;
   }
@@ -113,6 +119,7 @@ AuditListNode_set_userId(AuditListNode* aln, int userId)
 void
 AuditListNode_set_nameBuf(AuditListNode* aln, char* nameBuf)
 {
+  assert(aln != NULL);
   if (aln == NULL) {
     return;
   }
@@ -130,6 +137,7 @@ AuditListNode_set_nameBuf(AuditListNode* aln, char* nameBuf)
 void
 AuditListNode_set_portBuf(AuditListNode* aln, char* portBuf)
 {
+  assert(aln != NULL);
   if (aln == NULL) {
     return;
   }
@@ -147,6 +155,7 @@ AuditListNode_set_portBuf(AuditListNode* aln, char* portBuf)
 void
 AuditListNode_set_connectTime(AuditListNode* aln, time_t connectTime)
 {
+  assert(aln != NULL);
   if (aln == NULL) {
     return;
   }
@@ -163,6 +172,7 @@ AuditListNode_set_connectTime(AuditListNode* aln, time_t connectTime)
 void
 AuditListNode_set_duration(AuditListNode* aln, time_t duration)
 {
+  assert(aln != NULL);
   if (aln == NULL) {
     return;
   }
@@ -179,6 +189,7 @@ AuditListNode_set_duration(AuditListNode* aln, time_t duration)
 void
 AuditListNode_set_nextNode(AuditListNode* aln, AuditListNode* nextNode)
 {
+  assert(aln != NULL);
   if (aln == NULL) {
     return;
   }
@@ -195,6 +206,7 @@ AuditListNode_set_nextNode(AuditListNode* aln, AuditListNode* nextNode)
 int
 AuditListNode_get_userId(AuditListNode* aln)
 {
+  assert(aln != NULL);
   if (aln == NULL) {
     return -1;
   }
@@ -211,6 +223,7 @@ AuditListNode_get_userId(AuditListNode* aln)
 char*
 AuditListNode_get_nameBuf(AuditListNode* aln)
 {
+  assert(aln != NULL);
   if (aln == NULL) {
     return NULL;
   }
@@ -227,6 +240,7 @@ AuditListNode_get_nameBuf(AuditListNode* aln)
 char*
 AuditListNode_get_portBuf(AuditListNode* aln)
 {
+  assert(aln != NULL);
   if (aln == NULL) {
     return NULL;
   }
@@ -243,6 +257,7 @@ AuditListNode_get_portBuf(AuditListNode* aln)
 time_t
 AuditListNode_get_connectTime(AuditListNode* aln)
 {
+  assert(aln != NULL);
   if (aln == NULL) {
     return 0;
   }
@@ -259,6 +274,7 @@ AuditListNode_get_connectTime(AuditListNode* aln)
 time_t
 AuditListNode_get_duration(AuditListNode* aln)
 {
+  assert(aln != NULL);
   if (aln == NULL) {
     return 0;
   }
@@ -275,6 +291,7 @@ AuditListNode_get_duration(AuditListNode* aln)
 AuditListNode*
 AuditListNode_get_nextNode(AuditListNode* aln)
 {
+  assert(aln != NULL);
   if (aln == NULL) {
     return NULL;
   }
@@ -291,6 +308,7 @@ AuditListNode_get_nextNode(AuditListNode* aln)
 time_t*
 AuditListNode_get_connectTimep(AuditListNode* aln)
 {
+  assert(aln != NULL);
   if (aln == NULL) {
     return 0;
   }

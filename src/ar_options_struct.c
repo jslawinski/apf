@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "ar_options_struct.h"
 #include "string_functions.h"
@@ -37,6 +38,7 @@ ArOptions*
 ArOptions_new()
 {
   ArOptions* tmp = calloc(1, sizeof(ArOptions));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
@@ -55,9 +57,11 @@ ArOptions_new()
 void
 ArOptions_free(ArOptions** ao)
 {
+  assert(ao != NULL);
   if (ao == NULL) {
     return;
   }
+  assert((*ao) != NULL);
   if ((*ao) == NULL) {
     return;
   }
@@ -86,6 +90,7 @@ ArOptions_free(ArOptions** ao)
 void
 ArOptions_set_arTries(ArOptions* ao, int tries)
 {
+  assert(ao != NULL);
   if (ao == NULL) {
     return;
   }
@@ -103,6 +108,7 @@ ArOptions_set_arTries(ArOptions* ao, int tries)
 void
 ArOptions_set_s_arTries(ArOptions* ao, char* tries)
 {
+  assert(ao != NULL);
   if (ao == NULL) {
     return;
   }
@@ -119,6 +125,7 @@ ArOptions_set_s_arTries(ArOptions* ao, char* tries)
 void
 ArOptions_set_arDelay(ArOptions* ao, int delay)
 {
+  assert(ao != NULL);
   if (ao == NULL) {
     return;
   }
@@ -136,6 +143,7 @@ ArOptions_set_arDelay(ArOptions* ao, int delay)
 void
 ArOptions_set_s_arDelay(ArOptions* ao, char* delay)
 {
+  assert(ao != NULL);
   if (ao == NULL) {
     return;
   }
@@ -153,6 +161,7 @@ ArOptions_set_s_arDelay(ArOptions* ao, char* delay)
 void
 ArOptions_set_arStart(ArOptions* ao, char start)
 {
+  assert(ao != NULL);
   if (ao == NULL) {
     return;
   }
@@ -170,6 +179,7 @@ ArOptions_set_arStart(ArOptions* ao, char start)
 void
 ArOptions_set_arQuit(ArOptions* ao, char quit)
 {
+  assert(ao != NULL);
   if (ao == NULL) {
     return;
   }
@@ -187,6 +197,7 @@ ArOptions_set_arQuit(ArOptions* ao, char quit)
 void
 ArOptions_set_arPremature(ArOptions* ao, char premature)
 {
+  assert(ao != NULL);
   if (ao == NULL) {
     return;
   }
@@ -203,6 +214,7 @@ ArOptions_set_arPremature(ArOptions* ao, char premature)
 int
 ArOptions_get_arTries(ArOptions* ao)
 {
+  assert(ao != NULL);
   if (ao == NULL) {
     return 0;
   }
@@ -219,6 +231,7 @@ ArOptions_get_arTries(ArOptions* ao)
 int
 ArOptions_get_arDelay(ArOptions* ao)
 {
+  assert(ao != NULL);
   if (ao == NULL) {
     return 0;
   }
@@ -235,6 +248,7 @@ ArOptions_get_arDelay(ArOptions* ao)
 char
 ArOptions_get_arStart(ArOptions* ao)
 {
+  assert(ao != NULL);
   if (ao == NULL) {
     return AR_OPTION_DISABLED;
   }
@@ -251,6 +265,7 @@ ArOptions_get_arStart(ArOptions* ao)
 char
 ArOptions_get_arQuit(ArOptions* ao)
 {
+  assert(ao != NULL);
   if (ao == NULL) {
     return AR_OPTION_DISABLED;
   }
@@ -267,6 +282,7 @@ ArOptions_get_arQuit(ArOptions* ao)
 char
 ArOptions_get_arPremature(ArOptions* ao)
 {
+  assert(ao != NULL);
   if (ao == NULL) {
     return AR_OPTION_DISABLED;
   }
@@ -284,6 +300,7 @@ ArOptions_get_arPremature(ArOptions* ao)
 void
 ArOptions_evaluate_values(ArOptions* ao)
 {
+  assert(ao != NULL);
   if (ao == NULL) {
     return;
   }

@@ -28,6 +28,19 @@
 #include <string.h>
 #include <errno.h>
 #include <zlib.h>
+#include <assert.h>
+
+/*
+ * Function name: ip_listen
+ * Description: Creates the listening socket.
+ * Arguments: sockfd - the created socket
+ *            host - the name of the host
+ *            serv - the name of the service (port)
+ *            addrlenp - pointer to the length of the sockaddr structure
+ *            type - the type of the socket
+ * Returns: 0 - success,
+ *          !0 - failure.
+ */
 
 int
 ip_listen(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, const char type)
@@ -37,6 +50,9 @@ ip_listen(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, 
 	const int		on = 1;
 	struct addrinfo	hints, *res, *ressave;
 
+  aflog(LOG_T_INIT, LOG_I_DDEBUG,
+      "ip_listen: host=[%s] serv=[%s], type=[%d]", host, serv, type);
+  
 	bzero(&hints, sizeof(struct addrinfo));
 	hints.ai_flags = AI_PASSIVE;
 	if (type & 0x02) {
@@ -92,8 +108,11 @@ ip_listen(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, 
 	freeaddrinfo(ressave);
 #else
   struct sockaddr_in servaddr;
-  struct hostent* hostaddr;
+  struct hostent* hostaddr = NULL;
   int port;
+  
+  aflog(LOG_T_INIT, LOG_I_DDEBUG,
+      "ip_listen: host=[%s] serv=[%s], type=[%d]", host, serv, type);
   
   if (type & 0x01) {
     (*sockfd) = socket(AF_INET, SOCK_STREAM, 0);
@@ -137,6 +156,19 @@ ip_listen(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, 
   return(0);
 }
 
+/*
+ * Function name: ip_connect
+ * Description: Creates the connected socket.
+ * Arguments: sockfd - the connected socket
+ *            host - the name of the host
+ *            serv - the name of the service (port)
+ *            type - the type of the socket
+ *            lhost - the name of the local host (used for local bind of the socket)
+ *            lserv - the name of the local service (port) (used for local bind of the socket)
+ * Returns: 0 - success,
+ *          !0 - failure.
+ */
+
 int
 ip_connect(int* sockfd, const char *host, const char *serv, const char type,
     const char *lhost, const char *lserv)
@@ -147,6 +179,9 @@ ip_connect(int* sockfd, const char *host, const char *serv, const char type,
 	struct addrinfo	hints, *res, *ressave;
 	struct addrinfo	lhints, *lres, *lressave = NULL;
 
+  aflog(LOG_T_INIT, LOG_I_DDEBUG,
+      "ip_connect: host=[%s] serv=[%s], type=[%d], lhost=[%s], lserv=[%s]", host, serv, type, lhost, lserv);
+  
 	bzero(&hints, sizeof(struct addrinfo));
 	if (type & 0x02) {
 		hints.ai_family = AF_INET;
@@ -221,6 +256,9 @@ ip_connect(int* sockfd, const char *host, const char *serv, const char type,
   struct hostent* hostaddr;
   struct hostent* lhostaddr;
   int port, lport;
+  
+  aflog(LOG_T_INIT, LOG_I_DDEBUG,
+      "ip_connect: host=[%s] serv=[%s], type=[%d], lhost=[%s], lserv=[%s]", host, serv, type, lhost, lserv);
 
   if (type & 0x01) {
     (*sockfd) = socket(AF_INET, SOCK_STREAM, 0);
@@ -274,6 +312,18 @@ ip_connect(int* sockfd, const char *host, const char *serv, const char type,
 	return(0);
 }
 
+/*
+ * Function name: sock_ntop
+ * Description: Returns the string representing given socket address.
+ * Arguments: sa - pointer to sockaddr structure
+ *            salen - size of the sockaddr structure
+ *            namebuf - buffer for string representation of the host name
+ *            portbuf - buffer for string representation of the host port
+ *            type - if the socket address should be resolved to the the DNS name
+ * Returns: The string representing given socket address or NULL, if the address
+ *          can't be established.
+ */
+
 char *
 sock_ntop(const struct sockaddr *sa, socklen_t salen, char* namebuf, char* portbuf, char type)
 {
@@ -291,12 +341,12 @@ sock_ntop(const struct sockaddr *sa, socklen_t salen, char* namebuf, char* portb
       }
 #else
       struct hostent* hostname;
-      if ((hostname = gethostbyaddr(&sin->sin_addr, sizeof(struct in_addr), AF_INET))) {
+      if ((hostname = gethostbyaddr((void*) &sin->sin_addr, sizeof(struct in_addr), AF_INET))) {
         strncpy(str, hostname->h_name, 127);
         str[127] = 0;
       }
       else {
-        if (inet_ntop(AF_INET, &sin->sin_addr, str, sizeof(str)) == NULL) {
+        if (inet_ntop(AF_INET, (void*) &sin->sin_addr, str, sizeof(str)) == NULL) {
           return NULL;
         }
       }
@@ -304,7 +354,7 @@ sock_ntop(const struct sockaddr *sa, socklen_t salen, char* namebuf, char* portb
 
     }
     else {
-  		if (inet_ntop(AF_INET, &sin->sin_addr, str, sizeof(str)) == NULL) {
+  		if (inet_ntop(AF_INET, (void*) &sin->sin_addr, str, sizeof(str)) == NULL) {
   			return NULL;
   		}
     }
@@ -369,13 +419,24 @@ sock_ntop(const struct sockaddr *sa, socklen_t salen, char* namebuf, char* portb
     return NULL;
 }
 
+/*
+ * Function name: SSL_writen
+ * Description: Writes the given amount of data to the SSL connection.
+ * Arguments: fd - the SSL connection
+ *            buf - buffer with data to write
+ *            amount - the size of the data
+ * Returns: The amount of bytes written to the SSL connection.
+ */
+
 int
 SSL_writen(SSL* fd, unsigned char* buf, int amount)
 {
 	int sent, n;
 	sent = 0;
+  assert(amount > 0);
 	while (sent < amount) {
 		n = SSL_write(fd, buf+sent, amount - sent);
+    assert(n != 0);
 		if (n != -1) {
 			sent += n;
 		}
@@ -387,11 +448,21 @@ SSL_writen(SSL* fd, unsigned char* buf, int amount)
 	return amount;
 }
 
+/*
+ * Function name: SSL_readn
+ * Description: Reads the given amount of data from the SSL connection.
+ * Arguments: fd - the SSL connection
+ *            buf - buffer for data
+ *            amount - the size of the data to read
+ * Returns: The amount of bytes read from the SSL connection.
+ */
+
 int
 SSL_readn(SSL* fd, unsigned char* buf, int amount)
 {
 	int sent, n;
 	sent = 0;
+  assert(amount > 0);
 	while (sent < amount) {
 		n = SSL_read(fd, buf+sent, amount - sent);
 		if (n != -1) {
@@ -407,13 +478,24 @@ SSL_readn(SSL* fd, unsigned char* buf, int amount)
 	return amount;
 } 
 
+/*
+ * Function name: writen
+ * Description: Writes the given amount of data to the file descriptor.
+ * Arguments: fd - the file descriptor
+ *            buf - buffer with data to write
+ *            amount - the size of the data
+ * Returns: The amount of bytes written to the file descriptor
+ */
+
 int
 writen(int fd, unsigned char* buf, int amount)
 {
 	int sent, n;
 	sent = 0;
+  assert(amount > 0);
 	while (sent < amount) {
 		n = write(fd, buf+sent, amount - sent);
+    assert(n != 0);
 		if (n != -1) {
 			sent += n;
 		}
@@ -425,11 +507,21 @@ writen(int fd, unsigned char* buf, int amount)
 	return amount;
 }
 
+/*
+ * Function name: readn
+ * Description: Reads the given amount of data from the file descriptor.
+ * Arguments: fd - the file descriptor
+ *            buf - buffer for data
+ *            amount - the size of the data to read
+ * Returns: The amount of bytes read from the file descriptor.
+ */
+
 int
 readn(int fd, unsigned char* buf, int amount)
 {
 	int sent, n;
 	sent = 0;
+  assert(amount > 0);
 	while (sent < amount) {
 		n = read(fd, buf+sent, amount - sent);
 		if (n != -1) {

@@ -23,12 +23,29 @@
 #include "server_get.h"
 #include <stdlib.h>
 #include <errno.h>
+#include <assert.h>
+
+/*
+ * Function name: get_new_socket
+ * Description: Returns new accepted socket.
+ * Arguments: sockfd - the file descriptor of the listening socket
+ *            type - the type of the listening socket
+ *            addr - pointer to sockaddr structure
+ *            addrlen - pointer to the length of the sockaddr structure
+ *            tunneltype - the type of the connection
+ * Returns: The new accepted socket.
+ */
 
 int
 get_new_socket(int sockfd, char type, struct sockaddr *addr, socklen_t *addrlen, char* tunneltype)
 {
   int tmp;
   int n, i;
+  
+  assert(addr != NULL);
+  assert(addrlen != NULL);
+  assert(tunneltype != NULL);
+  
   switch (type) {
     case 0: {
               return accept(sockfd, addr, addrlen);

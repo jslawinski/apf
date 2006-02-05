@@ -19,12 +19,24 @@
  */
 
 #include <stdlib.h>
+#include <assert.h>
 
 #include "string_functions.h"
+
+/*
+ * Function name: set_value
+ * Description: If the variable has no value, set it from the given string.
+ *              If the given string is NULL, use default value.
+ * Arguments: dest - the destination variable
+ *            from - the given string
+ *            def - the default value
+ */
 
 void
 set_value(char** dest, char* from, char* def)
 {
+  assert(dest != NULL);
+  
   if ((*dest) == NULL) {
     if (from != NULL) {
       string_cp(dest, from);

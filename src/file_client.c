@@ -20,15 +20,27 @@
 
 #include <config.h>
 
-#include "file.h"
-#include "activefor.h"
-#include "logging.h"
-#include "network.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <ctype.h>
+#include <assert.h>
+
+#include "file.h"
+#include "activefor.h"
+#include "logging.h"
+#include "network.h"
+
+/*
+ * Function name: cparsefile
+ * Description: Parses the client config file.
+ * Arguments: name - the name of the file with client's config
+ *            status - the status returned from this function:
+ *                     0 - file was parsed successfully
+ *                     n>0 - there was an error in the n-th line
+ * Returns: Pointer to ClientConfiguration structure.
+ */
 
 ClientConfiguration*
 cparsefile(char* name, int* status)
@@ -45,6 +57,9 @@ cparsefile(char* name, int* status)
   char* tmpbuf;
   unsigned char pass[4] = {1, 2, 3, 4};
 
+  assert(name != NULL);
+  assert(status != NULL);
+  
   *status = 1;
 
   memset(buff, 0, 256);
@@ -78,10 +93,11 @@ cparsefile(char* name, int* status)
       exit(1);
     }
     ClientRealm_set_password(ClientConfiguration_get_realmsTable(cfg)[i], pass);
+    ClientRealm_set_destinationPorts(ClientConfiguration_get_realmsTable(cfg)[i], PortList_new());
   }
   *status = 0;
   
-  while (fgets(buff, 256, file) != NULL) { /* second loop - parsing file */
+  while (fgets(buff, 256, file) != NULL) { /* loop - parsing file */
     (*status)++;
     state = parse_line(buff, helpbuf1, helpbuf2);
     if (helpbuf1[0] == '#') {
@@ -202,7 +218,8 @@ cparsefile(char* name, int* status)
         ClientRealm_set_hostName(ClientConfiguration_get_realmsTable(cfg)[0], helpbuf2);
       }
       else if ((strcmp(helpbuf1, "p") == 0) || (strcmp(helpbuf1, "portnum") == 0)) {
-        ClientRealm_set_destinationPort(ClientConfiguration_get_realmsTable(cfg)[0], helpbuf2);
+        PortList_insert_back(ClientRealm_get_destinationPorts(ClientConfiguration_get_realmsTable(cfg)[0]),
+            PortListNode_new(helpbuf2));
       }
       else if (strcmp(helpbuf1, "localname") == 0) {
         ClientRealm_set_localName(ClientConfiguration_get_realmsTable(cfg)[0], helpbuf2);

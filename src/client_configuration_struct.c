@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "string_functions.h"
 #include "client_configuration_struct.h"
@@ -36,6 +37,7 @@ ClientConfiguration*
 ClientConfiguration_new()
 {
   ClientConfiguration* tmp = calloc(1, sizeof(ClientConfiguration));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
@@ -52,9 +54,11 @@ void
 ClientConfiguration_free(ClientConfiguration** cc)
 {
   int i;
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
+  assert((*cc) != NULL);
   if ((*cc) == NULL) {
     return;
   }
@@ -89,6 +93,7 @@ ClientConfiguration_free(ClientConfiguration** cc)
 void
 ClientConfiguration_set_keysFile(ClientConfiguration* cc, char* keysFile)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -105,6 +110,7 @@ ClientConfiguration_set_keysFile(ClientConfiguration* cc, char* keysFile)
 void
 ClientConfiguration_set_storeFile(ClientConfiguration* cc, char* storeFile)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -121,6 +127,7 @@ ClientConfiguration_set_storeFile(ClientConfiguration* cc, char* storeFile)
 void
 ClientConfiguration_set_dateFormat(ClientConfiguration* cc, char* dateFormat)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -137,6 +144,7 @@ ClientConfiguration_set_dateFormat(ClientConfiguration* cc, char* dateFormat)
 void
 ClientConfiguration_set_realmsNumber(ClientConfiguration* cc, int realmsNumber)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -154,6 +162,7 @@ void
 ClientConfiguration_set_realmsTable(ClientConfiguration* cc, ClientRealm** realmsTable)
 {
   int i;
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -179,6 +188,7 @@ ClientConfiguration_set_realmsTable(ClientConfiguration* cc, ClientRealm** realm
 void
 ClientConfiguration_set_ignorePublicKeys(ClientConfiguration* cc, char ignorePublicKeys)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -195,6 +205,7 @@ ClientConfiguration_set_ignorePublicKeys(ClientConfiguration* cc, char ignorePub
 char*
 ClientConfiguration_get_keysFile(ClientConfiguration* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return NULL;
   }
@@ -211,6 +222,7 @@ ClientConfiguration_get_keysFile(ClientConfiguration* cc)
 char*
 ClientConfiguration_get_storeFile(ClientConfiguration* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return NULL;
   }
@@ -227,6 +239,7 @@ ClientConfiguration_get_storeFile(ClientConfiguration* cc)
 char*
 ClientConfiguration_get_dateFormat(ClientConfiguration* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return NULL;
   }
@@ -243,6 +256,7 @@ ClientConfiguration_get_dateFormat(ClientConfiguration* cc)
 int
 ClientConfiguration_get_realmsNumber(ClientConfiguration* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return -1;
   }
@@ -259,6 +273,7 @@ ClientConfiguration_get_realmsNumber(ClientConfiguration* cc)
 ClientRealm**
 ClientConfiguration_get_realmsTable(ClientConfiguration* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return NULL;
   }
@@ -275,6 +290,7 @@ ClientConfiguration_get_realmsTable(ClientConfiguration* cc)
 char
 ClientConfiguration_get_ignorePublicKeys(ClientConfiguration* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return 0;
   }

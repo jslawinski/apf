@@ -19,7 +19,6 @@
  */
 
 #include <config.h>
-
 #include <stdlib.h>
 #include <string.h>
 
@@ -30,10 +29,11 @@
  * Description: Firstly, the memory allocated for *dest is released. After this, new memory is allocated
  *              and string from src is copied to newly created location. *dest is pointing to new string.
  * Arguments: dest - pointer to pointer to string previously allocated by malloc family functions.
- *                   If dest is NULL, memory will be allocated and returned from the function. In latter
- *                   case dest will be unchanged
+ *                   If dest is NULL, memory will be allocated and returned from the function. In the
+ *                   latter case dest will be unchanged
  *            src - string containing data for copying. If src is NULL, new memory is not allocated, but
  *                  the old one is still released.
+ * Returns: The newly allocated string.
  */
 
 char*
@@ -41,7 +41,7 @@ string_cp(char** dest, char* src)
 {
   char* tmp;
   int len = 0;
-  
+
   /* 1. releasing memory allocated by *dest */
   if (dest != NULL) {
     if ((*dest) != NULL) {

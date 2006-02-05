@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "string_functions.h"
 #include "timeval_functions.h"
@@ -29,7 +30,7 @@
 
 /*
  * Function name: ConnectClient_new
- * Description: Create and initialize new ConnectClient structure.
+ * Description: Creates and initializes new ConnectClient structure.
  * Returns: Pointer to newly created ConnectClient structure.
  */
 
@@ -37,20 +38,24 @@ ConnectClient*
 ConnectClient_new()
 {
   ConnectClient* tmp = calloc(1, sizeof(ConnectClient));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
   tmp->sslFd = SslFd_new();
+  assert(tmp->sslFd != NULL);
   if (tmp->sslFd == NULL) {
     ConnectClient_free(&tmp);
     return NULL;
   }
   tmp->auditList = AuditList_new();
+  assert(tmp->auditList != NULL);
   if (tmp->auditList == NULL) {
     ConnectClient_free(&tmp);
     return NULL;
   }
   tmp->header = HeaderBuffer_new();
+  assert(tmp->header != NULL);
   if (tmp->header == NULL) {
     ConnectClient_free(&tmp);
     return NULL;
@@ -60,7 +65,7 @@ ConnectClient_new()
 
 /*
  * Function name: ConnectClient_free
- * Description: Free the memory allocated for ConnectClient structure.
+ * Description: Frees the memory allocated for ConnectClient structure.
  * Arguments: cc - pointer to pointer to ConnectClient structure
  */
 
@@ -69,9 +74,11 @@ ConnectClient_free(ConnectClient** cc)
 {
   SslFd* sftmp;
   AuditList* altmp;
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
+  assert((*cc) != NULL);
   if ((*cc) == NULL) {
     return;
   }
@@ -93,7 +100,7 @@ ConnectClient_free(ConnectClient** cc)
 
 /*
  * Function name: ConnectClient_set_state
- * Description: Set state of the connected client.
+ * Description: Sets state of the connected client.
  * Arguments: cc - pointer to ConnectClient structure
  *            state - state of the connected client
  */
@@ -101,6 +108,7 @@ ConnectClient_free(ConnectClient** cc)
 void
 ConnectClient_set_state(ConnectClient* cc, char state)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -109,7 +117,7 @@ ConnectClient_set_state(ConnectClient* cc, char state)
 
 /*
  * Function name: ConnectClient_set_sslFd
- * Description: Set SslFd structure.
+ * Description: Sets SslFd structure.
  * Arguments: cc - pointer to ConnectClient structure
  *            sf - SslFd structure
  */
@@ -118,6 +126,7 @@ void
 ConnectClient_set_sslFd(ConnectClient* cc, SslFd* sf)
 {
   SslFd* sftmp;
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -128,7 +137,7 @@ ConnectClient_set_sslFd(ConnectClient* cc, SslFd* sf)
 
 /*
  * Function name: ConnectClient_set_timer
- * Description: Set timer of the client used for internal time counting.
+ * Description: Sets timer of the client used for internal time counting.
  * Arguments: cc - pointer to ConnectClient structure
  *            timer - timer of the client used for internal time counting
  */
@@ -136,6 +145,7 @@ ConnectClient_set_sslFd(ConnectClient* cc, SslFd* sf)
 void
 ConnectClient_set_timer(ConnectClient* cc, struct timeval timer)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -144,7 +154,7 @@ ConnectClient_set_timer(ConnectClient* cc, struct timeval timer)
 
 /*
  * Function name: ConnectClient_set_users
- * Description: Set users descriptor table.
+ * Description: Sets users descriptor table.
  * Arguments: cc - pointer to ConnectClient structure
  *            users - users descriptor table
  */
@@ -152,6 +162,7 @@ ConnectClient_set_timer(ConnectClient* cc, struct timeval timer)
 void
 ConnectClient_set_users(ConnectClient* cc, int* users)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -163,7 +174,7 @@ ConnectClient_set_users(ConnectClient* cc, int* users)
 
 /*
  * Functions name: ConnectClient_set_connected
- * Description: Set number of connected users.
+ * Description: Sets number of connected users.
  * Arguments: cc - pointer to ConnectClient structure
  *            connected - number of connected users
  */
@@ -171,6 +182,7 @@ ConnectClient_set_users(ConnectClient* cc, int* users)
 void
 ConnectClient_set_connected(ConnectClient* cc, int connected)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -179,7 +191,7 @@ ConnectClient_set_connected(ConnectClient* cc, int connected)
 
 /*
  * Function name: ConnectClient_set_limit
- * Description: Set limit of connected users.
+ * Description: Sets limit of connected users.
  * Arguments: cc - pointer to ConnectClient structure
  *            limit - limit of connected users
  */
@@ -187,6 +199,7 @@ ConnectClient_set_connected(ConnectClient* cc, int connected)
 void
 ConnectClient_set_limit(ConnectClient* cc, int limit)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -195,7 +208,7 @@ ConnectClient_set_limit(ConnectClient* cc, int limit)
 
 /*
  * Function name: ConnectClient_set_listenFd
- * Description: Set listen socket descriptor.
+ * Description: Sets listen socket descriptor.
  * Arguments: cc - pointer to ConnectClient structure
  *            listenFd - listen socket descriptor
  */
@@ -203,6 +216,7 @@ ConnectClient_set_limit(ConnectClient* cc, int limit)
 void
 ConnectClient_set_listenFd(ConnectClient* cc, int listenFd)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -211,7 +225,7 @@ ConnectClient_set_listenFd(ConnectClient* cc, int listenFd)
 
 /*
  * Function name: ConnectClient_set_usrCliPair
- * Description: Set user-client pair number.
+ * Description: Sets user-client pair number.
  * Arguments: cc - pointer to ConnectClient structure
  *            usrCliPair - user-client pair number
  */
@@ -219,6 +233,7 @@ ConnectClient_set_listenFd(ConnectClient* cc, int listenFd)
 void
 ConnectClient_set_usrCliPair(ConnectClient* cc, int usrCliPair)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -227,7 +242,7 @@ ConnectClient_set_usrCliPair(ConnectClient* cc, int usrCliPair)
 
 /*
  * Function name: ConnectClient_set_clientId
- * Description: Set client identification number.
+ * Description: Sets client identification number.
  * Arguments: cc - pointer to ConnectClient structure
  *            clientId - client identification number
  */
@@ -235,6 +250,7 @@ ConnectClient_set_usrCliPair(ConnectClient* cc, int usrCliPair)
 void
 ConnectClient_set_clientId(ConnectClient* cc, int clientId)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -243,7 +259,7 @@ ConnectClient_set_clientId(ConnectClient* cc, int clientId)
 
 /*
  * Function name: ConnectClient_set_connectTime
- * Description: Set start time of the connection.
+ * Description: Sets start time of the connection.
  * Arguments: cc - pointer to ConnectClient structure
  *            connectTime - start time of the connection
  */
@@ -251,6 +267,7 @@ ConnectClient_set_clientId(ConnectClient* cc, int clientId)
 void
 ConnectClient_set_connectTime(ConnectClient* cc, time_t connectTime)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -259,7 +276,7 @@ ConnectClient_set_connectTime(ConnectClient* cc, time_t connectTime)
 
 /*
  * Function name: ConnectClient_set_sClientId
- * Description: Set client identification string.
+ * Description: Sets client identification string.
  * Arguments: cc - pointer to ConnectClient structure
  *            sClientId - client identification string
  */
@@ -267,6 +284,7 @@ ConnectClient_set_connectTime(ConnectClient* cc, time_t connectTime)
 void
 ConnectClient_set_sClientId(ConnectClient* cc, char* sClientId)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -275,7 +293,7 @@ ConnectClient_set_sClientId(ConnectClient* cc, char* sClientId)
 
 /*
  * Function name: ConnectClient_set_nameBuf
- * Description: Set name of the client.
+ * Description: Sets name of the client.
  * Arguments: cc - pointer to ConnectClient structure
  *            nameBuf - name of the client
  */
@@ -283,6 +301,7 @@ ConnectClient_set_sClientId(ConnectClient* cc, char* sClientId)
 void
 ConnectClient_set_nameBuf(ConnectClient* cc, char* nameBuf)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -292,7 +311,7 @@ ConnectClient_set_nameBuf(ConnectClient* cc, char* nameBuf)
 
 /*
  * Function name: ConnectClient_set_portBuf
- * Description: Set port from which client is connected.
+ * Description: Sets port from which client is connected.
  * Arguments: cc - pointer to ConnectClient structure
  *            portBuf - port from which client is connected
  */
@@ -300,6 +319,7 @@ ConnectClient_set_nameBuf(ConnectClient* cc, char* nameBuf)
 void
 ConnectClient_set_portBuf(ConnectClient* cc, char* portBuf)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -309,7 +329,7 @@ ConnectClient_set_portBuf(ConnectClient* cc, char* portBuf)
 
 /*
  * Function name: ConnectClient_set_tunnelType
- * Description: Set tupe of the client tunnel.
+ * Description: Sets tupe of the client tunnel.
  * Arguments: cc - pointer to ConnectClient structure
  *            tunnelType - tupe of the client tunnel
  */
@@ -317,6 +337,7 @@ ConnectClient_set_portBuf(ConnectClient* cc, char* portBuf)
 void
 ConnectClient_set_tunnelType(ConnectClient* cc, char tunnelType)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -324,8 +345,26 @@ ConnectClient_set_tunnelType(ConnectClient* cc, char tunnelType)
 }
 
 /*
+ * Function name: ConnectClient_set_multi
+ * Description: Sets the status of the multi option.
+ * Arguments: cc - pointer to ConnectClient structure
+ *            multi - the status of the multi option
+ */
+
+void
+ConnectClient_set_multi(ConnectClient* cc, char multi)
+{
+  assert(cc != NULL);
+  if (cc == NULL) {
+    return;
+  }
+  assert((multi == CONNECTCLIENT_MULTI_ENABLED) || (multi == CONNECTCLIENT_MULTI_DISABLED));
+  cc->multi = multi;
+}
+
+/*
  * Function name: ConnectClient_set_auditList
- * Description: Set audit list for the audit feature.
+ * Description: Sets audit list for the audit feature.
  * Arguments: cc - pointer to ConnectClient structure
  *            al - audit list for the audit feature
  */
@@ -334,6 +373,7 @@ void
 ConnectClient_set_auditList(ConnectClient* cc, AuditList* al)
 {
   AuditList* altmp;
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -344,7 +384,7 @@ ConnectClient_set_auditList(ConnectClient* cc, AuditList* al)
 
 /*
  * Function name: ConnectClient_set_header
- * Description: Set header buffer for incomplete headers.
+ * Description: Sets header buffer for incomplete headers.
  * Arguments: cc - pointer to ConnectClient structure
  *            hb - header buffer for incomplete headers
  */
@@ -353,6 +393,7 @@ void
 ConnectClient_set_header(ConnectClient* cc, HeaderBuffer* hb)
 {
   HeaderBuffer* hbtmp;
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -363,7 +404,7 @@ ConnectClient_set_header(ConnectClient* cc, HeaderBuffer* hb)
 
 /*
  * Function name: ConnectClient_get_state
- * Description: Get state of the connected client.
+ * Description: Gets state of the connected client.
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: State of the connected client.
  */
@@ -371,6 +412,7 @@ ConnectClient_set_header(ConnectClient* cc, HeaderBuffer* hb)
 char
 ConnectClient_get_state(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return CONNECTCLIENT_STATE_UNKNOWN;
   }
@@ -379,7 +421,7 @@ ConnectClient_get_state(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_get_sslFd
- * Description: Get SslFd structure.
+ * Description: Gets SslFd structure.
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: SslFd structure.
  */
@@ -387,6 +429,7 @@ ConnectClient_get_state(ConnectClient* cc)
 SslFd*
 ConnectClient_get_sslFd(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return NULL;
   }
@@ -395,7 +438,7 @@ ConnectClient_get_sslFd(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_get_timer
- * Description: Get timer of the client used for internal time counting. 
+ * Description: Gets timer of the client used for internal time counting. 
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: Timer of the client used for internal time counting.
  */
@@ -403,6 +446,7 @@ ConnectClient_get_sslFd(ConnectClient* cc)
 struct timeval
 ConnectClient_get_timer(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return timeval_create(0, 0);
   }
@@ -411,7 +455,7 @@ ConnectClient_get_timer(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_get_users
- * Description: Get users descriptor table.
+ * Description: Gets users descriptor table.
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: Users descriptor table.
  */
@@ -419,6 +463,7 @@ ConnectClient_get_timer(ConnectClient* cc)
 int*
 ConnectClient_get_users(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return NULL;
   }
@@ -427,7 +472,7 @@ ConnectClient_get_users(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_get_connected
- * Description: Get number of connected users.
+ * Description: Gets number of connected users.
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: Number of connected users.
  */
@@ -435,6 +480,7 @@ ConnectClient_get_users(ConnectClient* cc)
 int
 ConnectClient_get_connected(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return -1;
   }
@@ -443,7 +489,7 @@ ConnectClient_get_connected(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_get_limit
- * Description: Get limit of connected users.
+ * Description: Gets limit of connected users.
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: Limit of connected users.
  */
@@ -451,6 +497,7 @@ ConnectClient_get_connected(ConnectClient* cc)
 int
 ConnectClient_get_limit(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return -1;
   }
@@ -459,7 +506,7 @@ ConnectClient_get_limit(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_get_listenFd
- * Description: Get listen socket descriptor.
+ * Description: Gets listen socket descriptor.
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: Listen socket descriptor.
  */
@@ -467,6 +514,7 @@ ConnectClient_get_limit(ConnectClient* cc)
 int
 ConnectClient_get_listenFd(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return -1;
   }
@@ -475,7 +523,7 @@ ConnectClient_get_listenFd(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_get_usrCliPair
- * Description: Get user-client pair number.
+ * Description: Gets user-client pair number.
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: User-client pair number.
  */
@@ -483,6 +531,7 @@ ConnectClient_get_listenFd(ConnectClient* cc)
 int
 ConnectClient_get_usrCliPair(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return -1;
   }
@@ -491,7 +540,7 @@ ConnectClient_get_usrCliPair(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_get_clientId
- * Description: Get client identification number.
+ * Description: Gets client identification number.
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: Client identification number.
  */
@@ -499,6 +548,7 @@ ConnectClient_get_usrCliPair(ConnectClient* cc)
 int
 ConnectClient_get_clientId(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return -1;
   }
@@ -507,7 +557,7 @@ ConnectClient_get_clientId(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_get_connectTime
- * Description: Get start time of the connection.
+ * Description: Gets start time of the connection.
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: Start time of the connection.
  */
@@ -515,6 +565,7 @@ ConnectClient_get_clientId(ConnectClient* cc)
 time_t
 ConnectClient_get_connectTime(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return 0;
   }
@@ -523,7 +574,7 @@ ConnectClient_get_connectTime(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_get_sClientId
- * Description: Get client identification string.
+ * Description: Gets client identification string.
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: Client identification string.
  */
@@ -531,6 +582,7 @@ ConnectClient_get_connectTime(ConnectClient* cc)
 char*
 ConnectClient_get_sClientId(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return NULL;
   }
@@ -539,7 +591,7 @@ ConnectClient_get_sClientId(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_get_nameBuf
- * Description: Get name of the client.
+ * Description: Gets name of the client.
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: Name of the client.
  */
@@ -547,6 +599,7 @@ ConnectClient_get_sClientId(ConnectClient* cc)
 char*
 ConnectClient_get_nameBuf(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return NULL;
   }
@@ -555,7 +608,7 @@ ConnectClient_get_nameBuf(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_get_portBuf
- * Description: Get port from which client is connected.
+ * Description: Gets port from which client is connected.
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: Port from which client is connected.
  */
@@ -563,6 +616,7 @@ ConnectClient_get_nameBuf(ConnectClient* cc)
 char*
 ConnectClient_get_portBuf(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return NULL;
   }
@@ -571,7 +625,7 @@ ConnectClient_get_portBuf(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_get_tunnelType
- * Description: Get tupe of the client tunnel.
+ * Description: Gets tupe of the client tunnel.
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: Tupe of the client tunnel.
  */
@@ -579,6 +633,7 @@ ConnectClient_get_portBuf(ConnectClient* cc)
 char
 ConnectClient_get_tunnelType(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return CONNECTCLIENT_TUNNELTYPE_UNKNOWN;
   }
@@ -586,8 +641,26 @@ ConnectClient_get_tunnelType(ConnectClient* cc)
 }
 
 /*
+ * Function name: ConnectClient_get_multi
+ * Description: Gets the status of the multi option.
+ * Arguments: cc - pointer to ConnectClient structure
+ * Returns: CONNECTCLIENT_MULTI_ENABLED - the option is enabled,
+ *          CONNECTCLIENT_MULTI_DISABLED - the option is disabled.
+ */
+
+char
+ConnectClient_get_multi(ConnectClient* cc)
+{
+  assert(cc != NULL);
+  if (cc == NULL) {
+    return CONNECTCLIENT_MULTI_DISABLED;
+  }
+  return cc->multi;
+}
+
+/*
  * Function name: ConnectClient_get_auditList
- * Description: Get audit list for the audit feature.
+ * Description: Gets audit list for the audit feature.
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: Audit list for the audit feature.
  */
@@ -595,6 +668,7 @@ ConnectClient_get_tunnelType(ConnectClient* cc)
 AuditList*
 ConnectClient_get_auditList(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return NULL;
   }
@@ -603,7 +677,7 @@ ConnectClient_get_auditList(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_get_header
- * Description: Get header buffer for incomplete headers.
+ * Description: Gets header buffer for incomplete headers.
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: Header buffer for incomplete headers.
  */
@@ -611,6 +685,7 @@ ConnectClient_get_auditList(ConnectClient* cc)
 HeaderBuffer*
 ConnectClient_get_header(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return NULL;
   }
@@ -619,7 +694,7 @@ ConnectClient_get_header(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_create_users
- * Description: Create user descriptor table. Memory for the table is allocated according
+ * Description: Creates user descriptor table. Memory for the table is allocated according
  *              to the previously set 'limit' value. All the descriptors are set to -1.
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: >0 - there were some problems with memory allocation
@@ -630,14 +705,17 @@ int
 ConnectClient_create_users(ConnectClient* cc)
 {
   int i, limit;
+  assert(cc != NULL);
   if (cc == NULL) {
     return 1;
   }
   limit = ConnectClient_get_limit(cc);
+  assert(limit != -1);
   if (limit == -1) {
     return 2;
   }
   cc->users = malloc(limit * sizeof(int));
+  assert(cc->users != NULL);
   if (cc->users == NULL) {
     return 3;
   }
@@ -649,7 +727,7 @@ ConnectClient_create_users(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_get_timerp
- * Description: Get pointer to timer of the client used for internal time counting. 
+ * Description: Gets pointer to timer of the client used for internal time counting. 
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: Pointer to timer of the client used for internal time counting.
  */
@@ -657,6 +735,7 @@ ConnectClient_create_users(ConnectClient* cc)
 struct timeval*
 ConnectClient_get_timerp(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return NULL;
   }
@@ -665,13 +744,14 @@ ConnectClient_get_timerp(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_increase_connected
- * Description: Increase number of connected users.
+ * Description: Increases number of connected users.
  * Arguments: cc - pointer to ConnectClient structure
  */
 
 void
 ConnectClient_increase_connected(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -680,13 +760,14 @@ ConnectClient_increase_connected(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_decrease_connected
- * Description: Decrease number of connected users.
+ * Description: Decreases number of connected users.
  * Arguments: cc - pointer to ConnectClient structure
  */
 
 void
 ConnectClient_decrease_connected(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return;
   }
@@ -695,7 +776,7 @@ ConnectClient_decrease_connected(ConnectClient* cc)
 
 /*
  * Function name: ConnectClient_get_listenFdp
- * Description: Get pointer to listen socket descriptor.
+ * Description: Gets pointer to listen socket descriptor.
  * Arguments: cc - pointer to ConnectClient structure
  * Returns: Pointer to listen socket descriptor.
  */
@@ -703,6 +784,7 @@ ConnectClient_decrease_connected(ConnectClient* cc)
 int*
 ConnectClient_get_listenFdp(ConnectClient* cc)
 {
+  assert(cc != NULL);
   if (cc == NULL) {
     return NULL;
   }

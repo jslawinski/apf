@@ -24,6 +24,14 @@
 
 #include <stdlib.h>
 
+/*
+ * Function name: initialize_client_reverse_udp
+ * Description: Initializes the realm for reverse udp connection.
+ * Arguments: cr - pointer to ClientRealm structure
+ * Returns: 0 - connection was initialized successfully,
+ *          1 - connection initialization failed.
+ */
+
 int
 initialize_client_reverse_udp(ClientRealm* cr)
 {
@@ -56,26 +64,39 @@ initialize_client_reverse_udp(ClientRealm* cr)
   return 0;
 }
 
+/*
+ * Function name: client_reverse_udp
+ * Description: This function is responsible for the client part of the reverse udp tunnel.
+ * Arguments: cr - pointer to ClientRealm structure
+ *            buff - buffer which will be used for communication
+ *            buflength - socket send buffer size
+ */
+
 void
 client_reverse_udp(ClientRealm* cr, unsigned char* buff, int buflength)
 {
   socklen_t len, addrlen;
-  int maxfdp1, temp, notsent, n, length;
+  int maxfdp1, temp, n, length;
+#ifdef HAVE_LINUX_SOCKIOS_H
+  int notsent;
+#endif
   struct sockaddr* cliaddr;
   fd_set rset, allset;
 
   if (ip_listen(&temp, ClientRealm_get_hostName(cr),
-        ClientRealm_get_destinationPort(cr), &addrlen,
+        PortListNode_get_portName(PortList_get_nth(ClientRealm_get_destinationPorts(cr), 0)), &addrlen,
         ClientRealm_get_ipFamily(cr) & 0xfe)) {
 #ifdef AF_INET6
     aflog(LOG_T_INIT, LOG_I_DEBUG,
         "udp_listen_%s error for %s, %s",
         (ClientRealm_get_ipFamily(cr) & 0x02) ?
           "ipv4":(ClientRealm_get_ipFamily(cr) & 0x04) ?
-            "ipv6":"unspec", ClientRealm_get_hostName(cr), ClientRealm_get_destinationPort(cr));
+            "ipv6":"unspec", ClientRealm_get_hostName(cr),
+            PortListNode_get_portName(PortList_get_nth(ClientRealm_get_destinationPorts(cr), 0)));
 #else
     aflog(LOG_T_INIT, LOG_I_DEBUG,
-        "udp_listen error for %s, %s", ClientRealm_get_hostName(cr), ClientRealm_get_destinationPort(cr));
+        "udp_listen error for %s, %s", ClientRealm_get_hostName(cr),
+        PortListNode_get_portName(PortList_get_nth(ClientRealm_get_destinationPorts(cr), 0)));
 #endif
     exit(1);
   }

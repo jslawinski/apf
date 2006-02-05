@@ -18,37 +18,23 @@
  *
  */
 
+#ifndef _JS_PORT_LIST_NODE_STRUCT_H
+#define _JS_PORT_LIST_NODE_STRUCT_H
 
-#ifndef _JS_USR_CLI_STRUCT_H
-#define _JS_USR_CLI_STRUCT_H
-
-typedef struct {
-  char* listenHostName;
-  char* manageHostName;
-  char* listenPortName;
-  char* managePortName;
-  int listenFd;
-  int manageFd;
-  int number;
-} UsrCli;
+typedef struct plnode {
+  char* portName;
+  struct plnode* nextNode;
+} PortListNode;
 
 /* 'constructor' */
-UsrCli* UsrCli_new();
+PortListNode* PortListNode_new(char* portName);
 /* 'destructor' */
-void UsrCli_free(UsrCli** uc);
+void PortListNode_free(PortListNode** pln);
 /* setters */
-void UsrCli_set_listenPortName(UsrCli* uc, char* listenPortName);
-void UsrCli_set_managePortName(UsrCli* uc, char* managePortName);
-void UsrCli_set_listenFd(UsrCli* uc, int listenFd);
-void UsrCli_set_manageFd(UsrCli* uc, int manageFd);
-void UsrCli_set_number(UsrCli* uc, int number);
+void PortListNode_set_portName(PortListNode* pln, char* portName);
+void PortListNode_set_nextNode(PortListNode* pln, PortListNode* nextNode);
 /* getters */
-char* UsrCli_get_listenPortName(UsrCli* uc);
-char* UsrCli_get_managePortName(UsrCli* uc);
-int UsrCli_get_listenFd(UsrCli* uc);
-int UsrCli_get_manageFd(UsrCli* uc);
-char* UsrCli_get_listenHostName(UsrCli* uc);
-char* UsrCli_get_manageHostName(UsrCli* uc);
-int UsrCli_get_number(UsrCli* uc);
+char* PortListNode_get_portName(PortListNode* pln);
+PortListNode* PortListNode_get_nextNode(PortListNode* pln);
 
 #endif

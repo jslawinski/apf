@@ -19,6 +19,7 @@
  */
 
 #include <config.h>
+#include <assert.h>
 
 #include "client_initialization.h"
 #include "first_run.h"
@@ -40,6 +41,7 @@ initialize_client_stage1(ClientRealm* cr, SSL_CTX* ctx, unsigned char* buff, cha
   unsigned char *encoded = NULL;
   char b64_encoded[100];
   unsigned char *key_buf = NULL;
+  assert((ClientRealm_get_tunnelType(cr) == 0) || (ClientRealm_get_tunnelType(cr) == 1));
   switch (ClientRealm_get_tunnelType(cr)) {
     case 0: {
       if (ip_connect(&tmp, ClientRealm_get_serverName(cr),

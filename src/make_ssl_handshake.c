@@ -27,6 +27,12 @@
 #include <errno.h>
 #include <openssl/err.h>
 
+/*
+ * Function name: make_ssl_initialize
+ * Description: Initializes the file descriptor of the SSL connection.
+ * Arguments: sf - pointer to SslFd structure
+ */
+
 void
 make_ssl_initialize(SslFd* sf)
 {
@@ -37,6 +43,14 @@ make_ssl_initialize(SslFd* sf)
   }
 }
 
+/*
+ * Function name: make_ssl_accept
+ * Description: Accepts new SSL connection.
+ * Arguments: sf - pointer to SslFd structure
+ * Returns: 0 - success,
+ *          !0 - failure.
+ */
+
 int
 make_ssl_accept(SslFd* sf)
 {
@@ -46,6 +60,16 @@ make_ssl_accept(SslFd* sf)
   }
   return 0;
 }
+
+/*
+ * Function name: get_ssl_error
+ * Description: Decodes and logs SSL errors.
+ * Arguments: sf - pointer to SslFd structure
+ *            info - the header of the warning message
+ *            result - the result from the SSL_accept function
+ * Returns: 1 - more i/o operations are needed to accomplish handshake,
+ *          2 - the error was fatal for the handshake.
+ */
 
 int
 get_ssl_error(SslFd* sf, char* info, int result)

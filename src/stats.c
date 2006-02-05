@@ -24,6 +24,13 @@
 
 static signed long compressgained;
 
+/*
+ * Function name: timeperiod
+ * Description: Returns the formatted time period string.
+ * Arguments: period - the time period
+ * Returns: The formatted time period string.
+ */
+
 char*
 timeperiod(time_t period)
 {
@@ -44,17 +51,34 @@ timeperiod(time_t period)
   return timeper;
 }
 
+/*
+ * Function name: addtocg
+ * Description: Adds the given number to the bytes gained by the use of compression.
+ * Arguments: amount - the number to add
+ */
+
 void
 addtocg(int amount)
 {
 	compressgained += amount;
 }
 
+/*
+ * Function name: getcg
+ * Description: Returns the number of bytes gained by the use of compression.
+ * Returns: The number of bytes gained by the use of compression.
+ */
+
 signed long
 getcg(void)
 {
 	return compressgained;
 }
+
+/*
+ * Function name: resetcg
+ * Description: Resets the counter of bytes gained by the use of compression.
+ */
 
 void
 resetcg(void)

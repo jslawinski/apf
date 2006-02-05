@@ -22,12 +22,13 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "buf_list_node_struct.h"
 
 /*
  * Function name: BufListNode_new
- * Description: Create and initialize new BufListNode structure.
+ * Description: Creates and initializes new BufListNode structure.
  * Returns: Newly created BufListNode structure.
  */
 
@@ -35,6 +36,7 @@ BufListNode*
 BufListNode_new()
 {
   BufListNode* tmp = calloc(1, sizeof(BufListNode));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
@@ -55,6 +57,7 @@ BufListNode*
 BufListNode_new_message(int actPtr, int msgLen, unsigned char* message)
 {
   BufListNode* tmp = calloc(1, sizeof(BufListNode));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
@@ -65,16 +68,18 @@ BufListNode_new_message(int actPtr, int msgLen, unsigned char* message)
 
 /*
  * Function name: BufListNode_free
- * Description: Free the memory allocated for BufListNode structure.
+ * Description: Frees the memory allocated for BufListNode structure.
  * Arguments: bln - pointer to pointer to BufListNode structure
  */
 
 void
 BufListNode_free(BufListNode** bln)
 {
+  assert(bln != NULL);
   if (bln == NULL) {
     return;
   }
+  assert((*bln) != NULL);
   if ((*bln) == NULL) {
     return;
   }
@@ -88,7 +93,7 @@ BufListNode_free(BufListNode** bln)
 
 /*
  * Function name: BufListNode_set_actPtr
- * Description: Set actual buffer pointer.
+ * Description: Sets actual buffer pointer.
  * Arguments: bln - pointer to BufListNode structure
  *            actPtr - actual buffer pointer
  */
@@ -96,6 +101,7 @@ BufListNode_free(BufListNode** bln)
 void
 BufListNode_set_actPtr(BufListNode* bln, int actPtr)
 {
+  assert(bln != NULL);
   if (bln == NULL) {
     return;
   }
@@ -104,7 +110,7 @@ BufListNode_set_actPtr(BufListNode* bln, int actPtr)
 
 /*
  * Function name: BufListNode_set_msgLen
- * Description: Set length of the message.
+ * Description: Sets length of the message.
  * Arguments: bln - pointer to BufListNode structure
  *            msgLen - length of the message
  */
@@ -112,6 +118,7 @@ BufListNode_set_actPtr(BufListNode* bln, int actPtr)
 void
 BufListNode_set_msgLen(BufListNode* bln, int msgLen)
 {
+  assert(bln != NULL);
   if (bln == NULL) {
     return;
   }
@@ -120,7 +127,7 @@ BufListNode_set_msgLen(BufListNode* bln, int msgLen)
 
 /*
  * Function name: BufListNode_set_message
- * Description: Set message to be stored.
+ * Description: Sets message to be stored.
  * Arguments: bln - pointer to BufListNode structure
  *            message - message to be stored
  *            msgLen - length of the message
@@ -129,6 +136,7 @@ BufListNode_set_msgLen(BufListNode* bln, int msgLen)
 void
 BufListNode_set_message(BufListNode* bln, unsigned char* message, int msgLen)
 {
+  assert(bln != NULL);
   if (bln == NULL) {
     return;
   }
@@ -138,10 +146,12 @@ BufListNode_set_message(BufListNode* bln, unsigned char* message, int msgLen)
   }
   BufListNode_set_actPtr(bln, 0);
   BufListNode_set_msgLen(bln, 0);
+  assert(message != NULL);
   if (message == NULL) {
     return;
   }
   bln->message = calloc(1, msgLen);
+  assert(bln->message != NULL);
   if (bln->message == NULL) {
     return;
   }
@@ -151,7 +161,7 @@ BufListNode_set_message(BufListNode* bln, unsigned char* message, int msgLen)
 
 /*
  * Function name: BufListNode_set_nextNode
- * Description: Set next node pointer.
+ * Description: Sets next node pointer.
  * Arguments: bln - pointer to BufListNode structure
  *            nextNode - next node pointer
  */
@@ -159,6 +169,7 @@ BufListNode_set_message(BufListNode* bln, unsigned char* message, int msgLen)
 void
 BufListNode_set_nextNode(BufListNode* bln, BufListNode* nextNode)
 {
+  assert(bln != NULL);
   if (bln == NULL) {
     return;
   }
@@ -167,7 +178,7 @@ BufListNode_set_nextNode(BufListNode* bln, BufListNode* nextNode)
 
 /*
  * Function name: BufListNode_get_actPtr
- * Description: Get actual buffer pointer.
+ * Description: Gets actual buffer pointer.
  * Aguments: bln - pointer to BufListNode structure
  * Returns: Actual buffer pointer.
  */
@@ -175,6 +186,7 @@ BufListNode_set_nextNode(BufListNode* bln, BufListNode* nextNode)
 int
 BufListNode_get_actPtr(BufListNode* bln)
 {
+  assert(bln != NULL);
   if (bln == NULL) {
     return -1;
   }
@@ -183,7 +195,7 @@ BufListNode_get_actPtr(BufListNode* bln)
 
 /*
  * Function name: BufListNode_get_msgLen
- * Description: Get length of the message.
+ * Description: Gets length of the message.
  * Arguments: bln - pointer to BufListNode structure
  * Returns: Length of the message.
  */
@@ -191,6 +203,7 @@ BufListNode_get_actPtr(BufListNode* bln)
 int
 BufListNode_get_msgLen(BufListNode* bln)
 {
+  assert(bln != NULL);
   if (bln == NULL) {
     return -1;
   }
@@ -199,7 +212,7 @@ BufListNode_get_msgLen(BufListNode* bln)
 
 /*
  * Function name: BufListNode_get_message
- * Description: Get stored message.
+ * Description: Gets stored message.
  * Arguments: bln - pointer to BufListNode structure
  * Returns: Stored message.
  */
@@ -207,6 +220,7 @@ BufListNode_get_msgLen(BufListNode* bln)
 unsigned char*
 BufListNode_get_message(BufListNode* bln)
 {
+  assert(bln != NULL);
   if (bln == NULL) {
     return NULL;
   }
@@ -215,7 +229,7 @@ BufListNode_get_message(BufListNode* bln)
 
 /*
  * Function name: BufListNode_get_nextNode
- * Description: Get next node pointer.
+ * Description: Gets next node pointer.
  * Arguments: bln - pointer to BufListNode structure
  * Returns: Next BufListNode structure pointer or NULL, if there is no next one.
  */
@@ -223,6 +237,7 @@ BufListNode_get_message(BufListNode* bln)
 BufListNode*
 BufListNode_get_nextNode(BufListNode* bln)
 {
+  assert(bln != NULL);
   if (bln == NULL) {
     return NULL;
   }
@@ -239,6 +254,7 @@ BufListNode_get_nextNode(BufListNode* bln)
 unsigned char*
 BufListNode_readMessage(BufListNode* bln)
 {
+  assert(bln != NULL);
   if (bln == NULL) {
     return NULL;
   }
@@ -247,7 +263,7 @@ BufListNode_readMessage(BufListNode* bln)
 
 /*
  * Function name: BufListNode_readMessageLength
- * Description: Get the amount of unread bytes in the message.
+ * Description: Gets the amount of unread bytes in the message.
  * Arguments: bln - pointer to BufListNode structure
  * Returns: The amount of unread bytes in the message.
  */
@@ -256,13 +272,16 @@ int
 BufListNode_readMessageLength(BufListNode* bln)
 {
   int tmp = 0;
+  assert(bln != NULL);
   if (bln == NULL) {
     return -1;
   }
+  assert(BufListNode_get_message(bln) != NULL);
   if (BufListNode_get_message(bln) == NULL) {
     return -1;
   }
   tmp = BufListNode_get_msgLen(bln) - BufListNode_get_actPtr(bln);
+  assert(tmp >= 0);
   if (tmp < 0) {
     return 0;
   }

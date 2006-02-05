@@ -78,12 +78,16 @@ main(int argc, char **argv)
    * variables
    */
   
-  int i, n, numofcon, length, buflength, notsent, temp, temp2; 
+  int i, n, numofcon, length, buflength, temp, temp2 = 0;
+#ifdef HAVE_LINUX_SOCKIOS_H
+  int notsent;
+  socklen_t aLength;
+#endif
   ConnectUser** usersTable = NULL;
   unsigned char buff[9000];
   char hostname[100];
-  int maxfdp1, usercon;
-  socklen_t aLength, addressLength;
+  int maxfdp1;
+  socklen_t addressLength;
   struct sockaddr* clientAddress;
   fd_set rset, allset, wset, tmpset;
   struct timeval keepAlive;
@@ -98,7 +102,7 @@ main(int argc, char **argv)
   char* serverName = NULL;
   char* managePort = NULL;
   char* hostName = NULL;
-  char* destinationPort = NULL;
+  PortList*  destinationPorts = PortList_new();
   char* localName = NULL;
   char* localPort = NULL;
   char* localDestinationName = NULL;
@@ -225,7 +229,7 @@ main(int argc, char **argv)
         break;
       }
       case 'p': {
-        destinationPort = optarg;
+        PortList_insert_back(destinationPorts, PortListNode_new(optarg));
         break;
       }
       case 'v': {
@@ -426,8 +430,9 @@ main(int argc, char **argv)
       if ((hostName != NULL) && (ClientRealm_get_hostName(pointer) == NULL)) {
         ClientRealm_set_hostName(pointer, hostName);
       }
-      if ((destinationPort != NULL) && (ClientRealm_get_destinationPort(pointer) == NULL)) {
-        ClientRealm_set_destinationPort(pointer, destinationPort);
+      if ((PortList_get_size(destinationPorts) != 0) &&
+          (PortList_get_size(ClientRealm_get_destinationPorts(pointer)) == 0)) {
+        ClientRealm_set_destinationPorts(pointer, destinationPorts);
       }
       if ((realmId != NULL) && (ClientRealm_get_realmId(pointer) == NULL)) {
         ClientRealm_set_realmId(pointer, realmId);
@@ -510,7 +515,7 @@ main(int argc, char **argv)
     ClientRealm_set_serverName(pointer, serverName);
     ClientRealm_set_managePort(pointer, managePort);
     ClientRealm_set_hostName(pointer, hostName);
-    ClientRealm_set_destinationPort(pointer, destinationPort);
+    ClientRealm_set_destinationPorts(pointer, destinationPorts);
     ClientRealm_set_realmId(pointer, realmId);
     ClientRealm_set_httpProxyOptions(pointer, hpo);
     ClientRealm_set_arOptions(pointer, ao);
@@ -591,7 +596,7 @@ main(int argc, char **argv)
     ClientRealm_set_hostName(pointer, hostname);
   }
   if ((ClientRealm_get_clientMode(pointer) != CLIENTREALM_MODE_REMOTE) &&
-      (ClientRealm_get_destinationPort(pointer) == NULL)) {
+      (PortList_get_size(ClientRealm_get_destinationPorts(pointer)) == 0)) {
     client_short_usage("Destination port number is required");
   }
   
@@ -695,9 +700,9 @@ main(int argc, char **argv)
     
     if (ClientRealm_get_clientMode(pointer) == CLIENTREALM_MODE_REMOTE) {
       temp2 = -1;
-      if (ClientRealm_get_destinationPort(pointer)) {
+      if (PortList_get_size(ClientRealm_get_destinationPorts(pointer)) > 0) {
         if (ip_listen(&n, ClientRealm_get_serverName(pointer),
-              ClientRealm_get_destinationPort(pointer),
+              PortListNode_get_portName(PortList_get_nth(ClientRealm_get_destinationPorts(pointer), 0)),
               &addressLength,
               ClientRealm_get_ipFamily(pointer))) {
 #ifdef AF_INET6
@@ -709,11 +714,11 @@ main(int argc, char **argv)
                   "ipv6" :
                   "unspec",
               ClientRealm_get_serverName(pointer),
-              ClientRealm_get_destinationPort(pointer));
+              PortListNode_get_portName(PortList_get_nth(ClientRealm_get_destinationPorts(pointer), 0)));
 #else
           aflog(LOG_T_INIT, LOG_I_CRIT,
               "tcp_listen error for %s, %s", ClientRealm_get_serverName(pointer),
-              ClientRealm_get_destinationPort(pointer));
+              PortListNode_get_portName(PortList_get_nth(ClientRealm_get_destinationPorts(pointer), 0)));
 #endif
           exit(1);
         }
@@ -806,6 +811,8 @@ main(int argc, char **argv)
       "SERVER SSL: %s, ZLIB: %s, MODE: %s", (TYPE_IS_SSL(ClientRealm_get_realmType(pointer))) ? "yes" : "no",
       (TYPE_IS_ZLIB(ClientRealm_get_realmType(pointer))) ? "yes" : "no",
       (TYPE_IS_TCP(ClientRealm_get_realmType(pointer))) ? "tcp" : "udp");
+  aflog(LOG_T_CLIENT, LOG_I_INFO,
+      "SERVER MULTI: %s", (TYPE_IS_SUPPORTED_MULTI(ClientRealm_get_realmType(pointer))) ? "yes" : "no");
   aflog(LOG_T_CLIENT, LOG_I_NOTICE,
       "CIPHER: %s VER: %s", SSL_get_cipher_name(SslFd_get_ssl(ClientRealm_get_masterSslFd(pointer))),
       SSL_get_cipher_version(SslFd_get_ssl(ClientRealm_get_masterSslFd(pointer))));
@@ -821,18 +828,9 @@ main(int argc, char **argv)
         Module_function_info(ClientRealm_get_serviceModule(pointer)));
   }
 #endif
-	if (ClientRealm_get_realmId(pointer) != NULL) {
-    buff[0] = AF_S_LOGIN;
-    buff[1] = buff[2] = 0;
-    n = strlen(ClientRealm_get_realmId(pointer));
-    memcpy(&buff[5], ClientRealm_get_realmId(pointer), n);
-    buff[3] = n >> 8;	/* high bits of message length */
-    buff[4] = n;		/* low bits of message length */
-    SslFd_send_message(ClientRealm_get_realmType(pointer),
-        ClientRealm_get_masterSslFd(pointer), buff, n+5);
-    aflog(LOG_T_CLIENT, LOG_I_INFO,
-        "ID SENT: %s", ClientRealm_get_realmId(pointer));
-  }
+  
+  ClientRealm_send_realmId(pointer, buff);
+  ClientRealm_enable_multi(pointer);
     
   for ( ; ; ) {
     rset = allset;
@@ -860,14 +858,18 @@ main(int argc, char **argv)
     usersTable = ClientRealm_get_usersTable(pointer);
     for (i = 0; i < ClientRealm_get_usersLimit(pointer); ++i) {
       if ((ConnectUser_get_state(usersTable[i]) == S_STATE_OPEN) ||
-          (ConnectUser_get_state(usersTable[i]) == S_STATE_STOPPED)) {
+          (ConnectUser_get_state(usersTable[i]) == S_STATE_STOPPED) ||
+          (ConnectUser_get_state(usersTable[i]) == S_STATE_KICKING)) {
         if (FD_ISSET(ConnectUser_get_connFd(usersTable[i]), &rset)) { /* FD_ISSET   CONTABLE[i].CONNFD   RSET */
           aflog(LOG_T_USER, LOG_I_DDEBUG,
               "user[%d]: FD_ISSET", i);
           n = read(ConnectUser_get_connFd(usersTable[i]), &buff[5], 8091);
           if (n == -1) {
+            if (errno == EAGAIN) {
+              continue;
+            }
             aflog(LOG_T_USER, LOG_I_ERR,
-                "error (%d): while reading from service", n);
+                "error (%d): while reading from service", errno);
             n = 0;
           }
 #ifdef HAVE_LINUX_SOCKIOS_H
@@ -936,6 +938,8 @@ main(int argc, char **argv)
                     aflog(LOG_T_USER, LOG_I_NOTICE,
                         "user[%d] (by ser): DROPPED BY MODULE", i);
                     close(ConnectUser_get_connFd(usersTable[i]));
+                    aflog(LOG_T_USER, LOG_I_DDEBUG,
+                        "user[%d]: Closing connFd: %d", i, ConnectUser_get_connFd(usersTable[i]));
                     FD_CLR(ConnectUser_get_connFd(usersTable[i]), &allset);
                     FD_CLR(ConnectUser_get_connFd(usersTable[i]), &wset);
                     ConnectUser_set_state(usersTable[i], S_STATE_CLOSING);
@@ -989,9 +993,16 @@ main(int argc, char **argv)
             aflog(LOG_T_USER, LOG_I_INFO,
                 "user[%d]: CLOSING", i);
             close(ConnectUser_get_connFd(usersTable[i]));
+            aflog(LOG_T_USER, LOG_I_DDEBUG,
+                "user[%d]: Closing connFd: %d", i, ConnectUser_get_connFd(usersTable[i]));
             FD_CLR(ConnectUser_get_connFd(usersTable[i]), &allset);
             FD_CLR(ConnectUser_get_connFd(usersTable[i]), &wset);
-            ConnectUser_set_state(usersTable[i], S_STATE_CLOSING);
+            if (ConnectUser_get_state(usersTable[i]) == S_STATE_KICKING) {
+              ConnectUser_set_state(usersTable[i], S_STATE_CLEAR);
+            }
+            else {
+              ConnectUser_set_state(usersTable[i], S_STATE_CLOSING);
+            }
             BufList_clear(ConnectUser_get_bufList(usersTable[i]));
             buff[0] = AF_S_CONCLOSED; /* closing connection */
             buff[1] = i >> 8;	/* high bits of user number */
@@ -1002,7 +1013,8 @@ main(int argc, char **argv)
       }
     }
     for (i = 0; i < ClientRealm_get_usersLimit(pointer); ++i) {
-      if (ConnectUser_get_state(usersTable[i]) == S_STATE_STOPPED) {
+      if ((ConnectUser_get_state(usersTable[i]) == S_STATE_STOPPED) ||
+          (ConnectUser_get_state(usersTable[i]) == S_STATE_KICKING)) {
         if (FD_ISSET(ConnectUser_get_connFd(usersTable[i]), &tmpset)) { /* FD_ISSET  CONTABLE[i].CONNFD  TMPSET */
           aflog(LOG_T_USER, LOG_I_DDEBUG,
               "user[%d]: FD_ISSET - WRITE", i);
@@ -1019,25 +1031,49 @@ main(int argc, char **argv)
           }
           else if (temp2 == -1) {
             close(ConnectUser_get_connFd(usersTable[i]));
+            aflog(LOG_T_USER, LOG_I_DDEBUG,
+                "user[%d]: Closing connFd: %d", i, ConnectUser_get_connFd(usersTable[i]));
             FD_CLR(ConnectUser_get_connFd(usersTable[i]), &allset);
             FD_CLR(ConnectUser_get_connFd(usersTable[i]), &wset);
-            ConnectUser_set_state(usersTable[i], S_STATE_CLOSING);
+            if (ConnectUser_get_state(usersTable[i]) == S_STATE_KICKING) {
+              ConnectUser_set_state(usersTable[i], S_STATE_CLEAR);
+            }
+            else {
+              ConnectUser_set_state(usersTable[i], S_STATE_CLOSING);
+            }
             buff[0] = AF_S_CONCLOSED; /* closing connection */
             buff[1] = i >> 8;	/* high bits of user number */
             buff[2] = i;		/* low bits of user number */
-            SslFd_send_message(ClientRealm_get_realmType(pointer), ClientRealm_get_masterSslFd(pointer), buff, 5);
+            SslFd_send_message(ClientRealm_get_realmType(pointer),
+                ClientRealm_get_masterSslFd(pointer), buff, 5);
           }
           else {
             BufList_delete_first(ConnectUser_get_bufList(usersTable[i]));
             if (BufList_get_first(ConnectUser_get_bufList(usersTable[i])) == NULL) {
-              ConnectUser_set_state(usersTable[i], S_STATE_OPEN);
-              FD_CLR(ConnectUser_get_state(usersTable[i]), &wset);
+              FD_CLR(ConnectUser_get_connFd(usersTable[i]), &wset);
               buff[0] = AF_S_CAN_SEND; /* stopping transfer */
               buff[1] = i >> 8;       /* high bits of user number */
               buff[2] = i;            /* low bits of user number */
               aflog(LOG_T_USER, LOG_I_DDEBUG,
                   "FROM user[%d]: BUFFERING MESSAGE ENDED", i);
-              SslFd_send_message(ClientRealm_get_realmType(pointer), ClientRealm_get_masterSslFd(pointer), buff, 5);
+              SslFd_send_message(ClientRealm_get_realmType(pointer),
+                  ClientRealm_get_masterSslFd(pointer), buff, 5);
+              if (ConnectUser_get_state(usersTable[i]) == S_STATE_KICKING) {
+                close(ConnectUser_get_connFd(usersTable[i]));
+                aflog(LOG_T_USER, LOG_I_DDEBUG,
+                    "user[%d]: Closing connFd: %d", i, ConnectUser_get_connFd(usersTable[i]));
+                FD_CLR(ConnectUser_get_connFd(usersTable[i]), &allset);
+                FD_CLR(ConnectUser_get_connFd(usersTable[i]), &wset);
+                ConnectUser_set_state(usersTable[i], S_STATE_CLEAR);
+                buff[0] = AF_S_CONCLOSED; /* closing connection */
+                buff[1] = i >> 8;	/* high bits of user number */
+                buff[2] = i;		/* low bits of user number */
+                SslFd_send_message(ClientRealm_get_realmType(pointer),
+                    ClientRealm_get_masterSslFd(pointer), buff, 5);
+              }
+              else {
+                ConnectUser_set_state(usersTable[i], S_STATE_OPEN);
+              }
             }
           }
         } /* - FD_ISSET   CONTABLE[i].CONNFD   TMPSET */
@@ -1099,17 +1135,10 @@ main(int argc, char **argv)
             aflog(LOG_T_CLIENT, LOG_I_INFO,
                 "Reconnected successfully...");
             usersTable = ClientRealm_get_usersTable(pointer);
-            if (ClientRealm_get_realmId(pointer) != NULL) {
-              buff[0] = AF_S_LOGIN;
-              buff[1] = buff[2] = 0;
-              n = strlen(ClientRealm_get_realmId(pointer));
-              memcpy(&buff[5], ClientRealm_get_realmId(pointer), n);
-              buff[3] = n >> 8;	/* high bits of message length */
-              buff[4] = n;		/* low bits of message length */
-              SslFd_send_message(ClientRealm_get_realmType(pointer), ClientRealm_get_masterSslFd(pointer), buff, n+5);
-              aflog(LOG_T_CLIENT, LOG_I_INFO,
-                  "ID SENT: %s", ClientRealm_get_realmId(pointer));
-            }
+
+            ClientRealm_send_realmId(pointer, buff);
+            ClientRealm_enable_multi(pointer);
+
             break;
           }
           
@@ -1135,17 +1164,17 @@ main(int argc, char **argv)
               aflog(LOG_T_USER, LOG_I_DDEBUG,
                   "user[%d]: AF_S_CONCLOSED", numofcon);
           if ((numofcon>=0) && (numofcon<=ClientRealm_get_usersLimit(pointer))) {
-            usercon--;
             if (ConnectUser_get_state(usersTable[numofcon]) == S_STATE_CLOSING) {
               ConnectUser_set_state(usersTable[numofcon], S_STATE_CLEAR);
               aflog(LOG_T_USER, LOG_I_INFO,
-                  "user[%d]: CLOSED", numofcon);
+                  "user[%d]: CLOSE CONFIRMED", numofcon);
             }
-            else if ((ConnectUser_get_state(usersTable[numofcon]) == S_STATE_OPEN) ||
-                (ConnectUser_get_state(usersTable[numofcon]) == S_STATE_STOPPED)) {
+            else if (ConnectUser_get_state(usersTable[numofcon]) == S_STATE_OPEN) {
               aflog(LOG_T_USER, LOG_I_INFO,
                   "user[%d]: CLOSED", numofcon);
               close(ConnectUser_get_connFd(usersTable[numofcon]));
+              aflog(LOG_T_USER, LOG_I_DDEBUG,
+                  "user[%d]: Closing connFd: %d", numofcon, ConnectUser_get_connFd(usersTable[numofcon]));
               FD_CLR(ConnectUser_get_connFd(usersTable[numofcon]), &allset);
               FD_CLR(ConnectUser_get_connFd(usersTable[numofcon]), &wset);
               ConnectUser_set_state(usersTable[numofcon], S_STATE_CLEAR);
@@ -1155,6 +1184,11 @@ main(int argc, char **argv)
               buff[2] = numofcon;		/* low bits of user number */
               SslFd_send_message(ClientRealm_get_realmType(pointer), ClientRealm_get_masterSslFd(pointer), buff, 5);
             }
+            else if (ConnectUser_get_state(usersTable[numofcon]) == S_STATE_STOPPED) {
+              ConnectUser_set_state(usersTable[numofcon], S_STATE_KICKING);
+              aflog(LOG_T_USER, LOG_I_INFO,
+                  "user[%d]: CLOSING...", numofcon);
+            }
           }
           break;
         }
@@ -1162,7 +1196,6 @@ main(int argc, char **argv)
               aflog(LOG_T_USER, LOG_I_DDEBUG,
                   "user[%d]: AF_S_CONOPEN", numofcon);
           if ((numofcon>=0) && (numofcon<=ClientRealm_get_usersLimit(pointer))) {
-            usercon++;
             if (ConnectUser_get_state(usersTable[numofcon]) == S_STATE_CLEAR) {
               n = SslFd_get_message(ClientRealm_get_realmType(pointer), ClientRealm_get_masterSslFd(pointer), buff, length);
               ConnectUser_set_nameBuf(usersTable[numofcon], (char*) buff);
@@ -1183,7 +1216,6 @@ main(int argc, char **argv)
                 buff[1] = numofcon >> 8;		/* high bits of user number */
                 buff[2] = numofcon;		/* low bits of user number */
                 SslFd_send_message(ClientRealm_get_realmType(pointer), ClientRealm_get_masterSslFd(pointer), buff, 5);
-                usercon--;
                 continue;
               }
 #endif
@@ -1201,21 +1233,31 @@ main(int argc, char **argv)
                 ipFamily |= 0x04;
               }
 #endif
+              temp2 = 0;
+              if (n == 136) {
+                if (PortList_get_size(ClientRealm_get_destinationPorts(pointer)) == 1) {
+                  temp2 = 0;
+                }
+                else {
+                  temp2 = buff[135] % PortList_get_size(ClientRealm_get_destinationPorts(pointer));
+                }
+              }
               if (ip_connect(&temp, ClientRealm_get_hostName(pointer),
-                    ClientRealm_get_destinationPort(pointer), ipFamily,
+                    PortListNode_get_portName(PortList_get_nth(ClientRealm_get_destinationPorts(pointer), temp2)), ipFamily,
                     ClientRealm_get_localDestinationName(pointer), NULL)) {
                 aflog(LOG_T_USER, LOG_I_WARNING,
                     "user[%d]: CAN'T CONNECT to %s:%s - DROPPING", numofcon,
                     ClientRealm_get_hostName(pointer),
-                    ClientRealm_get_destinationPort(pointer));
+                    PortListNode_get_portName(PortList_get_nth(ClientRealm_get_destinationPorts(pointer), temp2)));
                 buff[0] = AF_S_CANT_OPEN; /* not opening connection */
                 buff[1] = numofcon >> 8;		/* high bits of user number */
                 buff[2] = numofcon;		/* low bits of user number */
                 SslFd_send_message(ClientRealm_get_realmType(pointer), ClientRealm_get_masterSslFd(pointer), buff, 5);
-                usercon--;
                 continue;
               }
               ConnectUser_set_connFd(usersTable[numofcon], temp);
+              aflog(LOG_T_USER, LOG_I_DDEBUG,
+                  "user[%d]: Setting connFd: %d", numofcon, temp);
               temp2 = fcntl(ConnectUser_get_connFd(usersTable[numofcon]), F_GETFL, 0);
               fcntl(ConnectUser_get_connFd(usersTable[numofcon]), F_SETFL, temp2 | O_NONBLOCK);
               FD_SET(ConnectUser_get_connFd(usersTable[numofcon]), &allset);
@@ -1259,6 +1301,8 @@ main(int argc, char **argv)
                     aflog(LOG_T_USER, LOG_I_NOTICE,
                         "user[%d]: DROPPED BY MODULE", numofcon);
                     close(ConnectUser_get_connFd(usersTable[numofcon]));
+                    aflog(LOG_T_USER, LOG_I_DDEBUG,
+                        "user[%d]: Closing connFd: %d", numofcon, ConnectUser_get_connFd(usersTable[numofcon]));
                     FD_CLR(ConnectUser_get_connFd(usersTable[numofcon]), &allset);
                     FD_CLR(ConnectUser_get_connFd(usersTable[numofcon]), &wset);
                     ConnectUser_set_state(usersTable[numofcon], S_STATE_CLOSING);
@@ -1317,6 +1361,8 @@ main(int argc, char **argv)
               }
               else if (temp2 == -1) {
                 close(ConnectUser_get_connFd(usersTable[numofcon]));
+                aflog(LOG_T_USER, LOG_I_DDEBUG,
+                    "user[%d]: Closing connFd: %d", numofcon, ConnectUser_get_connFd(usersTable[numofcon]));
                 FD_CLR(ConnectUser_get_connFd(usersTable[numofcon]), &allset);
                 FD_CLR(ConnectUser_get_connFd(usersTable[numofcon]), &wset);
                 ConnectUser_set_state(usersTable[numofcon], S_STATE_CLOSING);
@@ -1377,17 +1423,10 @@ main(int argc, char **argv)
               aflog(LOG_T_CLIENT, LOG_I_INFO,
                   "Reconnected successfully...");
               usersTable = ClientRealm_get_usersTable(pointer);
-              if (ClientRealm_get_realmId(pointer) != NULL) {
-                buff[0] = AF_S_LOGIN;
-                buff[1] = buff[2] = 0;
-                n = strlen(ClientRealm_get_realmId(pointer));
-                memcpy(&buff[5], ClientRealm_get_realmId(pointer), n);
-                buff[3] = n >> 8;	/* high bits of message length */
-                buff[4] = n;		/* low bits of message length */
-                SslFd_send_message(ClientRealm_get_realmType(pointer), ClientRealm_get_masterSslFd(pointer), buff, n+5);
-                aflog(LOG_T_CLIENT, LOG_I_INFO,
-                    "ID SENT: %s", ClientRealm_get_realmId(pointer));
-              }
+
+              ClientRealm_send_realmId(pointer, buff);
+              ClientRealm_enable_multi(pointer);
+
               break;
             }
           
@@ -1403,17 +1442,31 @@ main(int argc, char **argv)
           break;
         }
         case AF_S_DONT_SEND: {
-              aflog(LOG_T_USER, LOG_I_DEBUG,
-                  "user[%d]: AF_S_DONT_SEND", numofcon);
-          FD_CLR(ConnectUser_get_connFd(usersTable[numofcon]), &allset);
-          break;
-        }
+                               if ((ConnectUser_get_state(usersTable[numofcon]) == S_STATE_OPEN) ||
+                                   (ConnectUser_get_state(usersTable[numofcon]) == S_STATE_STOPPED)) {
+                                 aflog(LOG_T_USER, LOG_I_DEBUG,
+                                     "user[%d]: AF_S_DONT_SEND", numofcon);
+                                 FD_CLR(ConnectUser_get_connFd(usersTable[numofcon]), &allset);
+                               }
+                               else {
+                                 aflog(LOG_T_USER, LOG_I_DEBUG,
+                                     "user[%d]: AF_S_DONT_SEND - ignored", numofcon);
+                               }
+                               break;
+                             }
         case AF_S_CAN_SEND: {
-              aflog(LOG_T_USER, LOG_I_DEBUG,
-                  "user[%d]: AF_S_CAN_SEND", numofcon);
-          FD_SET(ConnectUser_get_connFd(usersTable[numofcon]), &allset);
-          break;
-        }
+                              if ((ConnectUser_get_state(usersTable[numofcon]) == S_STATE_OPEN) ||
+                                  (ConnectUser_get_state(usersTable[numofcon]) == S_STATE_STOPPED)) {
+                                aflog(LOG_T_USER, LOG_I_DEBUG,
+                                    "user[%d]: AF_S_CAN_SEND", numofcon);
+                                FD_SET(ConnectUser_get_connFd(usersTable[numofcon]), &allset);
+                              }
+                              else {
+                                aflog(LOG_T_USER, LOG_I_DEBUG,
+                                    "user[%d]: AF_S_CAN_SEND - ignored", numofcon);
+                              }
+                              break;
+                            }
         default : { /* unrecognized type of message -> exiting... */
           aflog(LOG_T_CLIENT, LOG_I_ERR,
               "SERVER: unrecognized message -> exiting... cg: %ld bytes", getcg());

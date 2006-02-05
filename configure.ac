@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([Active port forwarder], [0.7.5], [jeremian@poczta.fm], [apf])
-AM_INIT_AUTOMAKE([apf], [0.7.5])
+AC_INIT([Active port forwarder], [0.8], [jeremian@poczta.fm], [apf])
+AM_INIT_AUTOMAKE([apf], [0.8])
 AC_COPYRIGHT([
 Copyright (C) 2003-2006 jeremian - <jeremian [[at]] poczta.fm>
 ===================
@@ -29,6 +29,18 @@ AC_CONFIG_FILES([Makefile
                  src/Makefile])
 
 CFLAGS="-pedantic -Wall -O2"
+
+# Enabling/disabling asserts and debugging
+AC_MSG_CHECKING(whether to enable debugging)
+AC_ARG_ENABLE(debug, [  --enable-debug=[no/yes] turn on debugging
+              [default=no]],, enable_debug=no)
+if test "x$enable_debug" = "xyes"; then
+  CFLAGS="$CFLAGS -g"
+  AC_MSG_RESULT(yes)
+else
+  CFLAGS="$CFLAGS -DNDEBUG"
+  AC_MSG_RESULT(no)
+fi
 
 # Checks for programs.
 AC_PROG_CC

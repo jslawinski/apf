@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "string_functions.h"
 #include "server_configuration_struct.h"
@@ -36,6 +37,7 @@ ServerConfiguration*
 ServerConfiguration_new()
 {
   ServerConfiguration* tmp = calloc(1, sizeof(ServerConfiguration));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
@@ -52,9 +54,11 @@ void
 ServerConfiguration_free(ServerConfiguration** sc)
 {
   int i;
+  assert(sc != NULL);
   if (sc == NULL) {
     return;
   }
+  assert((*sc) != NULL);
   if ((*sc) == NULL) {
     return;
   }
@@ -93,6 +97,7 @@ ServerConfiguration_free(ServerConfiguration** sc)
 void
 ServerConfiguration_set_certificateFile(ServerConfiguration* sc, char* certificateFile)
 {
+  assert(sc != NULL);
   if (sc == NULL) {
     return;
   }
@@ -109,6 +114,7 @@ ServerConfiguration_set_certificateFile(ServerConfiguration* sc, char* certifica
 void
 ServerConfiguration_set_keysFile(ServerConfiguration* sc, char* keysFile)
 {
+  assert(sc != NULL);
   if (sc == NULL) {
     return;
   }
@@ -125,6 +131,7 @@ ServerConfiguration_set_keysFile(ServerConfiguration* sc, char* keysFile)
 void
 ServerConfiguration_set_dateFormat(ServerConfiguration* sc, char* dateFormat)
 {
+  assert(sc != NULL);
   if (sc == NULL) {
     return;
   }
@@ -141,6 +148,7 @@ ServerConfiguration_set_dateFormat(ServerConfiguration* sc, char* dateFormat)
 void
 ServerConfiguration_set_realmsNumber(ServerConfiguration* sc, int realmsNumber)
 {
+  assert(sc != NULL);
   if (sc == NULL) {
     return;
   }
@@ -157,6 +165,7 @@ ServerConfiguration_set_realmsNumber(ServerConfiguration* sc, int realmsNumber)
 void
 ServerConfiguration_set_startTime(ServerConfiguration* sc, time_t startTime)
 {
+  assert(sc != NULL);
   if (sc == NULL) {
     return;
   }
@@ -174,6 +183,7 @@ void
 ServerConfiguration_set_realmsTable(ServerConfiguration* sc, ServerRealm** realmsTable)
 {
   int i;
+  assert(sc != NULL);
   if (sc == NULL) {
     return;
   }
@@ -199,6 +209,7 @@ ServerConfiguration_set_realmsTable(ServerConfiguration* sc, ServerRealm** realm
 char*
 ServerConfiguration_get_certificateFile(ServerConfiguration* sc)
 {
+  assert(sc != NULL);
   if (sc == NULL) {
     return NULL;
   }
@@ -215,6 +226,7 @@ ServerConfiguration_get_certificateFile(ServerConfiguration* sc)
 char*
 ServerConfiguration_get_keysFile(ServerConfiguration* sc)
 {
+  assert(sc != NULL);
   if (sc == NULL) {
     return NULL;
   }
@@ -231,6 +243,7 @@ ServerConfiguration_get_keysFile(ServerConfiguration* sc)
 char*
 ServerConfiguration_get_dateFormat(ServerConfiguration* sc)
 {
+  assert(sc != NULL);
   if (sc == NULL) {
     return NULL;
   }
@@ -247,6 +260,7 @@ ServerConfiguration_get_dateFormat(ServerConfiguration* sc)
 int
 ServerConfiguration_get_realmsNumber(ServerConfiguration* sc)
 {
+  assert(sc != NULL);
   if (sc == NULL) {
     return -1;
   }
@@ -263,6 +277,7 @@ ServerConfiguration_get_realmsNumber(ServerConfiguration* sc)
 time_t
 ServerConfiguration_get_startTime(ServerConfiguration* sc)
 {
+  assert(sc != NULL);
   if (sc == NULL) {
     return 0;
   }
@@ -279,6 +294,7 @@ ServerConfiguration_get_startTime(ServerConfiguration* sc)
 ServerRealm**
 ServerConfiguration_get_realmsTable(ServerConfiguration* sc)
 {
+  assert(sc != NULL);
   if (sc == NULL) {
     return NULL;
   }

@@ -1,3 +1,11 @@
+04.02.2006 (v0.8):
+  - Fixed: infinite loop after buffering message
+  - Fixed: corrupt packets after closing connections in the stopped state
+  - Fixed: bug in mapping user numbers between afclient and afserver
+  - Fixed: premature close of the service connection
+  - Fixed: invalid buffering when the connection is closing
+  - Added: Multiple tunnels in one afclient<->afserver connection
+
 16.11.2005 (v0.7.5):
   - Fixed: manageport option in the afclient config file
   - Fixed: severe bug in string_cp

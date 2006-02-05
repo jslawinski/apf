@@ -30,6 +30,16 @@
 #include <limits.h>
 #include <ctype.h>
 
+/*
+ * Function name: parsefile
+ * Description: Parses the server config file.
+ * Arguments: name - the name of the file with client's config
+ *            status - the status returned from this function:
+ *                     0 - file was parsed successfully
+ *                     n>0 - there was an error in the n-th line
+ * Returns: Pointer to ServerConfiguration structure.
+ */
+
 ServerConfiguration*
 parsefile(char* name, int* status)
 {

@@ -39,6 +39,9 @@
 #define CONNECTCLIENT_TUNNELTYPE_HTTPPROXY 1
 #define CONNECTCLIENT_TUNNELTYPE_HTTPSPROXY 2
 
+#define CONNECTCLIENT_MULTI_ENABLED 1
+#define CONNECTCLIENT_MULTI_DISABLED 0
+
 typedef struct {
   char state;
   SslFd* sslFd;
@@ -54,6 +57,7 @@ typedef struct {
   char nameBuf[128];
   char portBuf[7];
   char tunnelType;
+  char multi;
   AuditList* auditList;
   HeaderBuffer* header;
 } ConnectClient;
@@ -77,6 +81,7 @@ void ConnectClient_set_sClientId(ConnectClient* cc, char* sClientId);
 void ConnectClient_set_nameBuf(ConnectClient* cc, char* nameBuf);
 void ConnectClient_set_portBuf(ConnectClient* cc, char* portBuf);
 void ConnectClient_set_tunnelType(ConnectClient* cc, char tunnelType);
+void ConnectClient_set_multi(ConnectClient* cc, char multi);
 void ConnectClient_set_auditList(ConnectClient* cc, AuditList* al);
 void ConnectClient_set_header(ConnectClient* cc, HeaderBuffer* hb);
 /* getters */
@@ -94,6 +99,7 @@ char* ConnectClient_get_sClientId(ConnectClient* cc);
 char* ConnectClient_get_nameBuf(ConnectClient* cc);
 char* ConnectClient_get_portBuf(ConnectClient* cc);
 char ConnectClient_get_tunnelType(ConnectClient* cc);
+char ConnectClient_get_multi(ConnectClient* cc);
 AuditList* ConnectClient_get_auditList(ConnectClient* cc);
 HeaderBuffer* ConnectClient_get_header(ConnectClient* cc);
 /* other */

@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "string_functions.h"
 #include "server_realm_struct.h"
@@ -36,6 +37,7 @@ ServerRealm*
 ServerRealm_new()
 {
   ServerRealm* tmp = calloc(1, sizeof(ServerRealm));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
@@ -56,9 +58,11 @@ void
 ServerRealm_free(ServerRealm** sr)
 {
   int i;
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
+  assert((*sr) != NULL);
   if ((*sr) == NULL) {
     return;
   }
@@ -148,6 +152,7 @@ ServerRealm_free(ServerRealm** sr)
 void
 ServerRealm_set_hostName(ServerRealm* sr, char* hostName)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -164,6 +169,7 @@ ServerRealm_set_hostName(ServerRealm* sr, char* hostName)
 void
 ServerRealm_set_sUsersLimit(ServerRealm* sr, char* sUsersLimit)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -180,6 +186,7 @@ ServerRealm_set_sUsersLimit(ServerRealm* sr, char* sUsersLimit)
 void
 ServerRealm_set_sClientsLimit(ServerRealm* sr, char* sClientsLimit)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -196,6 +203,7 @@ ServerRealm_set_sClientsLimit(ServerRealm* sr, char* sClientsLimit)
 void
 ServerRealm_set_sRaClientsLimit(ServerRealm* sr, char* sRaClientsLimit)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -212,6 +220,7 @@ ServerRealm_set_sRaClientsLimit(ServerRealm* sr, char* sRaClientsLimit)
 void
 ServerRealm_set_sUsersPerClient(ServerRealm* sr, char* sUsersPerClient)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -228,6 +237,7 @@ ServerRealm_set_sUsersPerClient(ServerRealm* sr, char* sUsersPerClient)
 void
 ServerRealm_set_sClientMode(ServerRealm* sr, char* sClientMode)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -244,6 +254,7 @@ ServerRealm_set_sClientMode(ServerRealm* sr, char* sClientMode)
 void
 ServerRealm_set_sTimeout(ServerRealm* sr, char* sTimeout)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -260,6 +271,7 @@ ServerRealm_set_sTimeout(ServerRealm* sr, char* sTimeout)
 void
 ServerRealm_set_realmName(ServerRealm* sr, char* realmName)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -276,6 +288,7 @@ ServerRealm_set_realmName(ServerRealm* sr, char* realmName)
 void
 ServerRealm_set_password(ServerRealm* sr, unsigned char* password)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -292,6 +305,7 @@ ServerRealm_set_password(ServerRealm* sr, unsigned char* password)
 void
 ServerRealm_set_connectedUsers(ServerRealm* sr, int connectedUsers)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -308,6 +322,7 @@ ServerRealm_set_connectedUsers(ServerRealm* sr, int connectedUsers)
 void
 ServerRealm_set_usersLimit(ServerRealm* sr, int usersLimit)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -324,6 +339,7 @@ ServerRealm_set_usersLimit(ServerRealm* sr, int usersLimit)
 void
 ServerRealm_set_connectedClients(ServerRealm* sr, int connectedClients)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -340,6 +356,7 @@ ServerRealm_set_connectedClients(ServerRealm* sr, int connectedClients)
 void
 ServerRealm_set_clientsLimit(ServerRealm* sr, int clientsLimit)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -356,6 +373,7 @@ ServerRealm_set_clientsLimit(ServerRealm* sr, int clientsLimit)
 void
 ServerRealm_set_connectedRaClients(ServerRealm* sr, int connectedRaClients)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -372,6 +390,7 @@ ServerRealm_set_connectedRaClients(ServerRealm* sr, int connectedRaClients)
 void
 ServerRealm_set_raClientsLimit(ServerRealm* sr, int raClientsLimit)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -388,6 +407,7 @@ ServerRealm_set_raClientsLimit(ServerRealm* sr, int raClientsLimit)
 void
 ServerRealm_set_usersPerClient(ServerRealm* sr, int usersPerClient)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -404,6 +424,7 @@ ServerRealm_set_usersPerClient(ServerRealm* sr, int usersPerClient)
 void
 ServerRealm_set_timeout(ServerRealm* sr, int timeout)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -420,6 +441,7 @@ ServerRealm_set_timeout(ServerRealm* sr, int timeout)
 void
 ServerRealm_set_clientMode(ServerRealm* sr, int clientMode)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -436,6 +458,7 @@ ServerRealm_set_clientMode(ServerRealm* sr, int clientMode)
 void
 ServerRealm_set_userClientPairs(ServerRealm* sr, int userClientPairs)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -452,6 +475,7 @@ ServerRealm_set_userClientPairs(ServerRealm* sr, int userClientPairs)
 void
 ServerRealm_set_clientsCounter(ServerRealm* sr, int clientsCounter)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -468,6 +492,7 @@ ServerRealm_set_clientsCounter(ServerRealm* sr, int clientsCounter)
 void
 ServerRealm_set_usersCounter(ServerRealm* sr, int usersCounter)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -484,6 +509,7 @@ ServerRealm_set_usersCounter(ServerRealm* sr, int usersCounter)
 void
 ServerRealm_set_realmType(ServerRealm* sr, char realmType)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -500,6 +526,7 @@ ServerRealm_set_realmType(ServerRealm* sr, char realmType)
 void
 ServerRealm_set_tunnelType(ServerRealm* sr, char tunnelType)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -516,6 +543,7 @@ ServerRealm_set_tunnelType(ServerRealm* sr, char tunnelType)
 void
 ServerRealm_set_dnsLookupsOn(ServerRealm* sr, char dnsLookupsOn)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -532,6 +560,7 @@ ServerRealm_set_dnsLookupsOn(ServerRealm* sr, char dnsLookupsOn)
 void
 ServerRealm_set_basePortOn(ServerRealm* sr, char basePortOn)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -548,6 +577,7 @@ ServerRealm_set_basePortOn(ServerRealm* sr, char basePortOn)
 void
 ServerRealm_set_auditOn(ServerRealm* sr, char auditOn)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -564,6 +594,7 @@ ServerRealm_set_auditOn(ServerRealm* sr, char auditOn)
 void
 ServerRealm_set_addressLength(ServerRealm* sr, socklen_t addressLength)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -580,6 +611,7 @@ ServerRealm_set_addressLength(ServerRealm* sr, socklen_t addressLength)
 void
 ServerRealm_set_clientAddress(ServerRealm* sr, struct sockaddr* clientAddress)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -601,6 +633,7 @@ void
 ServerRealm_set_usersTable(ServerRealm* sr, ConnectUser** usersTable)
 {
   int i;
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -627,6 +660,7 @@ void
 ServerRealm_set_clientsTable(ServerRealm* sr, ConnectClient** clientsTable)
 {
   int i;
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -653,6 +687,7 @@ void
 ServerRealm_set_raClientsTable(ServerRealm* sr, ConnectClient** raClientsTable)
 {
   int i;
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -679,6 +714,7 @@ void
 ServerRealm_set_usersClientsTable(ServerRealm* sr, UsrCli** usersClientsTable)
 {
   int i;
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -704,6 +740,7 @@ ServerRealm_set_usersClientsTable(ServerRealm* sr, UsrCli** usersClientsTable)
 char*
 ServerRealm_get_hostName(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return NULL;
   }
@@ -720,6 +757,7 @@ ServerRealm_get_hostName(ServerRealm* sr)
 char*
 ServerRealm_get_sUsersLimit(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return NULL;
   }
@@ -736,6 +774,7 @@ ServerRealm_get_sUsersLimit(ServerRealm* sr)
 char*
 ServerRealm_get_sClientsLimit(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return NULL;
   }
@@ -752,6 +791,7 @@ ServerRealm_get_sClientsLimit(ServerRealm* sr)
 char*
 ServerRealm_get_sRaClientsLimit(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return NULL;
   }
@@ -768,6 +808,7 @@ ServerRealm_get_sRaClientsLimit(ServerRealm* sr)
 char*
 ServerRealm_get_sUsersPerClient(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return NULL;
   }
@@ -784,6 +825,7 @@ ServerRealm_get_sUsersPerClient(ServerRealm* sr)
 char*
 ServerRealm_get_sClientMode(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return NULL;
   }
@@ -800,6 +842,7 @@ ServerRealm_get_sClientMode(ServerRealm* sr)
 char*
 ServerRealm_get_sTimeout(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return NULL;
   }
@@ -816,6 +859,7 @@ ServerRealm_get_sTimeout(ServerRealm* sr)
 char*
 ServerRealm_get_realmName(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return NULL;
   }
@@ -832,6 +876,7 @@ ServerRealm_get_realmName(ServerRealm* sr)
 unsigned char*
 ServerRealm_get_password(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return NULL;
   }
@@ -848,6 +893,7 @@ ServerRealm_get_password(ServerRealm* sr)
 int
 ServerRealm_get_connectedUsers(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return -1;
   }
@@ -864,6 +910,7 @@ ServerRealm_get_connectedUsers(ServerRealm* sr)
 int
 ServerRealm_get_usersLimit(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return -1;
   }
@@ -880,6 +927,7 @@ ServerRealm_get_usersLimit(ServerRealm* sr)
 int
 ServerRealm_get_connectedClients(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return -1;
   }
@@ -896,6 +944,7 @@ ServerRealm_get_connectedClients(ServerRealm* sr)
 int
 ServerRealm_get_clientsLimit(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return -1;
   }
@@ -912,6 +961,7 @@ ServerRealm_get_clientsLimit(ServerRealm* sr)
 int
 ServerRealm_get_connectedRaClients(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return -1;
   }
@@ -928,6 +978,7 @@ ServerRealm_get_connectedRaClients(ServerRealm* sr)
 int
 ServerRealm_get_raClientsLimit(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return -1;
   }
@@ -944,6 +995,7 @@ ServerRealm_get_raClientsLimit(ServerRealm* sr)
 int
 ServerRealm_get_usersPerClient(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return -1;
   }
@@ -960,6 +1012,7 @@ ServerRealm_get_usersPerClient(ServerRealm* sr)
 int
 ServerRealm_get_timeout(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return 0;
   }
@@ -976,6 +1029,7 @@ ServerRealm_get_timeout(ServerRealm* sr)
 int
 ServerRealm_get_clientMode(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return 0;
   }
@@ -992,6 +1046,7 @@ ServerRealm_get_clientMode(ServerRealm* sr)
 int
 ServerRealm_get_userClientPairs(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return 0;
   }
@@ -1008,6 +1063,7 @@ ServerRealm_get_userClientPairs(ServerRealm* sr)
 int
 ServerRealm_get_clientsCounter(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return -1;
   }
@@ -1024,6 +1080,7 @@ ServerRealm_get_clientsCounter(ServerRealm* sr)
 int
 ServerRealm_get_usersCounter(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return -1;
   }
@@ -1040,6 +1097,7 @@ ServerRealm_get_usersCounter(ServerRealm* sr)
 char
 ServerRealm_get_realmType(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return 0;
   }
@@ -1056,6 +1114,7 @@ ServerRealm_get_realmType(ServerRealm* sr)
 char
 ServerRealm_get_tunnelType(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return 0;
   }
@@ -1072,6 +1131,7 @@ ServerRealm_get_tunnelType(ServerRealm* sr)
 char
 ServerRealm_get_dnsLookupsOn(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return 0;
   }
@@ -1088,6 +1148,7 @@ ServerRealm_get_dnsLookupsOn(ServerRealm* sr)
 char
 ServerRealm_get_basePortOn(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return 0;
   }
@@ -1104,6 +1165,7 @@ ServerRealm_get_basePortOn(ServerRealm* sr)
 char
 ServerRealm_get_auditOn(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return 0;
   }
@@ -1120,6 +1182,7 @@ ServerRealm_get_auditOn(ServerRealm* sr)
 socklen_t
 ServerRealm_get_addressLength(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return 0;
   }
@@ -1136,6 +1199,7 @@ ServerRealm_get_addressLength(ServerRealm* sr)
 struct sockaddr*
 ServerRealm_get_clientAddress(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return NULL;
   }
@@ -1152,6 +1216,7 @@ ServerRealm_get_clientAddress(ServerRealm* sr)
 ConnectUser**
 ServerRealm_get_usersTable(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return NULL;
   }
@@ -1168,6 +1233,7 @@ ServerRealm_get_usersTable(ServerRealm* sr)
 ConnectClient**
 ServerRealm_get_clientsTable(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return NULL;
   }
@@ -1184,6 +1250,7 @@ ServerRealm_get_clientsTable(ServerRealm* sr)
 ConnectClient**
 ServerRealm_get_raClientsTable(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return NULL;
   }
@@ -1200,6 +1267,7 @@ ServerRealm_get_raClientsTable(ServerRealm* sr)
 UsrCli**
 ServerRealm_get_usersClientsTable(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return NULL;
   }
@@ -1215,6 +1283,7 @@ ServerRealm_get_usersClientsTable(ServerRealm* sr)
 void
 ServerRealm_increase_connectedUsers(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -1230,6 +1299,7 @@ ServerRealm_increase_connectedUsers(ServerRealm* sr)
 void
 ServerRealm_decrease_connectedUsers(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -1245,6 +1315,7 @@ ServerRealm_decrease_connectedUsers(ServerRealm* sr)
 void
 ServerRealm_increase_connectedClients(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -1260,6 +1331,7 @@ ServerRealm_increase_connectedClients(ServerRealm* sr)
 void
 ServerRealm_decrease_connectedClients(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -1275,6 +1347,7 @@ ServerRealm_decrease_connectedClients(ServerRealm* sr)
 void
 ServerRealm_increase_connectedRaClients(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -1290,6 +1363,7 @@ ServerRealm_increase_connectedRaClients(ServerRealm* sr)
 void
 ServerRealm_decrease_connectedRaClients(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -1305,6 +1379,7 @@ ServerRealm_decrease_connectedRaClients(ServerRealm* sr)
 void
 ServerRealm_increase_usersCounter(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }
@@ -1320,6 +1395,7 @@ ServerRealm_increase_usersCounter(ServerRealm* sr)
 void
 ServerRealm_increase_clientsCounter(ServerRealm* sr)
 {
+  assert(sr != NULL);
   if (sr == NULL) {
     return;
   }

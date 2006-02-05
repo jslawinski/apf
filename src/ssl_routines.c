@@ -19,11 +19,21 @@
  */
 
 #include <config.h>
-
-#include "ssl_routines.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
+
+#include "ssl_routines.h"
+
+/*
+ * Function name: check_public_key
+ * Description: Checks if the public key is trusted.
+ * Arguments: filename - the name of the file with stored keys
+ *            hostname - the name of the host
+ *            keyhash - the hash of the key
+ * Returns: The result of the check.
+ */
 
 int
 check_public_key(char* filename, char* hostname, char* keyhash)
@@ -31,6 +41,10 @@ check_public_key(char* filename, char* hostname, char* keyhash)
   FILE* storefile;
   char buff[256];
   int lspaceind, i;
+
+  assert(filename != NULL);
+  assert(hostname != NULL);
+  assert(keyhash != NULL);
 
   memset(buff, 0, 256);
   
@@ -68,10 +82,23 @@ check_public_key(char* filename, char* hostname, char* keyhash)
   return SSL_PUBLIC_KEY_NOT_KNOWN;
 }
 
+/*
+ * Function name: add_public_key
+ * Description: Adds the key to the store file.
+ * Arguments: filename - the name of the file with stored keys
+ *            hostname - the name of the host
+ *            keyhash - the hash of the key
+ */
+
 void
 add_public_key(char* filename, char* hostname, char* keyhash)
 {
   FILE* storefile;
+  
+  assert(filename != NULL);
+  assert(hostname != NULL);
+  assert(keyhash != NULL);
+
   storefile = fopen(filename, "a");
   if (storefile == NULL) {
     return;

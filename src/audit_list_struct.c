@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "audit_list_struct.h"
 
@@ -35,6 +36,7 @@ AuditList*
 AuditList_new()
 {
   AuditList* tmp = calloc(1, sizeof(AuditList));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
@@ -50,9 +52,11 @@ AuditList_new()
 void
 AuditList_free(AuditList** al)
 {
+  assert(al != NULL);
   if (al == NULL) {
     return;
   }
+  assert((*al) != NULL);
   if ((*al) == NULL) {
     return;
   }
@@ -71,9 +75,11 @@ AuditList_free(AuditList** al)
 void
 AuditList_insert_back(AuditList* al, AuditListNode* aln)
 {
+  assert(al != NULL);
   if (al == NULL) {
     return;
   }
+  assert(aln != NULL);
   if (aln == NULL) {
     return;
   }
@@ -97,6 +103,7 @@ AuditList_insert_back(AuditList* al, AuditListNode* aln)
 AuditListNode*
 AuditList_get_first(AuditList* al)
 {
+  assert(al != NULL);
   if (al == NULL) {
     return NULL;
   }
@@ -113,6 +120,7 @@ void
 AuditList_delete_first(AuditList* al)
 {
   AuditListNode* tmp = AuditList_get_first(al);
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return;
   }
@@ -134,6 +142,10 @@ AuditList_delete_first(AuditList* al)
 void
 AuditList_clear(AuditList* al)
 {
+  assert(al != NULL);
+  if (al == NULL) {
+    return;
+  }
   while (AuditList_get_first(al)) {
     AuditList_delete_first(al);
   }

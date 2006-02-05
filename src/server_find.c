@@ -19,13 +19,25 @@
  */
 
 #include <config.h>
+#include <assert.h>
+#include <string.h>
 
 #include "server_find.h"
+
+/*
+ * Function name: find_client
+ * Description: Returns the client number with free user slots.
+ * Arguments: ptr - the server realm
+ *            mode - the strategy of client choosing
+ *            usrclipair - the number of usrclipair
+ * Returns: The client number with free user slots.
+ */
 
 int
 find_client(ServerRealm* ptr, char mode, int usrclipair)
 {
   int i;
+  assert(ptr != NULL);
   switch(mode) {
     case 1: { /* fill first client before go to next */
               for (i = 0; i < ServerRealm_get_clientsLimit(ptr); ++i) {
@@ -47,15 +59,80 @@ find_client(ServerRealm* ptr, char mode, int usrclipair)
   return 0;
 }
 
+/*
+ * Function name: find_usernum
+ * Description: Finds the free user slot, fill it and returns its number.
+ * Arguments: ptr - the connected client
+ *            usernum - the connection number on the afserver
+ * Returns: The user number in the connected client on the afserver side.
+ */
+
 int
 find_usernum(ConnectClient* ptr, int usernum)
 {
   int i;
+  assert(ptr != NULL);
   for (i = 0; i < ConnectClient_get_limit(ptr); ++i) {
     if (ConnectClient_get_users(ptr)[i] == -1) {
       ConnectClient_get_users(ptr)[i] = usernum;
       return i;
     }
+  }
+  return -1;
+}
+
+/*
+ * Function name: find_previousFd
+ * Description: Finds the file descriptor bound previously to the given
+ *              host:serv.
+ * Arguments: table - the table of UsrCli structures
+ *            index - the current index of the search
+ *            host - the name of the host
+ *            serv - the name of the service (port)
+ * Returns: The previously bound file descriptor.
+ */
+
+int
+find_previousFd(UsrCli** table, int index, char* host, char* serv)
+{
+  int i;
+  assert(table != NULL);
+  assert(index >= 0);
+  for (i = 0; i < index; ++i) {
+    
+    if (UsrCli_get_manageHostName(table[i])) {
+      if (host) {
+        if (strcmp(UsrCli_get_listenHostName(table[i]), host)) {
+          continue;
+        }
+      }
+      else {
+        continue;
+      }
+    }
+    else {
+      if (host) {
+        continue;
+      }
+    }
+
+    if (UsrCli_get_managePortName(table[i])) {
+      if (serv) {
+        if (strcmp(UsrCli_get_managePortName(table[i]), serv)) {
+          continue;
+        }
+      }
+      else {
+        continue;
+      }
+    }
+    else {
+      if (serv) {
+        continue;
+      }
+    }
+
+    return UsrCli_get_manageFd(table[i]);
   }
   return -1;
 }

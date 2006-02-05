@@ -19,12 +19,13 @@
  */
 
 #include <config.h>
+#include <zlib.h>
+#include <assert.h>
 
 #include "activefor.h"
 #include "stats.h"
 #include "logging.h"
 #include "ssl_fd_struct.h"
-#include <zlib.h>
 
 /*
  * Function name: SslFd_new
@@ -36,6 +37,7 @@ SslFd*
 SslFd_new()
 {
   SslFd* tmp = calloc(1, sizeof(SslFd));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
@@ -51,9 +53,11 @@ SslFd_new()
 void
 SslFd_free(SslFd** sf)
 {
+  assert(sf != NULL);
   if (sf == NULL) {
     return;
   }
+  assert((*sf) != NULL);
   if ((*sf) == NULL) {
     return;
   }
@@ -75,6 +79,7 @@ SslFd_free(SslFd** sf)
 void
 SslFd_set_fd(SslFd* sf, int fd)
 {
+  assert(sf != NULL);
   if (sf == NULL) {
     return;
   }
@@ -92,6 +97,7 @@ SslFd_set_fd(SslFd* sf, int fd)
 void
 SslFd_set_ssl_general(SslFd* sf, SSL* ssl, int free)
 {
+  assert(sf != NULL);
   if (sf == NULL) {
     return;
   }
@@ -138,6 +144,7 @@ SslFd_set_ssl_nf(SslFd* sf, SSL* ssl)
 int
 SslFd_get_fd(SslFd* sf)
 {
+  assert(sf != NULL);
   if (sf == NULL) {
     return -1;
   }
@@ -154,6 +161,7 @@ SslFd_get_fd(SslFd* sf)
 SSL*
 SslFd_get_ssl(SslFd* sf)
 {
+  assert(sf != NULL);
   if (sf == NULL) {
     return NULL;
   }
@@ -179,6 +187,9 @@ SslFd_send_message(char type, SslFd* sf, unsigned char* buf, int amount)
   int length;
   static unsigned char buffer[9000];
 
+  assert(sf != NULL);
+  assert(buf != NULL);
+  
   if ((sf == NULL) || (buf == NULL)) {
     return -1;
   }
@@ -246,6 +257,10 @@ SslFd_get_message(char type, SslFd* sf, unsigned char* buf, int amount)
   int length;
   unsigned long elen;
   static unsigned char bufor[9000];
+  
+  assert(sf != NULL);
+  assert(buf != NULL);
+  
   if ((sf == NULL) || (buf == NULL)) {
     return -1;
   }
@@ -301,6 +316,9 @@ SslFd_swap_content(SslFd* sf1, SslFd* sf2)
 {
   int tmpfd;
   SSL* tmpssl;
+  
+  assert(sf1 != NULL);
+  assert(sf2 != NULL);
 
   tmpfd = SslFd_get_fd(sf1);
   tmpssl = SslFd_get_ssl(sf2);

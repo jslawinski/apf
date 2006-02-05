@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "http_proxy_options_struct.h"
 #include "string_functions.h"
@@ -36,6 +37,7 @@ HttpProxyOptions*
 HttpProxyOptions_new()
 {
   HttpProxyOptions* tmp = calloc(1, sizeof(HttpProxyOptions));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
@@ -52,9 +54,11 @@ HttpProxyOptions_new()
 void
 HttpProxyOptions_free(HttpProxyOptions** hpo)
 {
+  assert(hpo != NULL);
   if (hpo == NULL) {
     return;
   }
+  assert((*hpo) != NULL);
   if ((*hpo) == NULL) {
     return;
   }
@@ -84,6 +88,7 @@ HttpProxyOptions_free(HttpProxyOptions** hpo)
 void
 HttpProxyOptions_set_proxyname(HttpProxyOptions* hpo, char* proxyname)
 {
+  assert(hpo != NULL);
   if (hpo == NULL) {
     return;
   }
@@ -100,6 +105,7 @@ HttpProxyOptions_set_proxyname(HttpProxyOptions* hpo, char* proxyname)
 void
 HttpProxyOptions_set_proxyport(HttpProxyOptions* hpo, char* proxyport)
 {
+  assert(hpo != NULL);
   if (hpo == NULL) {
     return;
   }
@@ -116,6 +122,7 @@ HttpProxyOptions_set_proxyport(HttpProxyOptions* hpo, char* proxyport)
 void
 HttpProxyOptions_set_proxyauth_cred(HttpProxyOptions* hpo, char* proxyauth_cred)
 {
+  assert(hpo != NULL);
   if (hpo == NULL) {
     return;
   }
@@ -132,9 +139,11 @@ HttpProxyOptions_set_proxyauth_cred(HttpProxyOptions* hpo, char* proxyauth_cred)
 void
 HttpProxyOptions_set_proxyauth_type(HttpProxyOptions* hpo, char proxyauth_type)
 {
+  assert(hpo != NULL);
   if (hpo == NULL) {
     return;
   }
+  assert(hpo->proxyauth_type == PROXYAUTH_TYPE_NOTSET);
   if (hpo->proxyauth_type != PROXYAUTH_TYPE_NOTSET) {
     hpo->proxyauth_type = PROXYAUTH_TYPE_WRONG;
     return;
@@ -152,6 +161,7 @@ HttpProxyOptions_set_proxyauth_type(HttpProxyOptions* hpo, char proxyauth_type)
 char*
 HttpProxyOptions_get_proxyname(HttpProxyOptions* hpo)
 {
+  assert(hpo != NULL);
   if (hpo == NULL) {
     return NULL;
   }
@@ -168,6 +178,7 @@ HttpProxyOptions_get_proxyname(HttpProxyOptions* hpo)
 char*
 HttpProxyOptions_get_proxyport(HttpProxyOptions* hpo)
 {
+  assert(hpo != NULL);
   if (hpo == NULL) {
     return NULL;
   }
@@ -184,6 +195,7 @@ HttpProxyOptions_get_proxyport(HttpProxyOptions* hpo)
 char*
 HttpProxyOptions_get_proxyauth_cred(HttpProxyOptions* hpo)
 {
+  assert(hpo != NULL);
   if (hpo == NULL) {
     return NULL;
   }
@@ -200,6 +212,7 @@ HttpProxyOptions_get_proxyauth_cred(HttpProxyOptions* hpo)
 char
 HttpProxyOptions_get_proxyauth_type(HttpProxyOptions* hpo)
 {
+  assert(hpo != NULL);
   if (hpo == NULL) {
     return PROXYAUTH_TYPE_WRONG;
   }
@@ -215,6 +228,7 @@ HttpProxyOptions_get_proxyauth_type(HttpProxyOptions* hpo)
 void
 HttpProxyOptions_use_https(HttpProxyOptions* hpo)
 {
+  assert(hpo != NULL);
   if (hpo == NULL) {
     return;
   }
@@ -232,6 +246,7 @@ HttpProxyOptions_use_https(HttpProxyOptions* hpo)
 char
 HttpProxyOptions_is_https(HttpProxyOptions* hpo)
 {
+  assert(hpo != NULL);
   if (hpo == NULL) {
     return USEHTTPS_OFF;
   }

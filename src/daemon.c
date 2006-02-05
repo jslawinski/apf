@@ -25,6 +25,18 @@
 #ifndef HAVE_THIS_DAEMON
 #define HAVE_THIS_DAEMON
 
+/*
+ * Function name: daemon
+ * Description: Enters into daemon mode. It's the emulation of the daemon
+ *              function from the system.
+ * Arguments: nochdir - when 0, the directory will be changed to /, otherwise
+ *                      the directory will be unchanged
+ *            noclose - when 0, the standard streams will be closed, otherwise
+ *                      the streams will be unchanged
+ * Returns: 0 - success,
+ *          -1 - failure.
+ */
+
 int
 daemon(int nochdir, int noclose)
 {

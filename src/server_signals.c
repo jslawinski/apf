@@ -30,7 +30,13 @@
 
 extern ServerConfiguration* config;
 
-  void
+/*
+ * Function name: server_sig_int
+ * Description: Function responsible for handling SIG_INT.
+ * Arguments: signo - the signal number
+ */
+
+void
 server_sig_int(int signo)
 {
   int i, j;

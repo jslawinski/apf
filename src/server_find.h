@@ -26,6 +26,7 @@
 
 int find_client(ServerRealm*, char, int);
 int find_usernum(ConnectClient*, int);
+int find_previousFd(UsrCli**, int, char*, char*);
 
 #endif
 

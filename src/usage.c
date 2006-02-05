@@ -19,25 +19,39 @@
  */
 
 #include <config.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
 
 #include "usage.h"
 #include "network.h"
 
-#include <stdio.h>
-#include <stdlib.h>
+/*
+ * Function name: server_short_usage
+ * Description: Prints the short usage of the afserver.
+ * Arguments: info - the text printed in the first line
+ */
 
-  void
+void
 server_short_usage(char* info)
 {
+  assert(info != NULL);
   printf("\n%s\n\n\n", info);
   printf("Try `afserver --help' for more information.\n");
   
   exit(1);
 }
 
-  void
+/*
+ * Function name: server_long_usage
+ * Description: Prints the long usage of the afserver.
+ * Arguments: info - the text printed in the first line
+ */
+
+void
 server_long_usage(char* info)
 {
+  assert(info != NULL);
   printf("\n%s\n\n\n", info);
   printf(" Basic options:\n\n");
   printf("  -n, --hostname      - it's used when creating listening sockets\n");
@@ -103,18 +117,32 @@ server_long_usage(char* info)
   exit(0);
 }
 
-  void
+/*
+ * Function name: client_short_usage
+ * Description: Prints the short usage of the afclient.
+ * Arguments: info - the text printed in the first line
+ */
+
+void
 client_short_usage(char* info)
 {
+  assert(info != NULL);
   printf("\n%s\n\n\n", info);
   printf("Try `afclient --help' for more information.\n");
   
   exit(1);
 }
 
+/*
+ * Function name: client_long_usage
+ * Description: Prints the long usage of the afclient.
+ * Arguments: info - the text printed in the first line
+ */
+
 void
 client_long_usage(char* info)
 {
+  assert(info != NULL);
   printf("\n%s\n\n\n", info);
   printf(" Basic options:\n\n");
   printf("  -n, --servername    - where the second part of the active\n");

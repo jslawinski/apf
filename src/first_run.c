@@ -30,6 +30,7 @@
 #include <pwd.h>
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
+#include <assert.h>
 
 static char* home_dir = NULL;
 static char* home_dir_store = NULL;
@@ -52,6 +53,12 @@ entryT entries[6] = {
   {"commonName", (unsigned char*) "Jeremian <jeremian [at] poczta [dot] fm>"},
 };  
 
+/*
+ * Function name: callback
+ * Description: Prints the info about rsa key generation events.
+ * Arguments: i, j, k - described in the manual page about RSA_generate_key
+ */
+
 static void
 callback(int i, int j, void* k)
 {
@@ -63,15 +70,15 @@ callback(int i, int j, void* k)
 
 /*
  * Function name: create_apf_dir
- * Description: creates .apf directory in ~/ or apf directory locally
+ * Description: Creates .apf directory in ~/ or apf directory locally.
  * Arguments: type - type of the directory to create:
  *                     0 - .apf in ~/
  *                     1 - apf in current dir
- * Returns: 0 - success
- *          1 - problems with fetching user info
- *          2 - home directory is not set
- *          3 - calloc failure
- *          4 - directory creation failure
+ * Returns: 0 - success,
+ *          1 - problems with fetching user info,
+ *          2 - home directory is not set,
+ *          3 - calloc failure,
+ *          4 - directory creation failure.
  */
 
 int
@@ -128,12 +135,22 @@ create_apf_dir(char type)
   return 0;
 }
 
+/*
+ * Function name: create_publickey_store
+ * Description: Creates the file to store information about public keys.
+ * Arguments: storefile - the pointer to filename
+ * Returns: 0 - success,
+ *          >0 - failure.
+ */
+
 int
 create_publickey_store(char** storefile)
 {
   int store_length, home_length;
   struct stat buf;
   FILE* store_file;
+  assert(storefile != NULL);
+  assert((*storefile) != NULL);
   /* check in local directory first */
   if (stat(*storefile, &buf) == 0) {
     return 0;
@@ -164,6 +181,14 @@ create_publickey_store(char** storefile)
   return 2;
 }
 
+/*
+ * Function name: generate_rsa_key
+ * Description: Generates the RSA key.
+ * Arguments: keyfile - the pointer to filename
+ * Returns: 0 - success,
+ *          >0 - failure.
+ */
+
 int
 generate_rsa_key(char** keyfile)
 {
@@ -171,6 +196,8 @@ generate_rsa_key(char** keyfile)
   RSA* rsa_key;
   FILE* rsa_file;
   struct stat buf;
+  assert(keyfile != NULL);
+  assert((*keyfile) != NULL);
   /* check in local directory first */
   if (stat(*keyfile, &buf) == 0) {
     return 0;
@@ -210,6 +237,15 @@ generate_rsa_key(char** keyfile)
   return 0;
 }
 
+/*
+ * Function name: generate_certificate
+ * Description: Generates X509 certificate.
+ * Arguments: cerfile - the pointer to filename
+ *            keyfile - the name of the file with key
+ * Returns: 0 - success,
+ *          >0 - failure.
+ */
+
 int
 generate_certificate(char** cerfile, char* keyfile)
 {
@@ -222,6 +258,9 @@ generate_certificate(char** cerfile, char* keyfile)
   EVP_PKEY* pkey;
   const EVP_MD *digest;
   FILE* fp;
+  assert(cerfile != NULL);
+  assert((*cerfile) != NULL);
+  assert(keyfile != NULL);
   /* check in local directory first */
   if (stat(*cerfile, &buf) == 0) {
     return 0;
@@ -327,17 +366,35 @@ generate_certificate(char** cerfile, char* keyfile)
   return 0;
 }
 
+/*
+ * Function name: get_store_filename
+ * Description: Returns the name of the file for storing information about public keys.
+ * Returns: The name of the file for storing information about public keys.
+ */
+
 char*
 get_store_filename()
 {
   return home_dir_store;
 }
 
+/*
+ * Function name: get_key_filename
+ * Description: Returns the name of the file with key.
+ * Returns: The name of the file with key.
+ */
+
 char*
 get_key_filename()
 {
   return home_dir_key;
 }
+
+/*
+ * Function name: get_cer_filename
+ * Description: Returns the name of the file with certificate.
+ * Returns: The name of the file with certificate.
+ */
 
 char*
 get_cer_filename()

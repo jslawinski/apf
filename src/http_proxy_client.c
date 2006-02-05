@@ -38,6 +38,12 @@ typedef struct {
   SSL_CTX* ctx;
 } proxy_argT;
 
+/*
+ * Function name: clean_return
+ * Description: Closes the connection and exits the thread.
+ * Arguments: sockfd - the descriptor of the connection
+ */
+
 static void
 clean_return(int sockfd)
 {
@@ -46,6 +52,12 @@ clean_return(int sockfd)
   close(sockfd);
   pthread_exit(NULL);
 }
+
+/*
+ * Function name: http_proxy_client
+ * Description: Function responsible for the client part of the http proxy connection.
+ * Arguments: vptr - the structure with all the information needed for http proxy tunnel
+ */
 
 void*
 http_proxy_client(void *vptr)
@@ -518,6 +530,16 @@ http_proxy_client(void *vptr)
   }
   clean_return(conn.sockfd);
 }
+
+/*
+ * Function name: initialize_http_proxy_client
+ * Description: Initializes the thread responsible for http proxy connection.
+ * Arguments: sockfd - the new connection descriptor will be stored here
+ *            cr - the pointer to ClientRealm structure
+ *            ctx - the pointer to SSL_CTX structure
+ * Returns: 0 - success,
+ *          !0 - failure.
+ */
 
 int
 initialize_http_proxy_client(int* sockfd, ClientRealm* cr, SSL_CTX* ctx)

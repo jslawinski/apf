@@ -26,6 +26,7 @@
 
 int eval_numofcon(ServerRealm*, int, int);
 int eval_usernum(ConnectClient*, int);
+int eval_UsrCliPair(UsrCli**, int, char*, char*);
 
 #endif
 

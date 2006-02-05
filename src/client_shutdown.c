@@ -19,6 +19,7 @@
  */
 
 #include <config.h>
+#include <assert.h>
 
 #include "client_shutdown.h"
 
@@ -26,6 +27,12 @@ void
 close_connections(int usernum, ConnectUser*** contable)
 {
   int i;
+  
+  assert(contable != NULL);
+  if (contable == NULL) {
+    return;
+  }
+  
   if (*contable) {
     for (i = 0; i < usernum; ++i) {
       if ((ConnectUser_get_state((*contable)[i]) == S_STATE_OPEN) ||

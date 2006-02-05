@@ -31,6 +31,12 @@ static llnodeT* head = NULL;
 static char verlev;
 static char format[51] = "%Y-%m-%d %H:%M:%S";
 
+/*
+ * Function name: setdateformat
+ * Description: Sets the new date format based on the given string.
+ * Arguments: dateformat - the new date format
+ */
+
 void
 setdateformat(char* dateformat)
 {
@@ -39,11 +45,24 @@ setdateformat(char* dateformat)
   }
 }
 
+/*
+ * Function name: getdateformat
+ * Description: Returns the date format.
+ * Returns: The date format.
+ */
+
 char*
 getdateformat()
 {
   return format;
 }
+
+/*
+ * Function name: localdate
+ * Description: Returns the formatted date string.
+ * Arguments: sec - the date in seconds
+ * Returns: The formatted date.
+ */
 
 char*
 localdate(time_t* sec)
@@ -54,7 +73,13 @@ localdate(time_t* sec)
   memset(localdat, 0, 31);
   strftime(localdat, 30, format, tm);
   return localdat;
-} 
+}
+
+/*
+ * Function name: datum
+ * Description: Returns the formatted date string.
+ * Returns: The formatted date.
+ */
 
 char*
 datum(void)
@@ -69,11 +94,26 @@ datum(void)
 	return timedat;
 }
 
+/*
+ * Function name: getloglisthead
+ * Description: Returns the head of the log targets list.
+ * Returns: The head of the log targets list.
+ */
+
 llnodeT*
 getloglisthead()
 {
   return head;
 }
+
+/*
+ * Function name: checkmsgti
+ * Description: Adds the given msgtype/importance to the log target.
+ * Arguments: target - the log target
+ *            tab - the name of the msttype/importance
+ * Returns: 0 - success,
+ *          1 - failure.
+ */
 
 int
 checkmsgti(llnodeT* target, char* tab)
@@ -122,6 +162,14 @@ checkmsgti(llnodeT* target, char* tab)
   }
   return 0;
 }
+
+/*
+ * Function name: checklogtarget
+ * Description: Parses the command line and sets all the options.
+ * Arguments: target - the log target
+ * Returns 0 - success,
+ *         !0 - failure.
+ */
 
 int
 checklogtarget(llnodeT* target)
@@ -258,6 +306,12 @@ checklogtarget(llnodeT* target)
   return 0;
 }
 
+/*
+ * Function name: addlogtarget
+ * Description: Adds the new non-initialized log target with the specified command line.
+ * Arguments: cmdline - the command line
+ */
+
 void
 addlogtarget(char* cmdline)
 {
@@ -266,6 +320,15 @@ addlogtarget(char* cmdline)
   newnode->next = head;
   head = newnode;
 }
+
+/*
+ * Function name: loginit
+ * Description: Initializes the logging system.
+ * Arguments: verl - level of verbosity
+ *            dateformat - date format
+ * Returns: 0 - success,
+ *          !0 - failure.
+ */
 
 int
 loginit(char verl, char* dateformat)
@@ -316,6 +379,14 @@ loginit(char verl, char* dateformat)
 	return 0;
 }
 
+/*
+ * Function name: initializelogging
+ * Description: The opaque function for loginit. If the logging initialization
+ *              failed, it prints the appropriate message and exits.
+ * Arguments: verl - level of verbosity
+ *            dateformat - date format
+ */
+
 void
 initializelogging(char verl, char* dateformat)
 {
@@ -356,6 +427,15 @@ initializelogging(char verl, char* dateformat)
     exit(1);
   }
 }
+
+/*
+ * Function name: aflog
+ * Description: Logs the given message.
+ * Arguments: type - the type of the message
+ *            importance - the importance of the message
+ *            form - the format of the message
+ *            ... - the additional arguments
+ */
 
 void
 aflog(char type, char importance, const char* form, ...)

@@ -40,6 +40,7 @@
 #include "audit_list_struct.h"
 #include "daemon.h"
 #include "ar_options_struct.h"
+#include "port_list_struct.h"
 
 #include <openssl/rsa.h>
 #include <openssl/ssl.h>

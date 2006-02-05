@@ -19,12 +19,24 @@
  */
 
 #include <config.h>
+#include <assert.h>
+#include <string.h>
 
 #include "server_eval.h"
+
+/*
+ * Function name: eval_numofcon
+ * Description: Returns the real connection number on the afserver.
+ * Arguments: ptr - the server realm
+ *            client - client number
+ *            numofcon - the connection number on the afclient
+ * Returns: The real connection number on the afserver.
+ */
 
 int
 eval_numofcon(ServerRealm* ptr, int client, int numofcon)
 {
+  assert(ptr != NULL);
   if ((numofcon >= 0) && (numofcon < ConnectClient_get_limit(ServerRealm_get_clientsTable(ptr)[client]))) {
     numofcon = ConnectClient_get_users(ServerRealm_get_clientsTable(ptr)[client])[numofcon];
   }
@@ -34,13 +46,78 @@ eval_numofcon(ServerRealm* ptr, int client, int numofcon)
   return numofcon;
 }
 
+/*
+ * Function name: eval_usernum
+ * Description: Returns the user number in the connected client on the afserver side.
+ * Arguments: ptr - the connected client
+ *            usernum - the connection number on the afserver
+ * Returns: The user number in the connected client on the afserver side.
+ */
+
 int
 eval_usernum(ConnectClient* ptr, int usernum)
 {
   int i;
+  assert(ptr != NULL);
   for (i = 0; i < ConnectClient_get_limit(ptr); ++i) {
     if (ConnectClient_get_users(ptr)[i] == usernum)
       return i;
   }
   return -1;
+}
+
+/*
+ * Function name: eval_UsrCliPair
+ * Description: Returns how many UsrCli structures are connected with the current manage port.
+ * Arguments: table - the table of UsrCli structures
+ *            index - the current index of the evaluation
+ *            host - the name of the host
+ *            serv - the name of the service (port)
+ * Returns: How many UsrCli structures are connected with the current manage port.
+ */
+
+int
+eval_UsrCliPair(UsrCli** table, int index, char* host, char* serv)
+{
+  int i;
+  int result = 0;
+  assert(table != NULL);
+  assert(index >= 0);
+  for (i = 0; i < index; ++i) {
+
+    if (UsrCli_get_manageHostName(table[i])) {
+      if (host) {
+        if (strcmp(UsrCli_get_listenHostName(table[i]), host)) {
+          continue;
+        }
+      }
+      else {
+        continue;
+      }
+    }
+    else {
+      if (host) {
+        continue;
+      }
+    }
+
+    if (UsrCli_get_managePortName(table[i])) {
+      if (serv) {
+        if (strcmp(UsrCli_get_managePortName(table[i]), serv)) {
+          continue;
+        }
+      }
+      else {
+        continue;
+      }
+    }
+    else {
+      if (serv) {
+        continue;
+      }
+    }
+
+    result++;
+  }
+  return result;
 }

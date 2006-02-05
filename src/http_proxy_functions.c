@@ -27,6 +27,17 @@
 
 static char isseed;
 
+/*
+ * Function name: myrand
+ * Description: Returns the pseudo-random number from the given range.
+ *              If the lower and upper bounds are the same, the pseudo-random
+ *              number is returned from the range (-RAND_MAX, -RAND_MAX+down)
+ *              or (down, RAND_MAX).
+ * Arguments: down - the lower bound of the range
+ *            up - the upper bound of the range
+ * Returns: The pseudo-random number from the given range.
+ */
+
 int
 myrand(int down, int up)
 {
@@ -39,6 +50,12 @@ myrand(int down, int up)
 	return ( down + ( rand() % (up - down + 1) ) );
 }
 
+/*
+ * Function name: mysleep
+ * Description: Sleeps for the given amount of milliseconds.
+ * Arguments: time - the amount of milliseconds to sleep for
+ */
+
 void
 mysleep(double time)
 {
@@ -47,6 +64,14 @@ mysleep(double time)
 	tv.tv_usec = (int)(time * 1000000)%1000000;
 	select(0, NULL, NULL, NULL, &tv);
 }
+
+/*
+ * Function name: delete_user
+ * Description: Deletes the user's connection from the http proxy connections.
+ * Arguments: cnts - the connection to remove
+ *            i - the user's number
+ *            allset - the set of file descriptors
+ */
 
 void
 delete_user(connection* cnts, int i, fd_set* allset)
@@ -64,6 +89,17 @@ delete_user(connection* cnts, int i, fd_set* allset)
   cnts[i].sent_ptr = cnts[i].ptr = cnts[i].length = 0;
   cnts[i].type = 0;
 }
+
+/*
+ * Function name: parse_header
+ * Description: Reads and parses the http header.
+ * Arguments: sf - the pointer to SslFd structure
+ *            tab - the buffer used for reading the data
+ *            hdr - the pointer to header structure
+ *            https - the flag indicating if the connection is http/https
+ * Returns: 0 - success,
+ *          1 - failure.
+ */
 
 int
 parse_header(SslFd* sf, char* tab, header* hdr, char https)
@@ -187,6 +223,14 @@ parse_header(SslFd* sf, char* tab, header* hdr, char https)
   return 1;
 }
 
+/*
+ * Function name: set_fd
+ * Description: Starts watching the file descriptor.
+ * Arguments: fd - the file descriptor
+ *            maxfdp1 - the upper limit of the file descriptor numbers
+ *            allset - the set of file descriptors
+ */
+
 void
 set_fd(int fd, int* maxfdp1, fd_set* allset)
 {
@@ -194,11 +238,24 @@ set_fd(int fd, int* maxfdp1, fd_set* allset)
   (*maxfdp1) = ((*maxfdp1) > fd) ? (*maxfdp1) : (fd + 1);
 }
 
+/*
+ * Function name: close_fd
+ * Description: Closes the file descriptor.
+ * Arguments: fd - the file descriptor to close
+ */
+
 void
 close_fd(int* fd)
 {
   close(*fd);
 }
+
+/*
+ * Function name: clear_fd
+ * Description: Removes the file descriptor from the set and closes it.
+ * Arguments: fd - the file descriptor to remove and close
+ *            set - the set of file descriptors
+ */
 
 void
 clear_fd(int* fd, fd_set* set)
@@ -206,6 +263,19 @@ clear_fd(int* fd, fd_set* set)
   FD_CLR(*fd, set);
   close_fd(fd);
 }
+
+/*
+ * Function name: read_message
+ * Description: Reads the message from the http proxy connection and writes it
+ *              to the file descriptor.
+ * Arguments: fd - the file descriptor
+ *            length - the length of the buffer
+ *            client - the http proxy connection
+ *            tab - the buffer with the readed data
+ *            ptr - the offset from which the data reading will start
+ * Returns: 0 - success,
+ *          1 - failure.
+ */
 
 int
 read_message(int fd, int length, connection* client, char* tab, int ptr)

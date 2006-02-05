@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <time.h>
+#include <assert.h>
 
 #include "user_stats_struct.h"
 
@@ -35,6 +36,7 @@ UserStats*
 UserStats_new()
 {
   UserStats* tmp = calloc(1, sizeof(UserStats));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
@@ -50,9 +52,11 @@ UserStats_new()
 void
 UserStats_free(UserStats** us)
 {
+  assert(us != NULL);
   if (us == NULL) {
     return;
   }
+  assert((*us) != NULL);
   if ((*us) == NULL) {
     return;
   }
@@ -70,6 +74,7 @@ UserStats_free(UserStats** us)
 void
 UserStats_set_lastActivity(UserStats* us, time_t lastActivity)
 {
+  assert(us != NULL);
   if (us == NULL) {
     return;
   }
@@ -86,6 +91,7 @@ UserStats_set_lastActivity(UserStats* us, time_t lastActivity)
 void
 UserStats_set_totalDownloadedBytes(UserStats* us, int totalDownloadedBytes)
 {
+  assert(us != NULL);
   if (us == NULL) {
     return;
   }
@@ -102,6 +108,7 @@ UserStats_set_totalDownloadedBytes(UserStats* us, int totalDownloadedBytes)
 void
 UserStats_set_totalUploadedBytes(UserStats* us, int totalUploadedBytes)
 {
+  assert(us != NULL);
   if (us == NULL) {
     return;
   }
@@ -118,6 +125,7 @@ UserStats_set_totalUploadedBytes(UserStats* us, int totalUploadedBytes)
 time_t
 UserStats_get_lastActivity(UserStats* us)
 {
+  assert(us != NULL);
   if (us == NULL) {
     return 0;
   }
@@ -134,6 +142,7 @@ UserStats_get_lastActivity(UserStats* us)
 int
 UserStats_get_totalDownloadedBytes(UserStats* us)
 {
+  assert(us != NULL);
   if (us == NULL) {
     return 0;
   }
@@ -150,6 +159,7 @@ UserStats_get_totalDownloadedBytes(UserStats* us)
 int
 UserStats_get_totalUploadedBytes(UserStats* us)
 {
+  assert(us != NULL);
   if (us == NULL) {
     return 0;
   }
@@ -168,6 +178,9 @@ void
 UserStats_add_download(UserStats* us, int bytes)
 {
   time_t now;
+  
+  assert(us != NULL);
+  
   if (us == NULL) {
     return;
   }
@@ -218,6 +231,9 @@ void
 UserStats_add_upload(UserStats* us, int bytes)
 {
   time_t now;
+  
+  assert(us != NULL);
+
   if (us == NULL) {
     return;
   }
@@ -267,6 +283,9 @@ double
 UserStats_get_downloadSpeed(UserStats* us)
 {
   time_t now;
+  
+  assert(us != NULL);
+  
   if (us == NULL) {
     return 0.0;
   }
@@ -311,6 +330,9 @@ double
 UserStats_get_uploadSpeed(UserStats* us)
 {
   time_t now;
+  
+  assert(us != NULL);
+  
   if (us == NULL) {
     return 0.0;
   }
@@ -353,6 +375,7 @@ UserStats_get_uploadSpeed(UserStats* us)
 void
 UserStats_clear(UserStats* us)
 {
+  assert(us != NULL);
   if (us == NULL) {
     return;
   }

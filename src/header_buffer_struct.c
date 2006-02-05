@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "header_buffer_struct.h"
 
@@ -35,6 +36,7 @@ HeaderBuffer*
 HeaderBuffer_new()
 {
   HeaderBuffer* tmp = calloc(1, sizeof(HeaderBuffer));
+  assert(tmp != NULL);
   if (tmp == NULL) {
     return NULL;
   }
@@ -50,9 +52,11 @@ HeaderBuffer_new()
 void
 HeaderBuffer_free(HeaderBuffer** hb)
 {
+  assert(hb != NULL);
   if (hb == NULL) {
     return;
   }
+  assert((*hb) != NULL);
   if ((*hb) == NULL) {
     return;
   }
@@ -70,6 +74,7 @@ HeaderBuffer_free(HeaderBuffer** hb)
 int
 HeaderBuffer_to_read(HeaderBuffer* hb)
 {
+  assert(hb != NULL);
   if (hb == NULL) {
     return -1;
   }
@@ -87,12 +92,15 @@ HeaderBuffer_to_read(HeaderBuffer* hb)
 void
 HeaderBuffer_store(HeaderBuffer* hb, unsigned char* buff, int n)
 {
+  assert(hb != NULL);
   if (hb == NULL) {
     return;
   }
+  assert((hb->readed + n) <= 5);
   if ((hb->readed + n) > 5) {
     return;
   }
+  assert(n > 0);
   if (n <= 0) {
     return;
   }
@@ -110,6 +118,7 @@ HeaderBuffer_store(HeaderBuffer* hb, unsigned char* buff, int n)
 void
 HeaderBuffer_restore(HeaderBuffer* hb, unsigned char* buff)
 {
+  assert(hb != NULL);
   if (hb == NULL) {
     return;
   }

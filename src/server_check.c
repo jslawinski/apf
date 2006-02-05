@@ -23,15 +23,28 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <assert.h>
 
 #include "server_check.h"
 #include "stats.h"
 #include "logging.h"
 
+/*
+ * Function name: check_value
+ * Description: Checks if the string is a valid positive int number.
+ * Arguments: what - the string representing number
+ *            info - the information string printed on failure
+ * Returns: The decoded int number.
+ */
+
 int
 check_value(char* what, char* info)
 {
   long tmp;
+  
+  assert(what != NULL);
+  assert(info != NULL);
+  
   tmp = check_value_liberal(what, info);
   
   if (tmp <= 0) {
@@ -42,11 +55,22 @@ check_value(char* what, char* info)
   return tmp;
 }
 
+/*
+ * Function name: check_value_liberal
+ * Description: Checks if the string is a valid int number.
+ * Arguments: what - the string representing number
+ *            info - the information string printed on failure
+ * Returns: The decoded int number.
+ */
+
 int
 check_value_liberal(char* what, char* info)
 {
   char* znak;
   long tmp;
+
+  assert(what != NULL);
+  assert(info != NULL);
   
   if ((tmp = strtol(what, &znak, 10)) >= INT_MAX) {
     aflog(LOG_T_INIT, LOG_I_CRIT,
@@ -60,6 +84,16 @@ check_value_liberal(char* what, char* info)
   }
   return tmp;
 }
+
+/*
+ * Function name: check_long
+ * Description: Checks if the string is a valid long number.
+ * Arguments: text - the string representing number
+ *            number - the pointer where decoded number will be stored
+ * Returns: 0 - success,
+ *          1 - value from outside the long number range,
+ *          2 - not the valid long number.
+ */
 
 int
 check_long(char* text, long* number)
