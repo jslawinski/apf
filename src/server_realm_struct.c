@@ -262,6 +262,23 @@ ServerRealm_set_sTimeout(ServerRealm* sr, char* sTimeout)
 }
 
 /*
+ * Function name: ServerRealm_set_sMaxIdle
+ * Description: Sets max idle value description.
+ * Arguments: sr - pointer to ServerRealm structure
+ *            sMaxIdle - max idle value description
+ */
+
+void
+ServerRealm_set_sMaxIdle(ServerRealm* sr, char* sMaxIdle)
+{
+  assert(sr != NULL);
+  if (sr == NULL) {
+    return;
+  }
+  string_cp(&(sr->sMaxIdle), sMaxIdle);
+}
+
+/*
  * Function name: ServerRealm_set_realmName
  * Description: Set realm's name.
  * Arguments: sr - pointer to ServerRealm structure
@@ -429,6 +446,23 @@ ServerRealm_set_timeout(ServerRealm* sr, int timeout)
     return;
   }
   sr->timeout = timeout;
+}
+
+/*
+ * Function name: ServerRealm_set_maxIdle
+ * Description: Sets mas idle value.
+ * Arguments: sr - pointer to ServerRealm structure
+ *            maxIdle - max idle value
+ */
+
+void
+ServerRealm_set_maxIdle(ServerRealm* sr, int maxIdle)
+{
+  assert(sr != NULL);
+  if (sr == NULL) {
+    return;
+  }
+  sr->maxIdle = maxIdle;
 }
 
 /*
@@ -850,6 +884,23 @@ ServerRealm_get_sTimeout(ServerRealm* sr)
 }
 
 /*
+ * Function name: ServerRealm_get_sMaxIdle
+ * Description: Gets max idle value description.
+ * Arguments: sr - pointer to ServerRealm structure
+ * Returns: Max idle value description.
+ */
+
+char*
+ServerRealm_get_sMaxIdle(ServerRealm* sr)
+{
+  assert(sr != NULL);
+  if (sr == NULL) {
+    return NULL;
+  }
+  return sr->sMaxIdle;
+}
+
+/*
  * Function name: ServerRealm_get_realmName
  * Description: Get realm's name.
  * Arguments: sr - pointer to ServerRealm structure
@@ -1017,6 +1068,23 @@ ServerRealm_get_timeout(ServerRealm* sr)
     return 0;
   }
   return sr->timeout;
+}
+
+/*
+ * Function name: ServerRealm_get_maxIdle
+ * Description: Gets max idle value.
+ * Arguments: sr - pointer to ServerRealm structure
+ * Returns: Max idle value.
+ */
+
+int
+ServerRealm_get_maxIdle(ServerRealm* sr)
+{
+  assert(sr != NULL);
+  if (sr == NULL) {
+    return 0;
+  }
+  return sr->maxIdle;
 }
 
 /*

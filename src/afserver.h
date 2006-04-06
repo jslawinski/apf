@@ -41,6 +41,7 @@
 #include "logging.h"
 #include "daemon.h"
 #include "timeval_functions.h"
+#include "remove_client_task.h"
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>

@@ -275,6 +275,23 @@ ConnectClient_set_connectTime(ConnectClient* cc, time_t connectTime)
 }
 
 /*
+ * Function name: ConnectClient_set_lastActivity
+ * Description: Sets time of the last client activity (when last packet from afclient has arrived)
+ * Arguments: cc - pointer to ConnectClient structure
+ *            lastActivity - time of the last client activity
+ */
+
+void
+ConnectClient_set_lastActivity(ConnectClient* cc, time_t lastActivity)
+{
+  assert(cc != NULL);
+  if (cc == NULL) {
+    return;
+  }
+  cc->lastActivity = lastActivity;
+}
+
+/*
  * Function name: ConnectClient_set_sClientId
  * Description: Sets client identification string.
  * Arguments: cc - pointer to ConnectClient structure
@@ -400,6 +417,26 @@ ConnectClient_set_header(ConnectClient* cc, HeaderBuffer* hb)
   hbtmp = ConnectClient_get_header(cc);
   HeaderBuffer_free(&hbtmp);
   cc->header = hb;
+}
+
+/*
+ * Function name: ConnectClient_set_task
+ * Description: Sets the client task.
+ * Arguments: cc - pointer to ConnectClient structure
+ *            task - the task to set
+ */
+
+void
+ConnectClient_set_task(ConnectClient* cc, Task* task)
+{
+  assert(cc != NULL);
+  if (cc == NULL) {
+    return;
+  }
+  if (cc->task) {
+    Task_free(&(cc->task));
+  }
+  cc->task = task;
 }
 
 /*
@@ -573,6 +610,23 @@ ConnectClient_get_connectTime(ConnectClient* cc)
 }
 
 /*
+ * Function name: ConnectClient_get_lastActivity
+ * Description: Gets time of the last client activity (when last packet from afclient has arrived)
+ * Arguments: cc - pointer to ConnectClient structure
+ * Returns: Time of the last client activity.
+ */
+
+time_t
+ConnectClient_get_lastActivity(ConnectClient* cc)
+{
+  assert(cc != NULL);
+  if (cc == NULL) {
+    return 0;
+  }
+  return cc->lastActivity;
+}
+
+/*
  * Function name: ConnectClient_get_sClientId
  * Description: Gets client identification string.
  * Arguments: cc - pointer to ConnectClient structure
@@ -690,6 +744,23 @@ ConnectClient_get_header(ConnectClient* cc)
     return NULL;
   }
   return cc->header;
+}
+
+/*
+ * Function name: ConnectClient_get_task
+ * Description: Gets the client task.
+ * Arguments: cc - pointer to ConnectClient structure
+ * Returns: The client task.
+ */
+
+Task*
+ConnectClient_get_task(ConnectClient* cc)
+{
+  assert(cc != NULL);
+  if (cc == NULL) {
+    return NULL;
+  }
+  return cc->task;
 }
 
 /*

@@ -155,6 +155,8 @@ main(int argc, char **argv)
   act.sa_handler = client_sig_int;
   sigaction(SIGINT, &act, NULL);
   sigaction(SIGTERM, &act, NULL);
+  act.sa_handler = client_sig_alrm;
+  sigaction(SIGALRM, &act, NULL);
   
 #ifdef HAVE_LIBPTHREAD
   remember_mainthread();

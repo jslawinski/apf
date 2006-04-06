@@ -1,3 +1,15 @@
+06.04.2006 (v0.8.1):
+  - Fixed: enableproxy option in server's config file
+  - Added: clients idle time
+  - Added: 'maxidle' option
+  - Modified: task scheduling subsystem has been completely rewritten
+  - Fixed: segmentation fault in http tunnels after multiple simultaneous POST
+	         connections from the same source
+  - Fixed: unexpected connection close when http proxy was too slow
+  - Fixed: SIGSEGV in http proxy mode under cygwin
+  - Added: enabled the SO_KEEPALIVE option for all the sockets used by the apf
+  - Added: 60 seconds timeout for SSL_connect
+	
 04.02.2006 (v0.8):
   - Fixed: infinite loop after buffering message
   - Fixed: corrupt packets after closing connections in the stopped state

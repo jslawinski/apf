@@ -258,16 +258,19 @@ http_proxy_client(void *vptr)
   }
 
 	while (1) {
+    if ((conn.state == C_OPEN) && (!(FD_ISSET(conn.sockfd, &allset)))) {
+      FD_SET(conn.sockfd, &allset);
+    }
     rset = allset;
 
     if (select(maxfdp1, &rset, NULL, NULL, &tv) == 0) {
       aflog(LOG_T_MAIN, LOG_I_DDEBUG,
           "http%s proxy: timeout", name);
       tv.tv_sec = timeout;
-      if (conn.state == C_CLOSED) {
-        continue;
-      }
       if (conn.sent_ptr+1 >= 90000) {
+        if (conn.state == C_CLOSED) {
+          continue;
+        }
         aflog(LOG_T_MAIN, LOG_I_DDEBUG,
             "http%s proxy: send T", name);
         http_write(https, conn.postFd, (unsigned char*) "T", 1);
@@ -319,6 +322,7 @@ http_proxy_client(void *vptr)
         conn.sent_ptr = 0;
         conn.ptr = 0;
         conn.length = 0;
+        conn.state = C_CLOSED;
 
         set_fd(SslFd_get_fd(conn.postFd), &maxfdp1, &allset);
       }
@@ -335,34 +339,15 @@ http_proxy_client(void *vptr)
     if (FD_ISSET(conn.sockfd, &rset)) {
       aflog(LOG_T_MAIN, LOG_I_DDEBUG,
           "http%s proxy: FD_ISSET(conn.sockfd)", name);
-      if (conn.state == C_CLOSED) {
-        /* postfd */
-        aflog(LOG_T_MAIN, LOG_I_DEBUG,
-            "http%s proxy: connecting (postfd)...", name);
-        if (ip_connect(&tmp, proxyname, proxyport, type, NULL, NULL)) {
-          clean_return(conn.sockfd);
-        }
-        SslFd_set_fd(conn.postFd, tmp);
-        if (https) {
-          if (SSL_set_fd(SslFd_get_ssl(conn.postFd), SslFd_get_fd(conn.postFd)) != 1) {
-            aflog(LOG_T_INIT, LOG_I_CRIT,
-                "https proxy: Problem with initializing ssl");
-            clean_return(conn.sockfd);
-          }
-          if (SSL_connect(SslFd_get_ssl(conn.postFd)) != 1) {
-            aflog(LOG_T_INIT, LOG_I_CRIT,
-                "https proxy: SSL_connect has failed");
-            clean_return(conn.sockfd);
-          }
-        }
-        conn.state = C_OPEN;
-      }
       n = read(conn.sockfd, conn.buf+5, 8995);
       if (n <= 0) {
         aflog(LOG_T_MAIN, LOG_I_DEBUG,
             "http%s proxy: send Q", name);
         http_write(https, conn.postFd, (unsigned char *) "Q", 1);
         clean_return(conn.sockfd);
+      }
+      if ((conn.state == C_CLOSED) && (conn.sent_ptr > 70000)) {
+        FD_CLR(conn.sockfd, &allset);
       }
       conn.buf[0] = 'M';
       tmp = htonl(n);
@@ -429,6 +414,7 @@ http_proxy_client(void *vptr)
         conn.sent_ptr = conn.length;
         conn.ptr = 0;
         conn.length = 0;
+        conn.state = C_CLOSED;
 
         set_fd(SslFd_get_fd(conn.postFd), &maxfdp1, &allset);
       }
@@ -523,9 +509,9 @@ http_proxy_client(void *vptr)
     /* postfd */
     if (FD_ISSET(SslFd_get_fd(conn.postFd), &rset)) {
       aflog(LOG_T_MAIN, LOG_I_DDEBUG,
-          "http%s proxy: FD_ISSET(conn.postfd)", name);
+          "http%s proxy: FD_ISSET(conn.postfd) --> clean_return", name);
       clear_sslFd(conn.postFd, &allset);
-      conn.state = C_CLOSED;
+      clean_return(conn.sockfd);
     }
   }
   clean_return(conn.sockfd);

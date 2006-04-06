@@ -34,6 +34,7 @@
 #define C_POST_WAIT 1
 #define C_GET_WAIT 2
 #define C_OPEN 4
+#define C_DELAYED_A 8
 
 #define H_TYPE_GET 0
 #define H_TYPE_POST 1

@@ -18,43 +18,30 @@
  *
  */
 
-#include <config.h>
+#ifndef _JS_REMOVE_CLIENT_TASK_H
+#define _JS_REMOVE_CLIENT_TASK_H
 
-#include "client_signals.h"
-#include "thread_management.h"
-#include "stats.h"
-#include "logging.h"
+#define RCT_REASON_TIMEOUT 0
+#define RCT_REASON_MAXIDLE 1
 
-#include <stdlib.h>
+#include "server_configuration_struct.h"
 
-/*
- * Function name: client_sig_int
- * Description: Function responsible for handling SIG_INT.
- * Arguments: signo - the signal number
- */
+typedef struct {
+  ServerConfiguration* config;
+  int realm;
+  int client;
+  char ra;
+  char reason;
+  fd_set* set;
+  fd_set* wset;
+} RCTdata;
 
-void
-client_sig_int(int signo)
-{
-#ifdef HAVE_LIBPTHREAD
-  if (!is_this_a_mainthread()) {
-    return;
-  }
+/* 'constructor' */
+RCTdata* RCTdata_new(ServerConfiguration* config, int realm, int client, char ra, char reason,
+    fd_set* set, fd_set* wset);
+/* 'destructor' */
+void RCTdata_free(void** data);
+/* other */
+void RCTfunction(void*);
+
 #endif
-  aflog(LOG_T_MAIN, LOG_I_NOTICE,
-      "CLIENT CLOSED cg: %ld bytes", getcg());
-  exit(0);
-}
-
-/*
- * Function name: client_sig_alrm
- * Description: Function responsible for handling SIG_ALRM.
- * Arguments: signo - the signal number
- */
-
-void
-client_sig_alrm(int signo)
-{
-  aflog(LOG_T_MAIN, LOG_I_DEBUG,
-      "Received SIGALRM");
-}

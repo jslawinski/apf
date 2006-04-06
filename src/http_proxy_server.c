@@ -94,6 +94,7 @@ http_proxy_server(void *vptr)
   int maxclients, tmp;
   int timeout = 5;
   socklen_t *addrlenp;
+  socklen_t addrlen;
   char type, nothttp, https;
   char *host, *serv, *name = "";
   SSL_CTX* ctx;
@@ -110,9 +111,6 @@ http_proxy_server(void *vptr)
   maxclients = proxy_argptr->limit+1;
   https = proxy_argptr->https;
   ctx = proxy_argptr->ctx;
-
-  broadcast_condition();
-  end_critical_section();
 
   if (https) {
     name = "s";
@@ -167,6 +165,11 @@ http_proxy_server(void *vptr)
     exit(1);
   }
 	cliaddr = malloc(*addrlenp);
+  addrlen = (*addrlenp);
+  addrlenp = &addrlen;
+  
+  broadcast_condition();
+  end_critical_section();
   
   FD_ZERO(&allset);
   FD_SET(listenfd, &allset);
@@ -260,6 +263,26 @@ http_proxy_server(void *vptr)
           table[i].received = 0;
           clear_sslFd(table[i].postFd, &allset);
           table[i].state |= C_POST_WAIT;
+        
+          if (!(table[i].state & C_GET_WAIT)) {
+            aflog(LOG_T_MAIN, LOG_I_DDEBUG,
+                "http%s proxy: send A to table[%d].getfd", name, i);
+            if (table[i].sent_ptr+1 >= 90000) {
+              http_write(https, table[i].getFd, (unsigned char*) "A", 1);
+              table[i].sent_ptr = 0;
+              clear_sslFd(table[i].getFd, &allset);
+              FD_CLR(table[i].sockfd, &allset);
+              table[i].state |= C_GET_WAIT;
+            }
+            else {
+              http_write(https, table[i].getFd, (unsigned char*) "A", 1);
+              table[i].sent_ptr += 1;
+            }
+          }
+          else {
+            table[i].state |= C_DELAYED_A;
+          }
+        
           if (table[i].tmpstate == 1) {
             aflog(LOG_T_MAIN, LOG_I_DEBUG,
                 "http%s proxy: get old POST request...", name);
@@ -414,6 +437,13 @@ http_proxy_server(void *vptr)
           table[i].sent_ptr = table[i].length;
           table[i].ptr = 0;
           table[i].length = 0;
+          if (table[i].state & C_DELAYED_A) {
+            aflog(LOG_T_MAIN, LOG_I_DDEBUG,
+                "http%s proxy: send A to table[%d].getfd", name, i);
+            http_write(https, table[i].getFd, (unsigned char*) "A", 1);
+            table[i].sent_ptr += 1;
+            table[i].state &= ~C_DELAYED_A;
+          }
         }
         else if (hdr.type == H_TYPE_POST) {
           aflog(LOG_T_MAIN, LOG_I_DEBUG,
@@ -470,9 +500,11 @@ http_proxy_server(void *vptr)
           }
           else {
             aflog(LOG_T_MAIN, LOG_I_DEBUG,
-                "http%s proxy: closing this connection...", name);
+                "http%s proxy: closing this connection... (not POST type)", name);
             close_fd((&(connFd->fd)));
-            SSL_clear(SslFd_get_ssl(connFd));
+            if (https) {
+              SSL_clear(SslFd_get_ssl(connFd));
+            }
             continue;
           }
         }
@@ -492,7 +524,7 @@ http_proxy_server(void *vptr)
       }
       else {
         aflog(LOG_T_MAIN, LOG_I_DEBUG,
-            "http%s proxy: closing this connection...", name);
+            "http%s proxy: closing this connection... (no free slots)", name);
         close_fd((&(connFd->fd)));
         continue;
       }

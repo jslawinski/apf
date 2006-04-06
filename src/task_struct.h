@@ -18,43 +18,22 @@
  *
  */
 
-#include <config.h>
+#ifndef _JS_TASK_STRUCT_H
+#define _JS_TASK_STRUCT_H
 
-#include "client_signals.h"
-#include "thread_management.h"
-#include "stats.h"
-#include "logging.h"
+typedef struct {
+  struct timeval* timerp;
+  void (*function)(void*);
+  void* data;
+  void (*clean)(void**);
+} Task;
 
-#include <stdlib.h>
+/* 'constructor' */
+Task* Task_new(struct timeval*, void (*function)(void*), void*, void (*clean)(void**));
+/* 'destructor' */
+void Task_free(Task** task);
+/* getters */
+struct timeval* Task_get_timer(Task* task);
+void Task_exec(Task* task);
 
-/*
- * Function name: client_sig_int
- * Description: Function responsible for handling SIG_INT.
- * Arguments: signo - the signal number
- */
-
-void
-client_sig_int(int signo)
-{
-#ifdef HAVE_LIBPTHREAD
-  if (!is_this_a_mainthread()) {
-    return;
-  }
 #endif
-  aflog(LOG_T_MAIN, LOG_I_NOTICE,
-      "CLIENT CLOSED cg: %ld bytes", getcg());
-  exit(0);
-}
-
-/*
- * Function name: client_sig_alrm
- * Description: Function responsible for handling SIG_ALRM.
- * Arguments: signo - the signal number
- */
-
-void
-client_sig_alrm(int signo)
-{
-  aflog(LOG_T_MAIN, LOG_I_DEBUG,
-      "Received SIGALRM");
-}

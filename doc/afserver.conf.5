@@ -1,4 +1,4 @@
-.TH afserver.conf 5 "apf 0.8" Jeremian
+.TH afserver.conf 5 "apf 0.8.1" Jeremian
 .SH NAME
 afserver.conf \- Configuration File for afserver
 .SH INTRODUCTION
@@ -68,7 +68,10 @@ commands.
   
 .B timeout N
   the timeout value for the client's connection (default: 5)
-  
+ 
+.B --maxidle N
+  the maximum idle time for the client's connection (default: disabled)
+ 
 .B clients N
   the number of allowed clients to use this server (default: 1)
   

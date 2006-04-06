@@ -24,6 +24,9 @@
 #include <sys/time.h>
 
 struct timeval timeval_create(long tv_sec, long tv_usec);
+int timeval_compare(struct timeval* first, struct timeval* second);
+int timeval_subtract(struct timeval* first, struct timeval* second);
+int timeval_lq_zero(struct timeval* timer);
 
 #endif
 

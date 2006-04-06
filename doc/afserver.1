@@ -1,4 +1,4 @@
-.TH afserver 1 "apf 0.8" Jeremian
+.TH afserver 1 "apf 0.8.1" Jeremian
 .SH NAME
 afserver \- active port forwarder server
 .SH SYNOPSIS
@@ -37,6 +37,9 @@ which redirects it to the specified destination host:port.
 .I afclient
 connects to it (default: 50126)
 
+.B -V, --version
+  display version number
+
 .B -h, --help
   prints help screen
 
@@ -62,6 +65,9 @@ connects to it (default: 50126)
 
 .B -t, --timeout N
   the timeout value for the client's connection (default: 5)
+
+.B --maxidle N
+  the maximum idle time for the client's connection (default: disabled)
 
 .B -u, --users N
   the amount of users allowed to use this server (default: 5)

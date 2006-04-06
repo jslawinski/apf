@@ -18,43 +18,25 @@
  *
  */
 
-#include <config.h>
+#ifndef _JS_TASK_LIST_NODE_STRUCT_H
+#define _JS_TASK_LIST_NODE_STRUCT_H
 
-#include "client_signals.h"
-#include "thread_management.h"
-#include "stats.h"
-#include "logging.h"
+#include "task_struct.h"
 
-#include <stdlib.h>
+typedef struct tlnode{
+  Task* task;
+  struct tlnode* previous;
+  struct tlnode* next;
+} TaskListNode;
 
-/*
- * Function name: client_sig_int
- * Description: Function responsible for handling SIG_INT.
- * Arguments: signo - the signal number
- */
+/* 'constructor' */
+TaskListNode* TaskListNode_new(Task* task);
+/* 'destructor' */
+void TaskListNode_free(TaskListNode** node);
+/* setters */
+void TaskListNode_set_next(TaskListNode* node, TaskListNode* next);
+void TaskListNode_set_previous(TaskListNode* node, TaskListNode* previous);
+/* getters */
+Task* TaskListNode_get_task(TaskListNode* node);
 
-void
-client_sig_int(int signo)
-{
-#ifdef HAVE_LIBPTHREAD
-  if (!is_this_a_mainthread()) {
-    return;
-  }
 #endif
-  aflog(LOG_T_MAIN, LOG_I_NOTICE,
-      "CLIENT CLOSED cg: %ld bytes", getcg());
-  exit(0);
-}
-
-/*
- * Function name: client_sig_alrm
- * Description: Function responsible for handling SIG_ALRM.
- * Arguments: signo - the signal number
- */
-
-void
-client_sig_alrm(int signo)
-{
-  aflog(LOG_T_MAIN, LOG_I_DEBUG,
-      "Received SIGALRM");
-}

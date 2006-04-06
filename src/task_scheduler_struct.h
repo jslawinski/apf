@@ -18,43 +18,30 @@
  *
  */
 
-#include <config.h>
+#ifndef _JS_TASK_SCHEDULER_STRUCT_H
+#define _JS_TASK_SCHEDULER_STRUCT_H
 
-#include "client_signals.h"
-#include "thread_management.h"
-#include "stats.h"
-#include "logging.h"
+#include "task_list_node_struct.h"
 
-#include <stdlib.h>
+typedef struct {
+  TaskListNode* head;
+  int numberOfTasks;
+  TaskListNode* actualTask;
+  struct timeval delta;
+} TaskScheduler;
 
-/*
- * Function name: client_sig_int
- * Description: Function responsible for handling SIG_INT.
- * Arguments: signo - the signal number
- */
+/* 'constructor' */
+TaskScheduler* TaskScheduler_new();
+/* 'destructor' */
+void TaskScheduler_free(TaskScheduler** scheduler);
+/* getters */
+struct timeval* TaskScheduler_get_actualTimer(TaskScheduler* scheduler);
+/* other */
+int TaskScheduler_hasMoreTasks(TaskScheduler* scheduler);
+int TaskScheduler_addTask(TaskScheduler* scheduler, Task* task);
+int TaskScheduler_removeTask(TaskScheduler* scheduler, Task* task);
+int TaskScheduler_startWatching(TaskScheduler* scheduler);
+int TaskScheduler_stopWatching(TaskScheduler* scheduler);
+int TaskScheduler_update(TaskScheduler* scheduler);
 
-void
-client_sig_int(int signo)
-{
-#ifdef HAVE_LIBPTHREAD
-  if (!is_this_a_mainthread()) {
-    return;
-  }
 #endif
-  aflog(LOG_T_MAIN, LOG_I_NOTICE,
-      "CLIENT CLOSED cg: %ld bytes", getcg());
-  exit(0);
-}
-
-/*
- * Function name: client_sig_alrm
- * Description: Function responsible for handling SIG_ALRM.
- * Arguments: signo - the signal number
- */
-
-void
-client_sig_alrm(int signo)
-{
-  aflog(LOG_T_MAIN, LOG_I_DEBUG,
-      "Received SIGALRM");
-}

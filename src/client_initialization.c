@@ -27,6 +27,7 @@
 #include "base64.h"
 #include "ssl_routines.h"
 #include "client_configuration_struct.h"
+#include "client_signals.h"
 
 int
 initialize_client_stage1(ClientRealm* cr, SSL_CTX* ctx, unsigned char* buff, char wanttoexit,
@@ -126,6 +127,8 @@ initialize_client_stage1(ClientRealm* cr, SSL_CTX* ctx, unsigned char* buff, cha
     }
   }
 
+  alarm(60);
+  
   aflog(LOG_T_INIT, LOG_I_INFO,
       "Trying SSL_connect");
   if ((n = SSL_connect(SslFd_get_ssl(ClientRealm_get_masterSslFd(cr)))) == 1) {
@@ -201,6 +204,7 @@ initialize_client_stage1(ClientRealm* cr, SSL_CTX* ctx, unsigned char* buff, cha
         "SSL_connect successful");
   }
   else {
+    alarm(0);
     aflog(LOG_T_INIT, LOG_I_CRIT,
         "SSL_connect has failed (%d | %d)... exiting", n,
         SSL_get_error(SslFd_get_ssl(ClientRealm_get_masterSslFd(cr)), n));
@@ -212,6 +216,7 @@ initialize_client_stage1(ClientRealm* cr, SSL_CTX* ctx, unsigned char* buff, cha
       return 3;
     }
   }
+  alarm(0);
 
   buff[0] = AF_S_LOGIN;
   buff[1] = ClientRealm_get_password(cr)[0];

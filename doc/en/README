@@ -1,4 +1,4 @@
-AF - Active Port Forwarder 0.8 - README
+AF - Active Port Forwarder 0.8.1 - README
 Copyright (C) 2003-2006 jeremian - <jeremian [at] poczta.fm>
 =================================================================
 
@@ -136,9 +136,10 @@ Multiple clients allow to create more sophisticated tunneling scheme.
                         active forwarder (server)
   -D, --dateformat    - format of the date printed in logs (see 'man strftime'
                         for details) (default: %d.%m.%Y %H:%M:%S)
-
   -t, --timeout       - the timeout value for the client's connection
                         (default: 5)
+  --maxidle           - the maximum idle time for the client's connection
+                        (default: disabled)
   -u, --users         - the amount of users allowed to use this server
                         (default: 5)
   -C, --clients       - the number of allowed clients to use this server

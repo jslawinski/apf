@@ -19,12 +19,13 @@
  */
 
 #include "file.h"
+#include "task_scheduler_struct.h"
 
 #ifndef _JS_SERVER_REMOVE_H
 #define _JS_SERVER_REMOVE_H
 
-void remove_client(ServerRealm*, int, fd_set*, fd_set*, int*);
-void remove_raclient(ServerRealm*, int, fd_set*, fd_set*, int*);
+void remove_client(ServerRealm*, int, fd_set*, fd_set*, TaskScheduler* scheduler);
+void remove_raclient(ServerRealm*, int, fd_set*, fd_set*, TaskScheduler* scheduler);
 
 #endif
 

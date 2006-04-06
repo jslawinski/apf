@@ -45,67 +45,69 @@
 int
 ip_listen(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, const char type)
 {
+  const int        on = 1;
 #if defined(HAVE_GETADDRINFO) && defined(AF_INET6)
-	int			 n;
-	const int		on = 1;
-	struct addrinfo	hints, *res, *ressave;
+  int              n;
+  struct addrinfo  hints, *res, *ressave;
 
   aflog(LOG_T_INIT, LOG_I_DDEBUG,
       "ip_listen: host=[%s] serv=[%s], type=[%d]", host, serv, type);
   
-	bzero(&hints, sizeof(struct addrinfo));
-	hints.ai_flags = AI_PASSIVE;
-	if (type & 0x02) {
-		hints.ai_family = AF_INET;
-	}
-	else if (type & 0x04) {
-		hints.ai_family = AF_INET6;
-	}
-	else {
-		hints.ai_family = AF_UNSPEC;
-	}
-	
-	if (type & 0x01) {
-		hints.ai_socktype = SOCK_STREAM;
-	}
-	else {
-		hints.ai_socktype = SOCK_DGRAM;
-	}
+  bzero(&hints, sizeof(struct addrinfo));
+  hints.ai_flags = AI_PASSIVE;
+  if (type & 0x02) {
+    hints.ai_family = AF_INET;
+  }
+  else if (type & 0x04) {
+    hints.ai_family = AF_INET6;
+  }
+  else {
+    hints.ai_family = AF_UNSPEC;
+  }
+  
+  if (type & 0x01) {
+    hints.ai_socktype = SOCK_STREAM;
+  }
+  else {
+    hints.ai_socktype = SOCK_DGRAM;
+  }
 
-	if ( (n = getaddrinfo(host, serv, &hints, &res)) != 0) {
-		return n;
-	}
-	ressave = res;
+  if ( (n = getaddrinfo(host, serv, &hints, &res)) != 0) {
+    return n;
+  }
+  ressave = res;
 
-	do {
-		(*sockfd) = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-		if ((*sockfd) < 0) {
-			continue;		/* error, try next one */
-		}
+  do {
+    (*sockfd) = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if ((*sockfd) < 0) {
+      continue;    /* error, try next one */
+    }
 
-		if (type & 0x01) { /* tcp_listen */
-			setsockopt((*sockfd), SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-		}
-		if (bind((*sockfd), res->ai_addr, res->ai_addrlen) == 0) {
-			break;			/* success */
-		}
+    if (type & 0x01) { /* tcp_listen */
+      setsockopt((*sockfd), SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+      setsockopt((*sockfd), SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
+    }
+    
+    if (bind((*sockfd), res->ai_addr, res->ai_addrlen) == 0) {
+      break;      /* success */
+    }
 
-		close((*sockfd));	/* bind error, close and try next one */
-	} while ( (res = res->ai_next) != NULL);
+    close((*sockfd));  /* bind error, close and try next one */
+  } while ( (res = res->ai_next) != NULL);
 
-	if (res == NULL) {	/* errno from final socket() or bind() */
-		return 1;
-	}
+  if (res == NULL) {  /* errno from final socket() or bind() */
+    return 1;
+  }
 
-	if (type & 0x01) { /* tcp_listen */
-		listen((*sockfd), 1);
-	}
+  if (type & 0x01) { /* tcp_listen */
+    listen((*sockfd), 1);
+  }
 
-	if (addrlenp) {
-		*addrlenp = res->ai_addrlen;	/* return size of protocol address */
-	}
+  if (addrlenp) {
+    *addrlenp = res->ai_addrlen;  /* return size of protocol address */
+  }
 
-	freeaddrinfo(ressave);
+  freeaddrinfo(ressave);
 #else
   struct sockaddr_in servaddr;
   struct hostent* hostaddr = NULL;
@@ -142,6 +144,11 @@ ip_listen(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, 
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
   }
   servaddr.sin_port = htons(port);
+
+  if (type & 0x01) { /* tcp_listen */
+    setsockopt((*sockfd), SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+    setsockopt((*sockfd), SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
+  }
   
   if (bind((*sockfd), (struct sockaddr*) &servaddr, sizeof(servaddr))){
     printf("bind failed\n");
@@ -151,6 +158,10 @@ ip_listen(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, 
   if (listen((*sockfd), 5)){
     return 5;
   } 
+  
+  if (addrlenp) {
+    *addrlenp = sizeof(servaddr);  /* return size of protocol address */
+  }
 #endif
   
   return(0);
@@ -173,31 +184,32 @@ int
 ip_connect(int* sockfd, const char *host, const char *serv, const char type,
     const char *lhost, const char *lserv)
 {
+  const int        on = 1;
 #if defined(HAVE_GETADDRINFO) && defined(AF_INET6)
-	int				n;
+  int    n;
   int    bindFailed;
-	struct addrinfo	hints, *res, *ressave;
-	struct addrinfo	lhints, *lres, *lressave = NULL;
+  struct addrinfo  hints, *res, *ressave;
+  struct addrinfo  lhints, *lres, *lressave = NULL;
 
   aflog(LOG_T_INIT, LOG_I_DDEBUG,
       "ip_connect: host=[%s] serv=[%s], type=[%d], lhost=[%s], lserv=[%s]", host, serv, type, lhost, lserv);
   
-	bzero(&hints, sizeof(struct addrinfo));
-	if (type & 0x02) {
-		hints.ai_family = AF_INET;
-	}
-	else if (type & 0x04) {
-		hints.ai_family = AF_INET6;
-	}
-	else {
-		hints.ai_family = AF_UNSPEC;
-	}
-	if (type & 0x01) {
-		hints.ai_socktype = SOCK_STREAM;
-	}
-	else {
-		hints.ai_socktype = SOCK_DGRAM;
-	}
+  bzero(&hints, sizeof(struct addrinfo));
+  if (type & 0x02) {
+    hints.ai_family = AF_INET;
+  }
+  else if (type & 0x04) {
+    hints.ai_family = AF_INET6;
+  }
+  else {
+    hints.ai_family = AF_UNSPEC;
+  }
+  if (type & 0x01) {
+    hints.ai_socktype = SOCK_STREAM;
+  }
+  else {
+    hints.ai_socktype = SOCK_DGRAM;
+  }
 
   lhints = hints;
   
@@ -208,16 +220,20 @@ ip_connect(int* sockfd, const char *host, const char *serv, const char type,
     lressave = lres;
   }
   
-	if ( (n = getaddrinfo(host, serv, &hints, &res)) != 0) {
-		return n;
-	}
-	ressave = res;
+  if ( (n = getaddrinfo(host, serv, &hints, &res)) != 0) {
+    return n;
+  }
+  ressave = res;
 
-	do {
-		(*sockfd) = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-		if ((*sockfd) < 0) {
-			continue;	/* ignore this one */
-		}
+  do {
+    (*sockfd) = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if ((*sockfd) < 0) {
+      continue;  /* ignore this one */
+    }
+    
+    if (type & 0x01) { /* tcp_connect */
+      setsockopt((*sockfd), SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
+    }
 
     bindFailed = 0;
     if (lhost || lserv) {
@@ -226,31 +242,31 @@ ip_connect(int* sockfd, const char *host, const char *serv, const char type,
       do {
         if (bind((*sockfd), lres->ai_addr, lres->ai_addrlen) == 0) {
           bindFailed = 0;
-          break;			/* success */
+          break;      /* success */
         }
       } while ( (lres = lres->ai_next) != NULL);
     }
 
     if (bindFailed == 1) {
-      close((*sockfd));	/* ignore this one */
+      close((*sockfd));  /* ignore this one */
       continue;
     }
 
     if (connect((*sockfd), res->ai_addr, res->ai_addrlen) == 0) {
-			break;		/* success */
-		}
+      break;    /* success */
+    }
 
-		close((*sockfd));	/* ignore this one */
-	} while ( (res = res->ai_next) != NULL);
+    close((*sockfd));  /* ignore this one */
+  } while ( (res = res->ai_next) != NULL);
 
-	if (res == NULL) {	/* errno set from final connect() */
-		return 1;
-	}
+  if (res == NULL) {  /* errno set from final connect() */
+    return 1;
+  }
 
   if (lhost || lserv) {
-	  freeaddrinfo(lressave);
+    freeaddrinfo(lressave);
   }
-	freeaddrinfo(ressave);
+  freeaddrinfo(ressave);
 #else
   struct sockaddr_in servaddr, lservaddr;
   struct hostent* hostaddr;
@@ -282,6 +298,10 @@ ip_connect(int* sockfd, const char *host, const char *serv, const char type,
   servaddr.sin_port = htons(port);
   memcpy(&servaddr.sin_addr.s_addr, hostaddr->h_addr_list[0], hostaddr->h_length);
 
+  if (type & 0x01) { /* tcp_connect */
+    setsockopt((*sockfd), SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on));
+  }
+    
   if (lhost || lserv) {
     memset(&lservaddr, 0, sizeof(lservaddr));
     lservaddr.sin_family = AF_INET;
@@ -309,7 +329,7 @@ ip_connect(int* sockfd, const char *host, const char *serv, const char type,
   }
 #endif
 
-	return(0);
+  return(0);
 }
 
 /*
@@ -327,96 +347,96 @@ ip_connect(int* sockfd, const char *host, const char *serv, const char type,
 char *
 sock_ntop(const struct sockaddr *sa, socklen_t salen, char* namebuf, char* portbuf, char type)
 {
-    char		portstr[7];
-    static char str[136];		/* Unix domain is largest */
+  char        portstr[7];
+  static char str[136];    /* Unix domain is largest */
 
-    switch (sa->sa_family) {
-	case AF_INET: {
-		struct sockaddr_in	*sin = (struct sockaddr_in *) sa;
+  switch (sa->sa_family) {
+    case AF_INET: {
+                    struct sockaddr_in  *sin = (struct sockaddr_in *) sa;
 
-    if (type) {
+                    if (type) {
 #ifdef HAVE_GETNAMEINFO
-      if (getnameinfo(sa, salen, str, 128, NULL, 0, 0)) {
-        return NULL;
-      }
+                      if (getnameinfo(sa, salen, str, 128, NULL, 0, 0)) {
+                        return NULL;
+                      }
 #else
-      struct hostent* hostname;
-      if ((hostname = gethostbyaddr((void*) &sin->sin_addr, sizeof(struct in_addr), AF_INET))) {
-        strncpy(str, hostname->h_name, 127);
-        str[127] = 0;
-      }
-      else {
-        if (inet_ntop(AF_INET, (void*) &sin->sin_addr, str, sizeof(str)) == NULL) {
-          return NULL;
-        }
-      }
+                      struct hostent* hostname;
+                      if ((hostname = gethostbyaddr((void*) &sin->sin_addr, sizeof(struct in_addr), AF_INET))) {
+                        strncpy(str, hostname->h_name, 127);
+                        str[127] = 0;
+                      }
+                      else {
+                        if (inet_ntop(AF_INET, (void*) &sin->sin_addr, str, sizeof(str)) == NULL) {
+                          return NULL;
+                        }
+                      }
 #endif
 
-    }
-    else {
-  		if (inet_ntop(AF_INET, (void*) &sin->sin_addr, str, sizeof(str)) == NULL) {
-  			return NULL;
-  		}
-    }
- 		if (namebuf) {
-      memcpy(namebuf, str, 128);
- 		}
-		if (ntohs(sin->sin_port) != 0) {
-			snprintf(portstr, sizeof(portstr), ".%d", ntohs(sin->sin_port));
-			if (portbuf) {
-				snprintf(portbuf, 7, "%d", ntohs(sin->sin_port));
-			}
-			strcat(str, portstr);
-		}
-		return(str);
-	}
+                    }
+                    else {
+                      if (inet_ntop(AF_INET, (void*) &sin->sin_addr, str, sizeof(str)) == NULL) {
+                        return NULL;
+                      }
+                    }
+                    if (namebuf) {
+                      memcpy(namebuf, str, 128);
+                    }
+                    if (ntohs(sin->sin_port) != 0) {
+                      snprintf(portstr, sizeof(portstr), ".%d", ntohs(sin->sin_port));
+                      if (portbuf) {
+                        snprintf(portbuf, 7, "%d", ntohs(sin->sin_port));
+                      }
+                      strcat(str, portstr);
+                    }
+                    return(str);
+                  }
 #ifdef AF_INET6
-	case AF_INET6: {
-		struct sockaddr_in6	*sin6 = (struct sockaddr_in6 *) sa;
+    case AF_INET6: {
+                     struct sockaddr_in6  *sin6 = (struct sockaddr_in6 *) sa;
 
-    if (type) {
+                     if (type) {
 #ifdef HAVE_GETNAMEINFO
-      if (getnameinfo(sa, salen, str, 128, NULL, 0, 0)) {
-        return NULL;
-      }
+                       if (getnameinfo(sa, salen, str, 128, NULL, 0, 0)) {
+                         return NULL;
+                       }
 #else
-      struct hostent* hostname;
-      if ((hostname = gethostbyaddr(&sin6->sin6_addr, sizeof(struct in6_addr), AF_INET6))) {
-        strncpy(str, hostname->h_name, 127);
-        str[127] = 0;
-      }
-      else {
-        if (inet_ntop(AF_INET6, &sin6->sin6_addr, str, sizeof(str)) == NULL) {
-          return NULL;
-        }
-      }
+                       struct hostent* hostname;
+                       if ((hostname = gethostbyaddr(&sin6->sin6_addr, sizeof(struct in6_addr), AF_INET6))) {
+                         strncpy(str, hostname->h_name, 127);
+                         str[127] = 0;
+                       }
+                       else {
+                         if (inet_ntop(AF_INET6, &sin6->sin6_addr, str, sizeof(str)) == NULL) {
+                           return NULL;
+                         }
+                       }
 #endif
 
-    }
-    else {
-  		if (inet_ntop(AF_INET6, &sin6->sin6_addr, str, sizeof(str)) == NULL) {
-  			return NULL;
-  		}
-    }
-		if (namebuf) {
-      memcpy(namebuf, str, 128);
-		}
-		if (ntohs(sin6->sin6_port) != 0) {
-			snprintf(portstr, sizeof(portstr), ".%d", ntohs(sin6->sin6_port));
-			if (portbuf) {
-				snprintf(portbuf, 7, "%d", ntohs(sin6->sin6_port));
-			}
-			strcat(str, portstr);
-		}
-		return(str);
-	}
+                     }
+                     else {
+                       if (inet_ntop(AF_INET6, &sin6->sin6_addr, str, sizeof(str)) == NULL) {
+                         return NULL;
+                       }
+                     }
+                     if (namebuf) {
+                       memcpy(namebuf, str, 128);
+                     }
+                     if (ntohs(sin6->sin6_port) != 0) {
+                       snprintf(portstr, sizeof(portstr), ".%d", ntohs(sin6->sin6_port));
+                       if (portbuf) {
+                         snprintf(portbuf, 7, "%d", ntohs(sin6->sin6_port));
+                       }
+                       strcat(str, portstr);
+                     }
+                     return(str);
+                   }
 #endif
-	default: {
-		snprintf(str, sizeof(str), "sock_ntop: unknown AF_xxx: %d, len %d", sa->sa_family, salen);
-		return(str);
-	}
-    }
-    return NULL;
+    default: {
+               snprintf(str, sizeof(str), "sock_ntop: unknown AF_xxx: %d, len %d", sa->sa_family, salen);
+               return(str);
+             }
+  }
+  return NULL;
 }
 
 /*
@@ -431,21 +451,21 @@ sock_ntop(const struct sockaddr *sa, socklen_t salen, char* namebuf, char* portb
 int
 SSL_writen(SSL* fd, unsigned char* buf, int amount)
 {
-	int sent, n;
-	sent = 0;
+  int sent, n;
+  sent = 0;
   assert(amount > 0);
-	while (sent < amount) {
-		n = SSL_write(fd, buf+sent, amount - sent);
+  while (sent < amount) {
+    n = SSL_write(fd, buf+sent, amount - sent);
     assert(n != 0);
-		if (n != -1) {
-			sent += n;
-		}
-		if (n == -1) {
-			if (errno != EAGAIN)
-				return 0;
-		}
-	}
-	return amount;
+    if (n != -1) {
+      sent += n;
+    }
+    if (n == -1) {
+      if (errno != EAGAIN)
+        return 0;
+    }
+  }
+  return amount;
 }
 
 /*
@@ -460,22 +480,22 @@ SSL_writen(SSL* fd, unsigned char* buf, int amount)
 int
 SSL_readn(SSL* fd, unsigned char* buf, int amount)
 {
-	int sent, n;
-	sent = 0;
+  int sent, n;
+  sent = 0;
   assert(amount > 0);
-	while (sent < amount) {
-		n = SSL_read(fd, buf+sent, amount - sent);
-		if (n != -1) {
-			sent += n;
-		}
-		if (n == 0)
-			return 0;
-		if (n == -1) {
-			if (errno != EAGAIN)
-				return 0;
-		}
-	}
-	return amount;
+  while (sent < amount) {
+    n = SSL_read(fd, buf+sent, amount - sent);
+    if (n != -1) {
+      sent += n;
+    }
+    if (n == 0)
+      return 0;
+    if (n == -1) {
+      if (errno != EAGAIN)
+        return 0;
+    }
+  }
+  return amount;
 } 
 
 /*
@@ -490,21 +510,21 @@ SSL_readn(SSL* fd, unsigned char* buf, int amount)
 int
 writen(int fd, unsigned char* buf, int amount)
 {
-	int sent, n;
-	sent = 0;
+  int sent, n;
+  sent = 0;
   assert(amount > 0);
-	while (sent < amount) {
-		n = write(fd, buf+sent, amount - sent);
+  while (sent < amount) {
+    n = write(fd, buf+sent, amount - sent);
     assert(n != 0);
-		if (n != -1) {
-			sent += n;
-		}
-		if (n == -1) {
-			if (errno != EAGAIN)
-				return 0;
-		}
-	}
-	return amount;
+    if (n != -1) {
+      sent += n;
+    }
+    if (n == -1) {
+      if (errno != EAGAIN)
+        return 0;
+    }
+  }
+  return amount;
 }
 
 /*
@@ -519,21 +539,21 @@ writen(int fd, unsigned char* buf, int amount)
 int
 readn(int fd, unsigned char* buf, int amount)
 {
-	int sent, n;
-	sent = 0;
+  int sent, n;
+  sent = 0;
   assert(amount > 0);
-	while (sent < amount) {
-		n = read(fd, buf+sent, amount - sent);
-		if (n != -1) {
-			sent += n;
-		}
-		if (n == 0)
-			return 0;
-		if (n == -1) {
-			if (errno != EAGAIN)
-				return 0;
-		}
-	}
-	return amount;
+  while (sent < amount) {
+    n = read(fd, buf+sent, amount - sent);
+    if (n != -1) {
+      sent += n;
+    }
+    if (n == 0)
+      return 0;
+    if (n == -1) {
+      if (errno != EAGAIN)
+        return 0;
+    }
+  }
+  return amount;
 
 }

@@ -284,9 +284,11 @@ read_message(int fd, int length, connection* client, char* tab, int ptr)
   int tmp = 0;
   while (j < length) {
     if (client->curreceived + length-j > client->toreceive) {
-      writen(fd, (unsigned char*) (tab+ptr+j), client->toreceive - client->curreceived);
-      j += client->toreceive - client->curreceived;
-      client->curreceived += client->toreceive - client->curreceived;
+      if (client->toreceive - client->curreceived > 0) {
+        writen(fd, (unsigned char*) (tab+ptr+j), client->toreceive - client->curreceived);
+        j += client->toreceive - client->curreceived;
+        client->curreceived += client->toreceive - client->curreceived;
+      }
       if (client->read_state == 0) {
         switch (tab[ptr + j]) {
           case 'M': {
@@ -311,6 +313,13 @@ read_message(int fd, int length, connection* client, char* tab, int ptr)
                       ++j;
                       break;
                     }
+          case 'A': {
+                      ++j;
+                      if (client->state == C_CLOSED) {
+                        client->state = C_OPEN;
+                      }
+                      break;
+                    }
           default: {
                      return 1;
                    }
@@ -332,7 +341,7 @@ read_message(int fd, int length, connection* client, char* tab, int ptr)
         }
       }
     }
-    else {
+    else if (length-j > 0) {
       client->curreceived += length-j;
       writen(fd, (unsigned char*) (tab+ptr+j), length-j);
       j += length-j;
@@ -342,7 +351,7 @@ read_message(int fd, int length, connection* client, char* tab, int ptr)
 }
 
 /*
- * Function name: clear sslFd
+ * Function name: clear_sslFd
  * Description: Close the socket encapsulated in SslFd structure, remove this file descriptor
  *              from fd_set and clear ssl structure.
  * Arguments: sf - pointer to SslFd structure

@@ -22,6 +22,7 @@
 #define _JS_CLIENT_SIGNALS_H
 
 void client_sig_int(int); /* INT signal handler for the afclient */
+void client_sig_alrm(int); /* ALRM signal handler for the afclient */
 
 #endif
 

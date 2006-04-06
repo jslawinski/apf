@@ -28,6 +28,7 @@ static struct option long_options[] = {
 	{"listenport", 1, 0, 'l'},
 	{"manageport", 1, 0, 'm'},
 	{"timeout", 1, 0, 't'},
+	{"maxidle", 1, 0, 321},
 	{"verbose", 0, 0, 'v'},
 	{"users", 1, 0, 'u'},
 	{"clients", 1, 0, 'C'},
@@ -71,7 +72,7 @@ main(int argc, char **argv)
 	unsigned char				buff[9000];
 	int			maxfdp1;
 	fd_set		rset, allset, wset, tmpset;
-	int manconnecting, numofcon, length;
+	int numofcon, length;
 	char* name    = NULL;
 	char** listen  = NULL;
   int listencount = 0;
@@ -85,6 +86,7 @@ main(int argc, char **argv)
 	char* filenam = NULL;
 	char* type    = NULL;
 	char* timeout = NULL;
+	char* maxidle = NULL;
   char* realmname = NULL;
 	unsigned char pass[4] = {1, 2, 3, 4};
 	char verbose = 0;
@@ -97,6 +99,8 @@ main(int argc, char **argv)
   char audit = 0;
   char dnslookups = 0;
 	ServerRealm* pointer = NULL;
+  TaskScheduler* scheduler;
+  Task* task;
 	struct sigaction act;
   time_t now;
   ServerRealm** scRealmsTable;
@@ -171,6 +175,10 @@ main(int argc, char **argv)
                 }
       case 't': {
                   timeout = optarg;
+                  break;
+                }
+      case 321: {
+                  maxidle = optarg;
                   break;
                 }
       case 'v': {
@@ -436,6 +444,7 @@ main(int argc, char **argv)
     ServerRealm_set_sClientsLimit(pointer, clients);
     ServerRealm_set_sRaClientsLimit(pointer, raclients);
     ServerRealm_set_sTimeout(pointer, timeout);
+    ServerRealm_set_sMaxIdle(pointer, maxidle);
     ServerRealm_set_sUsersPerClient(pointer, usrpcli);
     ServerRealm_set_sClientMode(pointer, clim);
     ServerRealm_set_basePortOn(pointer, baseport);
@@ -483,7 +492,7 @@ main(int argc, char **argv)
     ServerRealm_set_realmType(pointer, temp);
 	}
   
-	maxfdp1 = manconnecting = 0;
+	maxfdp1 = 0;
 	
 	SSL_library_init();
 	method = SSLv3_server_method();
@@ -536,6 +545,13 @@ main(int argc, char **argv)
 	if (!verbose)
 		daemon(0, 0);
 
+  scheduler = TaskScheduler_new();
+  if (scheduler == NULL) {
+		aflog(LOG_T_INIT, LOG_I_CRIT,
+        "Problems with creating task scheduler... exiting");
+		exit(1);
+  }
+  
   scRealmsTable = ServerConfiguration_get_realmsTable(config);
 	for (i = 0; i < ServerConfiguration_get_realmsNumber(config); ++i) {
     if (ServerRealm_get_userClientPairs(scRealmsTable[i]) == 0) {
@@ -663,6 +679,17 @@ main(int argc, char **argv)
     ServerRealm_set_sTimeout(scRealmsTable[i], stemp);
     ServerRealm_set_timeout(scRealmsTable[i],
         check_value(ServerRealm_get_sTimeout(scRealmsTable[i]), "Invalid timeout value"));
+    /* checking maxidle value */
+    stemp = ServerRealm_get_sMaxIdle(scRealmsTable[i]);
+    set_value(&stemp, maxidle, "0");
+    ServerRealm_set_sMaxIdle(scRealmsTable[i], stemp);
+    temp = check_value_liberal(ServerRealm_get_sMaxIdle(scRealmsTable[i]), "Invalid maxidle value");
+    if (temp < 0) {
+      aflog(LOG_T_INIT, LOG_I_CRIT,
+          "Invalid maxidle value: %d\n", temp);
+      exit(1);
+    }
+    ServerRealm_set_maxIdle(scRealmsTable[i], temp);
     /* checking climode value */
     stemp = ServerRealm_get_sClientMode(scRealmsTable[i]);
     set_value(&stemp, clim, "1");
@@ -899,70 +926,19 @@ main(int argc, char **argv)
   ServerConfiguration_set_startTime(config, now);
 	
 	for ( ; ; ) {
-		rset = allset;
-		tmpset = wset;
-			aflog(LOG_T_MAIN, LOG_I_DDEBUG,
-          "select, maxfdp1: %d", maxfdp1);
-		if (manconnecting) {
-			/* find out, in what realm client is trying to connect */
-      l = -1;
-			for (k = 0; k < ServerConfiguration_get_realmsNumber(config); ++k) {
-        srClientsTable = ServerRealm_get_clientsTable(scRealmsTable[k]);
-        for (j=0; j < ServerRealm_get_clientsLimit(scRealmsTable[k]); ++j) {
-				  if ((ConnectClient_get_state(srClientsTable[j]) == CONNECTCLIENT_STATE_CONNECTING) ||
-              (ConnectClient_get_state(srClientsTable[j]) == CONNECTCLIENT_STATE_AUTHORIZING)) {
-            i = k;
-            k = ServerConfiguration_get_realmsNumber(config);
-            l = 0;
-				  	break; /* so i points to first good realm and j to good client */
-				  }
-        }
-        if (l == -1) {
-          srRaClientsTable = ServerRealm_get_raClientsTable(scRealmsTable[k]);
-          for (j=0; j < ServerRealm_get_raClientsLimit(scRealmsTable[k]); ++j) {
-            if ((ConnectClient_get_state(srRaClientsTable[j])==CONNECTCLIENT_STATE_CONNECTING) ||
-                (ConnectClient_get_state(srRaClientsTable[j])==CONNECTCLIENT_STATE_AUTHORIZING)) {
-              i = k;
-              k = ServerConfiguration_get_realmsNumber(config);
-              l = 1;
-  				  	break; /* so i points to first good realm and j to good client */
-  				  }
-          }
-        }
-			}
-      if (!l) {
-        srClientsTable = ServerRealm_get_clientsTable(scRealmsTable[i]);
-  			if (select(maxfdp1,&rset,&tmpset,NULL,ConnectClient_get_timerp(srClientsTable[j])) == 0) {
-          close(SslFd_get_fd(ConnectClient_get_sslFd(srClientsTable[j])));
-          FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(srClientsTable[j])), &allset);
-          SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(srClientsTable[j])));
-          ConnectClient_set_state(srClientsTable[j], CONNECTCLIENT_STATE_FREE);
-          manconnecting--;
-          ServerRealm_decrease_connectedClients(scRealmsTable[i]);
-          aflog(LOG_T_CLIENT, LOG_I_WARNING,
-              "realm[%s]: Client[%s]: SSL_accept failed (timeout)",
-              get_realmname(config, i), get_clientname(scRealmsTable[i], j));
-  			}
-      }
-      else {
-        srRaClientsTable = ServerRealm_get_raClientsTable(scRealmsTable[i]);
-  			if (select(maxfdp1,&rset,&tmpset,NULL,ConnectClient_get_timerp(srRaClientsTable[j]))==0) {
-          close(SslFd_get_fd(ConnectClient_get_sslFd(srRaClientsTable[j])));
-          FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(srRaClientsTable[j])), &allset);
-          SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(srRaClientsTable[j])));
-          ConnectClient_set_state(srRaClientsTable[j], CONNECTCLIENT_STATE_FREE);
-				  manconnecting--;
-          ServerRealm_decrease_connectedClients(scRealmsTable[i]);
-          aflog(LOG_T_CLIENT, LOG_I_WARNING,
-              "realm[%s]: Client[%s] (ra): SSL_accept failed (timeout)",
-              get_realmname(config, i), get_raclientname(scRealmsTable[i], j));
-  			}
-      }
-		}
-		else {
-			select(maxfdp1, &rset, &tmpset, NULL, NULL);
-		}
-		aflog(LOG_T_MAIN, LOG_I_DDEBUG,
+    rset = allset;
+    tmpset = wset;
+    aflog(LOG_T_MAIN, LOG_I_DDEBUG,
+        "select, maxfdp1: %d", maxfdp1);
+    if (TaskScheduler_hasMoreTasks(scheduler)) {
+      TaskScheduler_startWatching(scheduler);
+      select(maxfdp1, &rset, &tmpset, NULL, TaskScheduler_get_actualTimer(scheduler));
+      TaskScheduler_stopWatching(scheduler);
+    }
+    else {
+      select(maxfdp1, &rset, &tmpset, NULL, NULL);
+    }
+    aflog(LOG_T_MAIN, LOG_I_DDEBUG,
         "after select...");
 
     for (j = 0; j < ServerConfiguration_get_realmsNumber(config); ++j) {
@@ -1263,6 +1239,7 @@ main(int argc, char **argv)
             aflog(LOG_T_USER, LOG_I_DDEBUG,
                 "realm[%s]: listenfd: FD_ISSET", get_realmname(config, j));
             k = find_client(pointer, ServerRealm_get_clientMode(pointer), l);
+            
             if (ConnectClient_get_state(srClientsTable[k]) == CONNECTCLIENT_STATE_ACCEPTED) {
               if (ServerRealm_get_connectedUsers(pointer) == ServerRealm_get_usersLimit(pointer)) {
                 close(sent);
@@ -1331,6 +1308,7 @@ main(int argc, char **argv)
         for (k = 0; k < ServerRealm_get_clientsLimit(pointer); ++k) {
           if (ConnectClient_get_state(srClientsTable[k]) == CONNECTCLIENT_STATE_ACCEPTED) {
             if (FD_ISSET(ConnectClient_get_listenFd(srClientsTable[k]), &rset)) {
+
               len = ServerRealm_get_addressLength(pointer);
               sent = accept(ConnectClient_get_listenFd(srClientsTable[k]), ServerRealm_get_clientAddress(pointer), &len);
               if (sent == -1) {
@@ -1417,7 +1395,10 @@ main(int argc, char **argv)
                         FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(srClientsTable[k])), &allset);
                         SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(srClientsTable[k])));
                         ConnectClient_set_state(srClientsTable[k], CONNECTCLIENT_STATE_FREE);
-                        manconnecting--;
+                        if ((task = ConnectClient_get_task(srClientsTable[k]))) {
+                          TaskScheduler_removeTask(scheduler, task);
+                          ConnectClient_set_task(srClientsTable[k], NULL);
+                        }
                         ServerRealm_decrease_connectedClients(pointer);
                         aflog(LOG_T_CLIENT, LOG_I_ERR,
                             "realm[%s]: new Client[%s]: DENIED by SSL_accept",
@@ -1511,7 +1492,7 @@ main(int argc, char **argv)
                 AuditList_delete_first(ConnectClient_get_auditList(srClientsTable[k]));
               }
             }
-            remove_client(pointer, k, &allset, &wset, &manconnecting);
+            remove_client(pointer, k, &allset, &wset, scheduler);
             continue;
           }
 
@@ -1535,6 +1516,13 @@ main(int argc, char **argv)
           if ((ConnectClient_get_state(srClientsTable[k]) == CONNECTCLIENT_STATE_AUTHORIZING) &&
               (buff[0] != AF_S_LOGIN) && (buff[0] != AF_S_ADMIN_LOGIN)) {
             buff[0] = AF_S_WRONG;
+          }
+          
+          time(&now);
+          ConnectClient_set_lastActivity(srClientsTable[k], now);
+          if (ServerRealm_get_maxIdle(pointer)) {
+            ConnectClient_set_timer(srClientsTable[k], timeval_create(ServerRealm_get_maxIdle(pointer), 0));
+            TaskScheduler_update(scheduler);
           }
 
           switch (buff[0]) {
@@ -1590,7 +1578,7 @@ main(int argc, char **argv)
                                       }
                                     }
                                     else {
-                                      remove_client(pointer, k, &allset, &wset, &manconnecting);
+                                      remove_client(pointer, k, &allset, &wset, scheduler);
                                     }
                                     break;
                                   }
@@ -1626,7 +1614,7 @@ main(int argc, char **argv)
                                     }
                                   }
                                   else {
-                                    remove_client(pointer, k, &allset, &wset, &manconnecting);
+                                    remove_client(pointer, k, &allset, &wset, scheduler);
                                   }
                                   break;
                                 }
@@ -1654,14 +1642,14 @@ main(int argc, char **argv)
                                       }
                                     }
                                     else {
-                                      remove_client(pointer, k, &allset, &wset, &manconnecting);
+                                      remove_client(pointer, k, &allset, &wset, scheduler);
                                     }
                                     break;
                                   }						    
             case AF_S_MESSAGE : {
                                   if (ConnectClient_get_state(srClientsTable[k]) !=
                                       CONNECTCLIENT_STATE_ACCEPTED) {
-                                    remove_client(pointer, k, &allset, &wset, &manconnecting);
+                                    remove_client(pointer, k, &allset, &wset, scheduler);
                                     break;
                                   }
                                   if (TYPE_IS_UDP(ServerRealm_get_realmType(pointer))) { /* udp */
@@ -1833,7 +1821,20 @@ main(int argc, char **argv)
                                         ConnectClient_get_sslFd(
                                           srClientsTable[k]),
                                         buff, 5);
-                                    manconnecting--;
+                                    if ((task = ConnectClient_get_task(srClientsTable[k]))) {
+                                      TaskScheduler_removeTask(scheduler, task);
+                                      ConnectClient_set_task(srClientsTable[k], NULL);
+                                    }
+                                    if (ServerRealm_get_maxIdle(pointer)) {
+                                      ConnectClient_set_timer(srClientsTable[k],
+                                          timeval_create(ServerRealm_get_maxIdle(pointer), 0));
+                                      task = Task_new(ConnectClient_get_timerp(srClientsTable[k]),
+                                          RCTfunction,
+                                          RCTdata_new(config, j, k, 0, RCT_REASON_MAXIDLE, &allset, &wset),
+                                          RCTdata_free);
+                                      ConnectClient_set_task(srClientsTable[k], task);
+                                      TaskScheduler_addTask(scheduler, task);
+                                    }
                                     if (ServerRealm_get_basePortOn(pointer) == 1) {
                                       long tmp_val;
                                       char tmp_tab[6];
@@ -1845,7 +1846,7 @@ main(int argc, char **argv)
                                         aflog(LOG_T_CLIENT, LOG_I_ERR,
                                             "realm[%s]: INVALID listenport - removing Client[%s]",
                                             get_realmname(config, j), get_clientname(pointer, k));
-                                        remove_client(pointer, k, &allset, &wset, &manconnecting);
+                                        remove_client(pointer, k, &allset, &wset, scheduler);
                                         break;
                                       }
                                       tmp_val = tmp_val%65536;
@@ -1888,7 +1889,7 @@ main(int argc, char **argv)
                                         ConnectClient_get_sslFd(
                                           srClientsTable[k]),
                                         buff, 5);
-                                    remove_client(pointer, k, &allset, &wset, &manconnecting);
+                                    remove_client(pointer, k, &allset, &wset, scheduler);
                                   }
                                 }
                                 else if ((ConnectClient_get_state(srClientsTable[k]) ==
@@ -1912,7 +1913,7 @@ main(int argc, char **argv)
                                       ConnectClient_get_sslFd(
                                         srClientsTable[k]),
                                       buff, 5);
-                                  remove_client(pointer, k, &allset, &wset, &manconnecting);
+                                  remove_client(pointer, k, &allset, &wset, scheduler);
                                 }
                                 break;
                               }
@@ -1950,7 +1951,7 @@ main(int argc, char **argv)
                                aflog(LOG_T_CLIENT, LOG_I_ERR,
                                    "realm[%s]: Client[%s]: Wrong message - CLOSING",
                                    get_realmname(config, j), get_clientname(pointer, k));
-                               remove_client(pointer, k, &allset, &wset, &manconnecting);
+                               remove_client(pointer, k, &allset, &wset, scheduler);
                                break;
                              }
             case AF_S_ADMIN_LOGIN: {
@@ -1971,6 +1972,9 @@ main(int argc, char **argv)
                                            ConnectClient_set_connectTime(
                                                srRaClientsTable[l],
                                                ConnectClient_get_connectTime(srClientsTable[k]));
+                                           ConnectClient_set_lastActivity(
+                                               srRaClientsTable[l],
+                                               ConnectClient_get_lastActivity(srClientsTable[k]));
 #ifdef HAVE_LIBPTHREAD
                                            ConnectClient_set_tunnelType(
                                                srRaClientsTable[l],
@@ -2005,7 +2009,10 @@ main(int argc, char **argv)
                                              srRaClientsTable[l],
                                              CONNECTCLIENT_STATE_ACCEPTED);
                                          ServerRealm_increase_connectedRaClients(pointer);
-                                         manconnecting--;
+                                         if ((task = ConnectClient_get_task(srClientsTable[k]))) {
+                                           TaskScheduler_removeTask(scheduler, task);
+                                           ConnectClient_set_task(srClientsTable[k], NULL);
+                                         }
                                          sprintf((char*) &buff[5], AF_VER("AFSERVER"));
                                          n = strlen((char*) &buff[5]);
                                          buff[0] = AF_S_ADMIN_LOGIN; /* sending message */
@@ -2027,7 +2034,7 @@ main(int argc, char **argv)
                                              ConnectClient_get_sslFd(
                                                srClientsTable[k]),
                                              buff, 5);
-                                         remove_client(pointer, k, &allset, &wset, &manconnecting);
+                                         remove_client(pointer, k, &allset, &wset, scheduler);
                                        }
                                      }
                                      break;
@@ -2049,7 +2056,7 @@ main(int argc, char **argv)
                         aflog(LOG_T_CLIENT, LOG_I_ERR,
                             "realm[%s]: Client[%s]: Unrecognized message - CLOSING",
                             get_realmname(config, j), get_clientname(pointer, k));
-                        remove_client(pointer, k, &allset, &wset, &manconnecting);
+                        remove_client(pointer, k, &allset, &wset, scheduler);
                       }
           }
         }
@@ -2068,7 +2075,10 @@ main(int argc, char **argv)
                         FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(srRaClientsTable[k])), &allset);
                         SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(srRaClientsTable[k])));
                         ConnectClient_set_state(srRaClientsTable[k], CONNECTCLIENT_STATE_FREE);
-                        manconnecting--;
+                        if ((task = ConnectClient_get_task(srRaClientsTable[k]))) {
+                          TaskScheduler_removeTask(scheduler, task);
+                          ConnectClient_set_task(srRaClientsTable[k], NULL);
+                        }
                         ServerRealm_decrease_connectedClients(pointer);
                         aflog(LOG_T_MANAGE, LOG_I_ERR,
                             "realm[%s]: new Client[%s] (ra): DENIED by SSL_accept",
@@ -2123,7 +2133,7 @@ main(int argc, char **argv)
             }
           }
           if (n==0) { 
-            remove_raclient(pointer, k, &allset, &wset, &manconnecting);
+            remove_raclient(pointer, k, &allset, &wset, scheduler);
             aflog(LOG_T_MANAGE, LOG_I_INFO,
                 "realm[%s]: Client[%s] (ra): commfd: CLOSED",
                 get_realmname(config, j), get_raclientname(pointer, k));
@@ -2147,6 +2157,9 @@ main(int argc, char **argv)
               (buff[0] != AF_S_LOGIN) && (buff[0] != AF_S_ADMIN_LOGIN)) {
             buff[0] = AF_S_WRONG;
           }
+          
+          time(&now);
+          ConnectClient_set_lastActivity(srRaClientsTable[k], now);
 
           switch (buff[0]) {
             case AF_S_LOGIN : {
@@ -2169,6 +2182,9 @@ main(int argc, char **argv)
                                       ConnectClient_set_connectTime(
                                           srClientsTable[l],
                                           ConnectClient_get_connectTime(srRaClientsTable[k]));
+                                      ConnectClient_set_lastActivity(
+                                          srClientsTable[l],
+                                          ConnectClient_get_lastActivity(srRaClientsTable[k]));
 #ifdef HAVE_LIBPTHREAD
                                       ConnectClient_set_tunnelType(
                                           srClientsTable[l],
@@ -2214,7 +2230,20 @@ main(int argc, char **argv)
                                         ConnectClient_get_sslFd(
                                           srClientsTable[l]),
                                         buff, 5);
-                                    manconnecting--;
+                                    if ((task = ConnectClient_get_task(srRaClientsTable[k]))) {
+                                      TaskScheduler_removeTask(scheduler, task);
+                                      ConnectClient_set_task(srRaClientsTable[k], NULL);
+                                    }
+                                    if (ServerRealm_get_maxIdle(pointer)) {
+                                      ConnectClient_set_timer(srClientsTable[l],
+                                          timeval_create(ServerRealm_get_maxIdle(pointer), 0));
+                                      task = Task_new(ConnectClient_get_timerp(srClientsTable[l]),
+                                          RCTfunction,
+                                          RCTdata_new(config, j, l, 0, RCT_REASON_MAXIDLE, &allset, &wset),
+                                          RCTdata_free);
+                                      ConnectClient_set_task(srClientsTable[l], task);
+                                      TaskScheduler_addTask(scheduler, task);
+                                    }
                                     if (ServerRealm_get_basePortOn(pointer) == 1) {
                                       long tmp_val;
                                       char tmp_tab[6];
@@ -2226,7 +2255,7 @@ main(int argc, char **argv)
                                         aflog(LOG_T_CLIENT, LOG_I_ERR,
                                             "realm[%s]: INVALID listenport - removing Client[%s]",
                                             get_realmname(config, j), get_clientname(pointer, l));
-                                        remove_client(pointer, l, &allset, &wset, &manconnecting);
+                                        remove_client(pointer, l, &allset, &wset, scheduler);
                                         break;
                                       }
                                       tmp_val = tmp_val%65536;
@@ -2269,7 +2298,7 @@ main(int argc, char **argv)
                                         ConnectClient_get_sslFd(
                                           srRaClientsTable[k]),
                                         buff, 5);
-                                    remove_raclient(pointer, k, &allset, &wset, &manconnecting);
+                                    remove_raclient(pointer, k, &allset, &wset, scheduler);
                                   }
                                 }
                                 else if ((ConnectClient_get_state(srRaClientsTable[k]) ==
@@ -2288,7 +2317,7 @@ main(int argc, char **argv)
                                   aflog(LOG_T_MANAGE, LOG_I_ERR,
                                       "realm[%s]: Client[%s] (ra): Wrong password - CLOSING",
                                       get_realmname(config, j), get_raclientname(pointer, k));
-                                  remove_raclient(pointer, k, &allset, &wset, &manconnecting);
+                                  remove_raclient(pointer, k, &allset, &wset, scheduler);
                                 }
                                 break;
                               }
@@ -2296,7 +2325,7 @@ main(int argc, char **argv)
                                aflog(LOG_T_MANAGE, LOG_I_ERR,
                                    "realm[%s]: Client[%s] (ra): Wrong message - CLOSING",
                                    get_realmname(config, j), get_raclientname(pointer, k));
-                               remove_raclient(pointer, k, &allset, &wset, &manconnecting);
+                               remove_raclient(pointer, k, &allset, &wset, scheduler);
                                break;
                              }
             case AF_S_ADMIN_LOGIN: {
@@ -2311,7 +2340,10 @@ main(int argc, char **argv)
                                            srRaClientsTable[k],
                                            CONNECTCLIENT_STATE_ACCEPTED);
                                        ServerRealm_increase_connectedRaClients(pointer);
-                                       manconnecting--;
+                                       if ((task = ConnectClient_get_task(srRaClientsTable[k]))) {
+                                         TaskScheduler_removeTask(scheduler, task);
+                                         ConnectClient_set_task(srRaClientsTable[k], NULL);
+                                       }
                                        sprintf((char*) &buff[5], AF_VER("AFSERVER"));
                                        n = strlen((char*) &buff[5]);
                                        buff[0] = AF_S_ADMIN_LOGIN; /* sending message */
@@ -2334,7 +2366,7 @@ main(int argc, char **argv)
                                          aflog(LOG_T_MANAGE, LOG_I_NOTICE,
                                              "realm[%s]: Client[%s] (ra): remote admin -- closing",
                                              get_realmname(config, j), get_raclientname(pointer, k));
-                                         remove_raclient(pointer, k, &allset, &wset, &manconnecting);
+                                         remove_raclient(pointer, k, &allset, &wset, scheduler);
                                        }
                                        else {
                                          for (i = 0; i < ServerConfiguration_get_realmsNumber(config); ++i) {
@@ -2394,7 +2426,7 @@ main(int argc, char **argv)
                                                }
                                              }
                                              remove_client(scRealmsTable[i], l,
-                                                 &allset, &wset, &manconnecting);
+                                                 &allset, &wset, scheduler);
                                              break;
                                            }
                                          }
@@ -2405,7 +2437,7 @@ main(int argc, char **argv)
                                      aflog(LOG_T_MANAGE, LOG_I_ERR,
                                          "realm[%s]: Client[%s] (ra): remote admin -- security VIOLATION",
                                          get_realmname(config, j), get_raclientname(pointer, k));
-                                     remove_raclient(pointer, k, &allset, &wset, &manconnecting);
+                                     remove_raclient(pointer, k, &allset, &wset, scheduler);
                                    }
                                    break;
                                  }
@@ -2419,13 +2451,14 @@ main(int argc, char **argv)
                         aflog(LOG_T_MANAGE, LOG_I_ERR,
                             "realm[%s]: Client[%s] (ra): Unrecognized message - CLOSING",
                             get_realmname(config, j), get_raclientname(pointer, k));
-                        remove_raclient(pointer, k, &allset, &wset, &manconnecting);
+                        remove_raclient(pointer, k, &allset, &wset, scheduler);
                       }
           }
         }
       /* ------------------------------------ */    
       for (l = 0; l < ServerRealm_get_userClientPairs(pointer); ++l) {
         if (FD_ISSET(UsrCli_get_manageFd(srUsersClientsTable[l]), &rset)) {
+          
           aflog(LOG_T_CLIENT, LOG_I_DDEBUG,
               "realm[%s]: managefd: FD_ISSET", get_realmname(config, j));
           len = ServerRealm_get_addressLength(pointer);
@@ -2459,6 +2492,7 @@ main(int argc, char **argv)
               ConnectClient_set_usrCliPair(srClientsTable[k], l);
               time(&now);
               ConnectClient_set_connectTime(srClientsTable[k], now);
+              ConnectClient_set_lastActivity(srClientsTable[k], now);
 #ifdef HAVE_LIBPTHREAD
               ConnectClient_set_tunnelType(srClientsTable[k], tunneltype);
 #endif
@@ -2471,7 +2505,12 @@ main(int argc, char **argv)
                 maxfdp1 : (SslFd_get_fd(ConnectClient_get_sslFd(srClientsTable[k])) + 1);
               ServerRealm_increase_connectedClients(pointer);
               ConnectClient_set_timer(srClientsTable[k], timeval_create(ServerRealm_get_timeout(pointer), 0));
-              manconnecting++;
+              task = Task_new(ConnectClient_get_timerp(srClientsTable[k]),
+                  RCTfunction,
+                  RCTdata_new(config, j, k, 0, RCT_REASON_TIMEOUT, &allset, &wset),
+                  RCTdata_free);
+              ConnectClient_set_task(srClientsTable[k], task);
+              TaskScheduler_addTask(scheduler, task);
               ConnectClient_set_state(srClientsTable[k], CONNECTCLIENT_STATE_CONNECTING);
               break;
             }
@@ -2489,6 +2528,7 @@ main(int argc, char **argv)
                 ConnectClient_set_usrCliPair(srRaClientsTable[k], l);
                 time(&now);
                 ConnectClient_set_connectTime(srRaClientsTable[k], now);
+                ConnectClient_set_lastActivity(srRaClientsTable[k], now);
 #ifdef HAVE_LIBPTHREAD
                 ConnectClient_set_tunnelType(srRaClientsTable[k], tunneltype);
 #endif
@@ -2505,7 +2545,12 @@ main(int argc, char **argv)
                 ServerRealm_increase_connectedClients(pointer);
                 ConnectClient_set_timer(srRaClientsTable[k],
                     timeval_create(ServerRealm_get_timeout(pointer), 0));
-                manconnecting++;
+                task = Task_new(ConnectClient_get_timerp(srRaClientsTable[k]),
+                    RCTfunction,
+                    RCTdata_new(config, j, k, 1, RCT_REASON_TIMEOUT, &allset, &wset),
+                    RCTdata_free);
+                ConnectClient_set_task(srRaClientsTable[k], task);
+                TaskScheduler_addTask(scheduler, task);
                 ConnectClient_set_state(srRaClientsTable[k], CONNECTCLIENT_STATE_CONNECTING);
                 break;
               }

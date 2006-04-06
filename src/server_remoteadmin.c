@@ -367,6 +367,12 @@ serve_admin(ServerConfiguration* config, int realm, int client, unsigned char* b
                                     }
                                     add_to_message(buff, "climode: %s", ServerRealm_get_sClientMode(pointer));
                                     add_to_message(buff, "timeout: %d", ServerRealm_get_timeout(pointer));
+                                    if (ServerRealm_get_maxIdle(pointer)) {
+                                      add_to_message(buff, "max idle: %d", ServerRealm_get_maxIdle(pointer));
+                                    }
+                                    else {
+                                      add_to_message(buff, "max idle: disabled");
+                                    }
                                     add_to_message(buff, "baseport: %s", ServerRealm_get_basePortOn(pointer) ?
                                         "yes" : "no");
                                     add_to_message(buff, "audit: %s", ServerRealm_get_auditOn(pointer) ?
@@ -431,6 +437,8 @@ serve_admin(ServerConfiguration* config, int realm, int client, unsigned char* b
                                             ConnectClient_get_usrCliPair(cpointer)); 
                                         tmp = now - ConnectClient_get_connectTime(cpointer);
                                         add_uptime_to_message(buff, "Connection time", tmp);
+                                        tmp = now - ConnectClient_get_lastActivity(cpointer);
+                                        add_uptime_to_message(buff, "Idle time", tmp);
                                         add_to_message(buff, "Id: %s",
                                             (ConnectClient_get_sClientId(cpointer) == NULL) ? "" :
                                             ConnectClient_get_sClientId(cpointer));

@@ -72,9 +72,11 @@ server_long_usage(char* info)
   printf("  -f, --cfgfile       - the name of the file with the configuration for the\n");
   printf("                        active forwarder (server)\n");
   printf("  -D, --dateformat    - format of the date printed in logs (see 'man strftime'\n");
-  printf("                        for details) (default: %%Y-%%m-%%d %%H:%%M:%%S)\n\n");
+  printf("                        for details) (default: %%Y-%%m-%%d %%H:%%M:%%S)\n");
   printf("  -t, --timeout       - the timeout value for the client's connection\n");
   printf("                        (default: 5)\n");
+  printf("  --maxidle           - the maximum idle time for the client's connection\n");
+  printf("                        (default: disabled)\n");
   printf("  -u, --users         - the amount of users allowed to use this server\n");
   printf("                        (default: 5)\n");
   printf("  -C, --clients       - the number of allowed clients to use this server\n");

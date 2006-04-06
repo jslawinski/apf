@@ -29,19 +29,19 @@
  *            client - the client number
  *            set - the set of file descriptors for reading
  *            wset - the set of file descriptors for writing
- *            con - the connection counter
+ *            scheduler - the task scheduler
  */
 
 void
-remove_client(ServerRealm* ptr, int client, fd_set* set, fd_set* wset, int* con)
+remove_client(ServerRealm* ptr, int client, fd_set* set, fd_set* wset, TaskScheduler* scheduler)
 {
   int i;
+  Task* task;
   
   assert(ptr != NULL);
   assert(client >= 0);
   assert(set != NULL);
   assert(wset != NULL);
-  assert(con != NULL);
   
   if (ConnectClient_get_state(ServerRealm_get_clientsTable(ptr)[client]) == CONNECTCLIENT_STATE_ACCEPTED) {
     for (i = 0; i < ServerRealm_get_usersLimit(ptr); ++i) {
@@ -67,8 +67,11 @@ remove_client(ServerRealm* ptr, int client, fd_set* set, fd_set* wset, int* con)
   ConnectClient_set_connected(ServerRealm_get_clientsTable(ptr)[client], 0);
   close(SslFd_get_fd(ConnectClient_get_sslFd(ServerRealm_get_clientsTable(ptr)[client])));
   FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(ServerRealm_get_clientsTable(ptr)[client])), set);
-  if (ConnectClient_get_state(ServerRealm_get_clientsTable(ptr)[client]) == CONNECTCLIENT_STATE_AUTHORIZING) {
-    (*con)--;
+  if (scheduler) {
+    if ((task = ConnectClient_get_task(ServerRealm_get_clientsTable(ptr)[client]))) {
+      TaskScheduler_removeTask(scheduler, task);
+      ConnectClient_set_task(ServerRealm_get_clientsTable(ptr)[client], NULL);
+    }
   }
   SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(ServerRealm_get_clientsTable(ptr)[client])));
   ConnectClient_set_state(ServerRealm_get_clientsTable(ptr)[client], CONNECTCLIENT_STATE_FREE);
@@ -82,19 +85,19 @@ remove_client(ServerRealm* ptr, int client, fd_set* set, fd_set* wset, int* con)
  *            client - the client number
  *            set - the set of file descriptors for reading
  *            wset - the set of file descriptors for writing
- *            con - the connection counter
+ *            scheduler - the task scheduler
  */
 
 void
-remove_raclient(ServerRealm* ptr, int client, fd_set* set, fd_set* wset, int* con)
+remove_raclient(ServerRealm* ptr, int client, fd_set* set, fd_set* wset, TaskScheduler* scheduler)
 {
   int i;
+  Task* task;
   
   assert(ptr != NULL);
   assert(client >= 0);
   assert(set != NULL);
   assert(wset != NULL);
-  assert(con != NULL);
   
   for (i = 0; i < ConnectClient_get_limit(ServerRealm_get_raClientsTable(ptr)[client]); ++i) {
     ConnectClient_get_users(ServerRealm_get_raClientsTable(ptr)[client])[i] = -1;
@@ -103,8 +106,11 @@ remove_raclient(ServerRealm* ptr, int client, fd_set* set, fd_set* wset, int* co
   ConnectClient_set_connected(ServerRealm_get_raClientsTable(ptr)[client], 0);
   close(SslFd_get_fd(ConnectClient_get_sslFd(ServerRealm_get_raClientsTable(ptr)[client])));
   FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(ServerRealm_get_raClientsTable(ptr)[client])), set);
-  if (ConnectClient_get_state(ServerRealm_get_raClientsTable(ptr)[client]) == CONNECTCLIENT_STATE_AUTHORIZING) {
-    (*con)--;
+  if (scheduler) {
+    if ((task = ConnectClient_get_task(ServerRealm_get_clientsTable(ptr)[client]))) {
+      TaskScheduler_removeTask(scheduler, task);
+      ConnectClient_set_task(ServerRealm_get_clientsTable(ptr)[client], NULL);
+    }
   }
   SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(ServerRealm_get_raClientsTable(ptr)[client])));
   ServerRealm_decrease_connectedClients(ptr);

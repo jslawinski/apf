@@ -169,6 +169,7 @@ parsefile(char* name, int* status)
             ServerConfiguration_get_realmsNumber(cfg) - 1]);
         TYPE_SET_SSL(temp);
         TYPE_SET_ZLIB(temp);
+        TYPE_SET_SUPPORTED_MULTI(temp);
         ServerRealm_set_realmType(ServerConfiguration_get_realmsTable(cfg)[
             ServerConfiguration_get_realmsNumber(cfg) - 1], temp);
         listencount = managecount = 0;
@@ -257,6 +258,7 @@ parsefile(char* name, int* status)
             ServerConfiguration_get_realmsNumber(cfg) - 1]);
         TYPE_SET_SSL(temp);
         TYPE_SET_ZLIB(temp);
+        TYPE_SET_SUPPORTED_MULTI(temp);
         ServerRealm_set_realmType(ServerConfiguration_get_realmsTable(cfg)[
             ServerConfiguration_get_realmsNumber(cfg) - 1], temp);
         listencount = managecount = 0;
@@ -317,6 +319,11 @@ parsefile(char* name, int* status)
       }
       else if (strcmp(helpbuf1, "timeout")==0) {
         ServerRealm_set_sTimeout(
+            ServerConfiguration_get_realmsTable(cfg)[ServerConfiguration_get_realmsNumber(cfg) - 1],
+            helpbuf2);
+      }
+      else if (strcmp(helpbuf1, "maxidle")==0) {
+        ServerRealm_set_sMaxIdle(
             ServerConfiguration_get_realmsTable(cfg)[ServerConfiguration_get_realmsNumber(cfg) - 1],
             helpbuf2);
       }
