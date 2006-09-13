@@ -107,9 +107,9 @@ remove_raclient(ServerRealm* ptr, int client, fd_set* set, fd_set* wset, TaskSch
   close(SslFd_get_fd(ConnectClient_get_sslFd(ServerRealm_get_raClientsTable(ptr)[client])));
   FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(ServerRealm_get_raClientsTable(ptr)[client])), set);
   if (scheduler) {
-    if ((task = ConnectClient_get_task(ServerRealm_get_clientsTable(ptr)[client]))) {
+    if ((task = ConnectClient_get_task(ServerRealm_get_raClientsTable(ptr)[client]))) {
       TaskScheduler_removeTask(scheduler, task);
-      ConnectClient_set_task(ServerRealm_get_clientsTable(ptr)[client], NULL);
+      ConnectClient_set_task(ServerRealm_get_raClientsTable(ptr)[client], NULL);
     }
   }
   SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(ServerRealm_get_raClientsTable(ptr)[client])));

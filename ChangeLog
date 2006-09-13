@@ -1,3 +1,6 @@
+13.09.2006 (v0.8.2):
+  - Fixed: bug in resource deallocation for remote admin clients
+
 06.04.2006 (v0.8.1):
   - Fixed: enableproxy option in server's config file
   - Added: clients idle time
