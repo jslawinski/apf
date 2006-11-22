@@ -155,9 +155,11 @@ ip_listen(int* sockfd, const char *host, const char *serv, socklen_t *addrlenp, 
     return 4;
   } 
   
-  if (listen((*sockfd), 5)){
-    return 5;
-  } 
+  if (type & 0x01) { /* tcp_listen */
+    if (listen((*sockfd), 5)){
+      return 5;
+    } 
+  }
   
   if (addrlenp) {
     *addrlenp = sizeof(servaddr);  /* return size of protocol address */

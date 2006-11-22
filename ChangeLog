@@ -1,3 +1,6 @@
+21.11.2006 (v0.8.3):
+  - Fixed: bug in udp_listen function when AF_INET6 is not defined
+
 13.09.2006 (v0.8.2):
   - Fixed: bug in resource deallocation for remote admin clients
 
