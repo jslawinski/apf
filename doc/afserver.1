@@ -1,4 +1,4 @@
-.TH afserver 1 "apf 0.8.3" Jeremian
+.TH afserver 1 "apf 0.8.4" Jeremian
 .SH NAME
 afserver \- active port forwarder server
 .SH SYNOPSIS
@@ -51,7 +51,13 @@ connects to it (default: 50126)
 .I Configuration
 
 .B -c, --cerfile FILE
-  the name of the file with certificate (default: cacert.pem)
+  the name of the file with certificate (default: server-cert.pem)
+
+.B -A, --cacerfile FILE
+  the name of the file with CA certificates (if used, require clients to have valid certificates)
+
+.B -d, --cerdepth
+  the maximum depth of valid certificate-chains
 
 .B -k, --keyfile FILE
   the name of the file with RSA key (default: server.rsa)
@@ -236,7 +242,7 @@ Jeremian <jeremian [at] poczta.fm>
 
 .SH CONTRIBUTIONS
 
-Alex Dyatlov <alex [at] gray-world.net>, Simon <scastro [at] entreelibre.com>, Ilia Perevezentsev <iliaper [at] mail.ru> and Marco Solari <marco.solari [at] koinesistemi.it>
+Alex Dyatlov <alex [at] gray-world.net>, Simon <scastro [at] entreelibre.com>, Ilia Perevezentsev <iliaper [at] mail.ru> Marco Solari <marco.solari [at] koinesistemi.it>, and Joshua Judson Rosen <rozzin [at] geekspace.com>
 
 .SH LICENSE
 

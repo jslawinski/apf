@@ -32,6 +32,7 @@ static struct option long_options[] = {
   {"portnum", 1, 0, 'p'},
   {"verbose", 0, 0, 'v'},
   {"keyfile", 1, 0, 'k'},
+  {"cerfile", 1, 0, 'c'},
   {"storefile", 1, 0, 's'},
   {"cfgfile", 1, 0, 'f'},
   {"log", 1, 0, 'o'},
@@ -107,6 +108,7 @@ main(int argc, char **argv)
   char* localPort = NULL;
   char* localDestinationName = NULL;
   char* keys = NULL;
+  char* certif = NULL;
   char* store = NULL;
   char* dateformat = NULL;
   char* kaTimeout = NULL;
@@ -180,7 +182,7 @@ main(int argc, char **argv)
   
   while ((n = getopt_long(argc, argv,
           GETOPT_LONG_LIBDL(GETOPT_LONG_LIBPTHREAD(
-              GETOPT_LONG_AF_INET6("huUn:m:d:p:vk:s:o:i:D:rP:X:VK:A:T:f:")))
+              GETOPT_LONG_AF_INET6("huUn:m:d:p:vk:c:s:o:i:D:rP:X:VK:A:T:f:")))
           , long_options, 0)) != -1) {
     switch (n) {
       case 'h': {
@@ -248,6 +250,10 @@ main(int argc, char **argv)
       }
       case 'k': {
         keys = optarg;
+        break;
+      }
+      case 'c': {
+        certif = optarg;
         break;
       }
       case 's': {
@@ -385,6 +391,9 @@ main(int argc, char **argv)
       else {
         ClientConfiguration_set_keysFile(cconfig, keys);
       }
+      if (certif != NULL) {
+        ClientConfiguration_set_certificateFile(cconfig, certif);
+      }
       if (store == NULL) {
         if (ClientConfiguration_get_storeFile(cconfig) == NULL) {
           ClientConfiguration_set_storeFile(cconfig, "known_hosts");
@@ -486,6 +495,7 @@ main(int argc, char **argv)
       exit(1);
     }
     ClientConfiguration_set_keysFile(cconfig, keys);
+    ClientConfiguration_set_certificateFile(cconfig, certif);
     ClientConfiguration_set_storeFile(cconfig, store);
     ClientConfiguration_set_dateFormat(cconfig, dateformat);
     ClientConfiguration_set_realmsNumber(cconfig, 1);
@@ -695,7 +705,16 @@ main(int argc, char **argv)
           "Setting rsa key failed (%s)... exiting", keys);
       exit(1);
     }
-    
+
+    certif = ClientConfiguration_get_certificateFile(cconfig);
+    if (certif) {
+      if (SSL_CTX_use_certificate_file(ctx, certif, SSL_FILETYPE_PEM) != 1) {
+        aflog(LOG_T_INIT, LOG_I_CRIT,
+            "Setting certificate failed (%s)... exiting", certif);
+        exit(1);
+      }
+    }
+
     if ((ClientRealm_get_clientMode(pointer) != CLIENTREALM_MODE_REMOTE) &&
         (!verbose))
       daemon(0, 0);

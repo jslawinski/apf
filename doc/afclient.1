@@ -1,4 +1,4 @@
-.TH afclient 1 "apf 0.8.3" Jeremian
+.TH afclient 1 "apf 0.8.4" Jeremian
 .SH NAME
 afclient \- active port forwarder client
 .SH SYNOPSIS
@@ -71,6 +71,9 @@ is running (required)
 
 .B -k, --keyfile FILE
   the name of the file with RSA key (default: client.rsa)
+
+.B -c, --cerfile
+  the name of the file with certificate (default: no certificate used)
 
 .B -f, --cfgfile FILE
   the name of the file with the configuration for the
@@ -334,7 +337,7 @@ Jeremian <jeremian [at] poczta.fm>
 
 .SH CONTRIBUTIONS
 
-Alex Dyatlov <alex [at] gray-world.net>, Simon <scastro [at] entreelibre.com>, Ilia Perevezentsev <iliaper [at] mail.ru> and Marco Solari <marco.solari [at] koinesistemi.it>
+Alex Dyatlov <alex [at] gray-world.net>, Simon <scastro [at] entreelibre.com>, Ilia Perevezentsev <iliaper [at] mail.ru>, Marco Solari <marco.solari [at] koinesistemi.it>, and Joshua Judson Rosen <rozzin [at] geekspace.com>
 
 .SH LICENSE
 

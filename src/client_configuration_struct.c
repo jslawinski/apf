@@ -66,6 +66,10 @@ ClientConfiguration_free(ClientConfiguration** cc)
     free((*cc)->keysFile);
     (*cc)->keysFile = NULL;
   }
+  if ((*cc)->certificateFile) {
+    free((*cc)->certificateFile);
+    (*cc)->certificateFile = NULL;
+  }
   if ((*cc)->storeFile) {
     free((*cc)->storeFile);
     (*cc)->storeFile = NULL;
@@ -98,6 +102,23 @@ ClientConfiguration_set_keysFile(ClientConfiguration* cc, char* keysFile)
     return;
   }
   string_cp(&(cc->keysFile), keysFile);
+}
+
+/*
+ * Function name: ClientConfiguration_set_certificateFile
+ * Description: Set certs filename.
+ * Arguments: cc - pointer to ClientConfiguration structure
+ *            certificateFile - certs filename
+ */
+
+void
+ClientConfiguration_set_certificateFile(ClientConfiguration* cc, char* certificateFile)
+{
+  assert(cc != NULL);
+  if (cc == NULL) {
+    return;
+  }
+  string_cp(&(cc->certificateFile), certificateFile);
 }
 
 /*
@@ -210,6 +231,23 @@ ClientConfiguration_get_keysFile(ClientConfiguration* cc)
     return NULL;
   }
   return cc->keysFile;
+}
+
+/*
+ * Function name: ClientConfiguration_get_certificateFile
+ * Description: Get certs filename.
+ * Arguments: cc - pointer to ClientConfiguration structure
+ * Returns: Certs filename.
+ */
+
+char*
+ClientConfiguration_get_certificateFile(ClientConfiguration* cc)
+{
+  assert(cc != NULL);
+  if (cc == NULL) {
+    return NULL;
+  }
+  return cc->certificateFile;
 }
 
 /*

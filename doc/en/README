@@ -1,4 +1,4 @@
-AF - Active Port Forwarder 0.8.3 - README
+AF - Active Port Forwarder 0.8.4 - README
 Copyright (C) 2003-2007 jeremian - <jeremian [at] poczta.fm>
 =================================================================
 
@@ -130,7 +130,10 @@ Multiple clients allow to create more sophisticated tunneling scheme.
  Configuration:
 
   -c, --cerfile       - the name of the file with certificate
-                        (default: cacert.pem)
+                        (default: server-cert.pem)
+  -A, --cacerfile     - the name of the file with CA certificates
+                        (if used, require clients to have valid certificates)
+  -d, --cerdepth      - the maximum depth of valid certificate-chains
   -k, --keyfile       - the name of the file with RSA key (default: server.rsa)
   -f, --cfgfile       - the name of the file with the configuration for the
                         active forwarder (server)
@@ -211,6 +214,8 @@ Multiple clients allow to create more sophisticated tunneling scheme.
  Configuration:
 
   -k, --keyfile       - the name of the file with RSA key (default: client.rsa)
+  -c, --cerfile       - the name of the file with certificate
+                        (default: no certificate used)
   -f, --cfgfile       - the name of the file with the configuration for the
                         active forwarder (client)
   -s, --storefile     - the name of the file with stored public keys
@@ -661,6 +666,9 @@ README file.
 
  Thanks to Marco Solari <marco.solari [at] koinesistemi.it> for a lot of
 requests, suggestions and ideas.
+
+ Thanks to Joshua Judson Rosen <rozzin [at] geekspace.com> for the patch adding
+certificate-based authentication to the APF.
 
  And thanks for using this software!
 

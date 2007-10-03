@@ -269,6 +269,12 @@ parsefile(char* name, int* status)
       else if ((strcmp(helpbuf1, "certificate") == 0) || (strcmp(helpbuf1, "cerfile") == 0)) {
         ServerConfiguration_set_certificateFile(cfg, helpbuf2);
       }
+      else if (strcmp(helpbuf1, "cacerfile") == 0) {
+        ServerConfiguration_set_cacertificateFile(cfg, helpbuf2);
+      }
+      else if (strcmp(helpbuf1, "cerdepth") == 0) {
+        ServerConfiguration_set_sCertificateDepth(cfg, helpbuf2);
+      }
       else if ((strcmp(helpbuf1, "key") == 0) || (strcmp(helpbuf1, "keyfile") == 0)) {
         ServerConfiguration_set_keysFile(cfg, helpbuf2);
       }

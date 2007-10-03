@@ -1,4 +1,4 @@
-.TH afserver.conf 5 "apf 0.8.3" Jeremian
+.TH afserver.conf 5 "apf 0.8.4" Jeremian
 .SH NAME
 afserver.conf \- Configuration File for afserver
 .SH INTRODUCTION
@@ -35,7 +35,13 @@ commands.
 .SH "GLOBAL OPTIONS"
 
 .B cerfile FILE
-  the name of the file with certificate (default: cacert.pem)
+  the name of the file with certificate (default: server-cert.pem)
+
+.B cacerfile FILE
+  the name of the file with CA certificates (if used, require clients to have valid certificates)
+
+.B cerdepth N
+  the maximum depth of valid certificate-chains
 
 .B keyfile FILE
   the name of the file with RSA key (default: server.rsa)
@@ -125,7 +131,7 @@ Jeremian <jeremian [at] poczta.fm>
 
 .SH CONTRIBUTIONS
 
-Alex Dyatlov <alex [at] gray-world.net>, Simon <scastro [at] entreelibre.com>, Ilia Perevezentsev <iliaper [at] mail.ru> and Marco Solari <marco.solari [at] koinesistemi.it>
+Alex Dyatlov <alex [at] gray-world.net>, Simon <scastro [at] entreelibre.com>, Ilia Perevezentsev <iliaper [at] mail.ru>, Marco Solari <marco.solari [at] koinesistemi.it>, and Joshua Judson Rosen <rozzin [at] geekspace.com>
 
 .SH LICENSE
 

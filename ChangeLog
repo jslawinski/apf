@@ -1,3 +1,6 @@
+03.10.2007 (v0.8.4):
+  - Added (by Joshua Judson Rosen): certificate-based authentication
+
 21.11.2006 (v0.8.3):
   - Fixed: bug in udp_listen function when AF_INET6 is not defined
 

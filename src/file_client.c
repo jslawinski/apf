@@ -197,6 +197,9 @@ cparsefile(char* name, int* status)
       if ((strcmp(helpbuf1, "k") == 0) || (strcmp(helpbuf1, "keyfile") == 0)) {
         ClientConfiguration_set_keysFile(cfg, helpbuf2);
       }
+      else if ((strcmp(helpbuf1, "c") == 0) || (strcmp(helpbuf1, "certificate") == 0) || (strcmp(helpbuf1, "cerfile") == 0)) {
+        ClientConfiguration_set_certificateFile(cfg, helpbuf2);
+      }
       else if ((strcmp(helpbuf1, "s") == 0) || (strcmp(helpbuf1, "storefile") == 0)) {
         ClientConfiguration_set_storeFile(cfg, helpbuf2);
       }

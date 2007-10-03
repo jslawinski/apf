@@ -37,6 +37,8 @@ static struct option long_options[] = {
 	{"usrpcli", 1, 0, 'U'},
 	{"climode", 1, 0, 'M'},
 	{"cerfile", 1, 0, 'c'},
+	{"cacerfile", 1, 0, 'A'},
+	{"cerdepth", 1, 0, 'd'},
 	{"keyfile", 1, 0, 'k'},
 	{"cfgfile", 1, 0, 'f'},
 	{"proto", 1, 0, 'p'},
@@ -110,6 +112,8 @@ main(int argc, char **argv)
   ConnectClient** srRaClientsTable;
 
   char* certif = NULL;
+  char* cacertif = NULL;
+  char* cerdepth = NULL;
   char* keys = NULL;
   char* dateformat = NULL;
   static char* stemp = NULL;
@@ -150,7 +154,7 @@ main(int argc, char **argv)
 #endif
   
   while ((n = getopt_long(argc, argv,
-          GETOPT_LONG_LIBPTHREAD(GETOPT_LONG_AF_INET6("hn:l:m:vu:c:k:f:p:o:t:C:U:M:abD:R:r:V"))
+          GETOPT_LONG_LIBPTHREAD(GETOPT_LONG_AF_INET6("hn:l:m:vu:c:A:d:k:f:p:o:t:C:U:M:abD:R:r:V"))
           , long_options, 0)) != -1) {
     switch (n) {
       case 'h': {
@@ -211,6 +215,14 @@ main(int argc, char **argv)
                 }
       case 'c': {
                   certif = optarg;
+                  break;
+                }
+      case 'A': {
+                  cacertif = optarg;
+                  break;
+                }
+      case 'd': {
+                  cerdepth = optarg;
                   break;
                 }
       case 'k': {
@@ -331,11 +343,17 @@ main(int argc, char **argv)
 		else {
       if (certif == NULL) {
         if (ServerConfiguration_get_certificateFile(config) == NULL) {
-          ServerConfiguration_set_certificateFile(config, "cacert.pem");
+          ServerConfiguration_set_certificateFile(config, "server-cert.pem");
         }
       }
       else {
         ServerConfiguration_set_certificateFile(config, certif);
+      }
+      if (cacertif != NULL) {
+        ServerConfiguration_set_cacertificateFile(config, cacertif);
+      }
+      if (cerdepth != NULL) {
+          ServerConfiguration_set_sCertificateDepth(config, cerdepth);
       }
       if (keys == NULL) {
         if (ServerConfiguration_get_keysFile(config) == NULL) {
@@ -377,6 +395,8 @@ main(int argc, char **argv)
       exit(1);
     }
     ServerConfiguration_set_certificateFile(config, certif);
+    ServerConfiguration_set_cacertificateFile(config, cacertif);
+    ServerConfiguration_set_sCertificateDepth(config, cerdepth);
     ServerConfiguration_set_keysFile(config, keys);
     ServerConfiguration_set_dateFormat(config, dateformat);
 
@@ -398,7 +418,7 @@ main(int argc, char **argv)
       exit(1);
     }
     if (ServerConfiguration_get_certificateFile(config) == NULL) {
-      ServerConfiguration_set_certificateFile(config, "cacert.pem");
+      ServerConfiguration_set_certificateFile(config, "server-cert.pem");
     }
     if (ServerConfiguration_get_keysFile(config) == NULL) {
       ServerConfiguration_set_keysFile(config, "server.rsa");
@@ -533,6 +553,29 @@ main(int argc, char **argv)
         "Setting certificate failed (%s)... exiting", ServerConfiguration_get_certificateFile(config));
 		exit(1);
 	}
+
+        cacertif = ServerConfiguration_get_cacertificateFile(config);
+        if (cacertif) {
+          if (SSL_CTX_load_verify_locations(ctx,
+                                            cacertif,
+                                            NULL)
+              != 1)
+          {
+            aflog(LOG_T_INIT, LOG_I_CRIT,
+                  "Setting CA certificate failed (%s)... exiting", cacertif);
+            exit(1);
+          }
+
+          SSL_CTX_set_verify (ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+                              NULL);
+
+          cerdepth = ServerConfiguration_get_sCertificateDepth (config);
+          if (cerdepth == NULL) {
+              cerdepth = "9";
+          }
+          SSL_CTX_set_verify_depth(ctx, check_value_liberal (cerdepth, "Invalid max certificate-depth"));
+        }
+
 	if (ServerConfiguration_get_realmsNumber(config) == 0) {
 		aflog(LOG_T_INIT, LOG_I_CRIT,
         "Working without sense is really without sense...");
@@ -1393,7 +1436,12 @@ main(int argc, char **argv)
               case 2: {
                         close(SslFd_get_fd(ConnectClient_get_sslFd(srClientsTable[k])));
                         FD_CLR(SslFd_get_fd(ConnectClient_get_sslFd(srClientsTable[k])), &allset);
-                        SSL_clear(SslFd_get_ssl(ConnectClient_get_sslFd(srClientsTable[k])));
+
+                        /* This SSL-object is busted; don't reuse it
+                           (SSL_clear isn't sufficient because ssl->new_session is set): */
+                        SslFd_set_ssl(ConnectClient_get_sslFd(srClientsTable[k]),
+                                      SSL_new (ctx));
+
                         ConnectClient_set_state(srClientsTable[k], CONNECTCLIENT_STATE_FREE);
                         if ((task = ConnectClient_get_task(srClientsTable[k]))) {
                           TaskScheduler_removeTask(scheduler, task);

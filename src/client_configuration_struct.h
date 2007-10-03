@@ -26,6 +26,7 @@
 
 typedef struct {
   char* keysFile;
+  char* certificateFile;
   char* storeFile;
   char* dateFormat;
   int realmsNumber;
@@ -39,6 +40,7 @@ ClientConfiguration* ClientConfiguration_new();
 void ClientConfiguration_free(ClientConfiguration** cc);
 /* setters */
 void ClientConfiguration_set_keysFile(ClientConfiguration* cc, char* keysFile);
+void ClientConfiguration_set_certificateFile(ClientConfiguration* cc, char* certificateFile);
 void ClientConfiguration_set_storeFile(ClientConfiguration* cc, char* storeFile);
 void ClientConfiguration_set_dateFormat(ClientConfiguration* cc, char* dateFormat);
 void ClientConfiguration_set_realmsNumber(ClientConfiguration* cc, int realmsNumber);
@@ -46,6 +48,7 @@ void ClientConfiguration_set_realmsTable(ClientConfiguration* cc, ClientRealm** 
 void ClientConfiguration_set_ignorePublicKeys(ClientConfiguration* cc, char ignorePublicKeys);
 /* getters */
 char* ClientConfiguration_get_keysFile(ClientConfiguration* cc);
+char* ClientConfiguration_get_certificateFile(ClientConfiguration* cc);
 char* ClientConfiguration_get_storeFile(ClientConfiguration* cc);
 char* ClientConfiguration_get_dateFormat(ClientConfiguration* cc);
 int ClientConfiguration_get_realmsNumber(ClientConfiguration* cc);

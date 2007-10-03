@@ -67,7 +67,10 @@ server_long_usage(char* info)
   printf("                        (default: no password)\n\n");
   printf(" Configuration:\n\n");
   printf("  -c, --cerfile       - the name of the file with certificate\n");
-  printf("                        (default: cacert.pem)\n");
+  printf("                        (default: server-cert.pem)\n");
+  printf("  -A, --cacerfile     - the name of the file with CA certificates\n");
+  printf("                        (if used, require clients to have valid certificates)\n"); 
+  printf("  -d, --cerdepth      - the maximum depth of valid certificate-chains\n");
   printf("  -k, --keyfile       - the name of the file with RSA key (default: server.rsa)\n");
   printf("  -f, --cfgfile       - the name of the file with the configuration for the\n");
   printf("                        active forwarder (server)\n");
@@ -170,6 +173,8 @@ client_long_usage(char* info)
   printf("  --ignorepkeys       - ignore invalid server's public keys\n\n");
   printf(" Configuration:\n\n");
   printf("  -k, --keyfile       - the name of the file with RSA key (default: client.rsa)\n");
+  printf("  -c, --cerfile       - the name of the file with certificate\n");
+  printf("                        (default: no certificate used)\n");
   printf("  -f, --cfgfile       - the name of the file with the configuration for the\n");
   printf("                        active forwarder (client)\n");
   printf("  -s, --storefile     - the name of the file with stored public keys\n");
