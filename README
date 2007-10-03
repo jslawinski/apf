@@ -1,5 +1,5 @@
 AF - Active Port Forwarder 0.8.3 - README
-Copyright (C) 2003-2006 jeremian - <jeremian [at] poczta.fm>
+Copyright (C) 2003-2007 jeremian - <jeremian [at] poczta.fm>
 =================================================================
 
 ================================================================================
@@ -668,7 +668,7 @@ LICENSE
 -------
 
   Active Port Forwarder is distributed  under  the  terms  of  the  GNU  General
-  Public License v2.0  and is copyright (C)  2003-2006  jeremian  <jeremian
+  Public License v2.0  and is copyright (C)  2003-2007  jeremian  <jeremian
   [at] poczta.fm>. See the file COPYING for details.
 
   In addition, as a special exception, the copyright holders give permission  to

@@ -1,6 +1,6 @@
 /*
  * active port forwarder - software for secure forwarding
- * Copyright (C) 2003-2006 jeremian <jeremian [at] poczta.fm>
+ * Copyright (C) 2003-2007 jeremian <jeremian [at] poczta.fm>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
