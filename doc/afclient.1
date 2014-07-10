@@ -1,0 +1,344 @@
+.TH afclient 1 "apf 0.8.4" Jeremian
+.SH NAME
+afclient \- active port forwarder client
+.SH SYNOPSIS
+.B afclient [
+.I options
+.B ] -n
+.I servername
+.B -p
+.I portnum
+.SH DESCRIPTION
+.B Afclient
+is a port forwarding program designed to be efficient and easy to use. It connects to
+.B afserver
+to listenport (default listenport is 50126) and after a successful authorization
+.B afclient
+redirects all the data to the specified destination host:port.
+.SH "EXAMPLES"
+.B afclient -n servername -p 22
+  program connects to servername:50126 and redirects data to local port 22 (becomes a daemon)
+
+.B afclient -n servername -p 22 -v
+  the same as above, but verbose mode is enabled (program won't enter daemon mode)
+
+.B afclient -n servername -r
+  program connects to servername:50126 in remote administration mode
+.SH OPTIONS
+.I "Basic options"
+
+.B -n, --servername NAME
+  name of the host, where
+.I afserver
+is running (required)
+
+.B -m, --manageport PORT
+  manage port number - server must be listening on it (default: 50126)
+
+.B -d, --hostname NAME
+  the name of this host/remote host - the final destination of the packets (default: the name returned by hostname function)
+
+.B -p, --portnum PORT
+  the port we are forwarding connection to (required)
+
+.B --localname NAME
+  local machine name for connection with afserver (used to bind socket to different interfaces)
+
+.B --localport NAME
+  local port name for connection with afserver (used to bind socket to different addressees)
+
+.B --localdesname NAME
+  local machine name for connections with destination application (used to bind socket to different interfaces)
+
+.B -V, --version
+  display version number
+
+.B -h, --help
+  prints help screen
+
+.I Authorization
+
+.B -i, --id STRING
+  sends the id string to afserver
+  
+.B --pass PASSWORD
+  set the password used for client identification (default: no password)
+
+.B --ignorepkeys
+  ignore invalid server's public keys
+
+.I Configuration
+
+.B -k, --keyfile FILE
+  the name of the file with RSA key (default: client.rsa)
+
+.B -c, --cerfile
+  the name of the file with certificate (default: no certificate used)
+
+.B -f, --cfgfile FILE
+  the name of the file with the configuration for the
+.I afclient
+
+.B -s, --storefile
+  the name of the file with stored public keys (default: known_hosts)
+  
+.B -D, --dateformat FORMAT
+  format of the date printed in logs (see 'man strftime' for details) (default: %d.%m.%Y %H:%M:%S)
+
+.B -K, --keep-alive N
+  send keepalive packets every N seconds (default: not send keepalive packets)
+
+.I Auto-reconnection
+
+.B --ar-start
+  enable auto-reconnection when afserver is not reachable on start (default: disabled)
+
+.B --ar-quit
+  enable auto-reconnection after normal afserver quit (default: disabled)
+
+.B --noar
+  disable auto-reconnection after premature afserver quit (default: enabled)
+
+.B -A, --ar-tries N
+  try N times to reconnect (default: unlimited)
+
+.B -T, --ar-delay N
+  wait N seconds between reconnect tries (default: 5)
+
+.I Modes
+
+.B -u, --udpmode
+  udp mode - client will use udp protocol to communicate with the hostname:portnum
+
+.B -U, --reverseudp
+  reverse udp forwarding. Udp packets will be forwarded from hostname:portnum to the server name:manageport
+  
+.B -r, --remoteadmin
+  remote administration mode. (using '-p PORT' will force afclient to use port rather than stdin-stdout)
+
+.I Logging
+
+.B -o, --log LOGCMD
+  log choosen information to file/socket
+
+.B -v, --verbose
+  to be verbose - program won't enter the daemon mode (use several times for greater effect)
+
+.I "IP family"
+
+.B -4, --ipv4
+  use ipv4 only
+
+.B -6, --ipv6
+  use ipv6 only
+
+.I Modules
+
+.B -l, --load
+  load a module for user's packets filtering
+
+.B -L, --Load
+  load a module for service's packets filtering
+
+.I HTTP/HTTPS PROXY
+
+.B -S, --use-https
+  use https proxy instead of http proxy
+
+.B -P, --proxyname
+  the name of the machine with proxy server
+
+.B -X, --proxyport
+  the port used by proxy server (default: 8080)
+
+.B -C, --pa-cred  U:P
+  the user (U) and password (P) used in proxy authorization
+
+.B -B, --pa-t-basic
+  the Basic type of proxy authorization (default)
+
+.SH "REMOTE ADMINISTRATION"
+
+Remote administration mode is enabled by
+.B '-r, --remoteadmin'
+option. Required options:
+.B '-n, --servername NAME'
+
+After successful authorization stdin/stdout are used to communicate with user. All the commands parsing is done by
+.BR afserver .
+Commands guaranteed to be available:
+
+.B help
+  display help
+
+.B lcmd
+  lists available commands
+
+.B quit
+  quit connection
+
+For list of all available commands take a look at
+.BR afserver (1).
+
+When 
+.B '-p, --portnum PORT'
+is used,
+.B afclient
+listens for connection from user at NAME:PORT. NAME is set by
+.B '-d, --hostname'
+option or hostname() function, when the option is missing.
+
+When user quits (close the connection or send
+.B 'quit'
+command),
+.B afclient
+exits.
+
+.SH "LOGCMD FORMAT"
+
+.B LOGCMD
+has the following synopsis:
+.B target,description,msgdesc
+
+Where
+.B target
+is
+.B file
+or
+.B sock
+
+.B description
+is
+.B filename
+or
+.B host,port
+
+and
+.B msgdesc
+is the subset of:
+
+.B LOG_T_ALL,
+.B LOG_T_USER,
+.B LOG_T_CLIENT,
+.B LOG_T_INIT,
+.B LOG_T_MANAGE,
+.B LOG_T_MAIN,
+.B LOG_I_ALL,
+.B LOG_I_CRIT,
+.B LOG_I_DEBUG,
+.B LOG_I_DDEBUG,
+.B LOG_I_INFO,
+.B LOG_I_NOTICE,
+.B LOG_I_WARNING,
+.B LOG_I_ERR
+
+written without spaces.
+
+  Example:
+
+  file,logfile,LOG_T_USER,LOG_T_CLIENT,LOG_I_INFO,LOG_I_NOTICE
+
+.SH MODULES
+
+.B Afclient
+can use external modules for user's packets filtering
+.RB ( "'-l,  --load'" )
+and service's packets filtering
+.RB ( "'-L, --Load'" ).
+Module file has to declare three functions:
+
+.BI "char* info(" void );
+  
+  info() return values:
+  - info about module
+
+  Example:
+
+  char*
+  info(void)
+  {      
+    return "Module tester v0.1";
+  }    
+         
+.BI "int allow(char* " host ", char* " port );
+       
+  allow() return values:
+  0 - allow to connect
+  !0 - drop the connection
+         
+  Example:
+       
+  int    
+  allow(char* host, char* port)
+  {    
+    return 0; /* allow to connect */
+  }
+       
+.BI "int filter(char* " host ", unsigned char* " message ", int* " length );
+
+  filter() return values:
+  0 - allow to transfer 
+  1 - drop the packet
+  2 - drop the connection
+  3 - release the module
+  4 - drop the packet and release the module
+  5 - drop the connection and release the module
+
+  Example:
+
+  int
+  filter(char* host, unsigned char* message, int* length)
+  {
+    int i;
+    for (i = 1; i < *length; ++i) {
+      if (message[i-1] == 'M') {
+        if (message[i] == '1') {
+          return 1; /* ignored */
+        }
+        if (message[i] == '2') {
+          return 2; /* dropped */
+        }
+        if (message[i] == '3') {
+          return 3; /* release */
+        }
+        if (message[i] == '4') {
+          return 4; /* ignored + release */
+        }
+        if (message[i] == '5') {
+          return 5; /* dropped + release */
+        }
+      }
+    }
+    return 0; /* allow to transfer */
+  }
+
+Modules have to be compiled with
+.B -fPIC -shared
+options.
+
+.SH "SEE ALSO"
+
+.BR afclient.conf (5),
+.BR afserver (1),
+.BR afserver.conf (5)
+  
+.SH BUGS
+
+.B Afclient
+is still under development. There are no known open bugs at the moment.
+
+.SH "REPORTING BUGS"
+
+Please report bugs to <jeremian [at] poczta.fm>
+
+.SH AUTHOR
+
+Jeremian <jeremian [at] poczta.fm>
+
+.SH CONTRIBUTIONS
+
+Alex Dyatlov <alex [at] gray-world.net>, Simon <scastro [at] entreelibre.com>, Ilia Perevezentsev <iliaper [at] mail.ru>, Marco Solari <marco.solari [at] koinesistemi.it>, and Joshua Judson Rosen <rozzin [at] geekspace.com>
+
+.SH LICENSE
+
+Active Port Forwarder is distributed under the terms of the GNU General Public License v2.0 and is copyright (C) 2003-2007 jeremian <jeremian [at] poczta.fm>. See the file COPYING for details.

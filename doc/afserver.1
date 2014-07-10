@@ -1,0 +1,249 @@
+.TH afserver 1 "apf 0.8.4" Jeremian
+.SH NAME
+afserver \- active port forwarder server
+.SH SYNOPSIS
+.B afserver [
+.I options
+.B ]
+.SH DESCRIPTION
+.B Afserver
+is a port forwarding program designed to be efficient and easy to use. It listens for incoming
+.B afclient
+connections at listenport (default listenport is 50126). After successful client authorization,
+.B afserver
+listens for incoming user connections. When a new user connection is opened, all the data is redirected to previously connected
+.B afclient,
+which redirects it to the specified destination host:port.
+.SH EXAMPLES
+.B afserver
+  program starts with default options (become a daemon)
+  
+.B afserver -v
+  verbose mode is enabled (program won't enter daemon mode)
+  
+.B afserver -n localhost -l 5435 -m 6375
+  program will listen on localhost:5435 for users and on localhost:6375 for clients
+.SH OPTIONS
+.I "Basic options"
+
+.B -n, --hostname NAME
+  used when creating listening sockets (default: '')
+
+.B -l, --listenport [HOST:]PORT
+  listening [host:]port number - users connect to it (default: 50127)
+
+.B -m, --manageport [HOST:]PORT
+  manage [host:]port number -
+.I afclient
+connects to it (default: 50126)
+
+.B -V, --version
+  display version number
+
+.B -h, --help
+  prints help screen
+
+.I Authorization
+
+.B --pass PASSWORD
+  password used for client identification (default: no password)
+
+.I Configuration
+
+.B -c, --cerfile FILE
+  the name of the file with certificate (default: server-cert.pem)
+
+.B -A, --cacerfile FILE
+  the name of the file with CA certificates (if used, require clients to have valid certificates)
+
+.B -d, --cerdepth
+  the maximum depth of valid certificate-chains
+
+.B -k, --keyfile FILE
+  the name of the file with RSA key (default: server.rsa)
+  
+.B -f, --cfgfile FILE
+  the name of the file with the configuration for the
+.I afserver
+
+.B -D, --dateformat FORMAT
+  format of the date printed in logs (see 'man strftime' for details) (default: %d.%m.%Y %H:%M:%S)
+
+.B -t, --timeout N
+  the timeout value for the client's connection (default: 5)
+
+.B --maxidle N
+  the maximum idle time for the client's connection (default: disabled)
+
+.B -u, --users N
+  the amount of users allowed to use this server (default: 5)
+
+.B -C, --clients N
+  the number of allowed clients to use this server (default: 1)
+
+.B -r, --realm
+  set the realm name (default: none)
+
+.B -R, --raclients N
+  the number of allowed clients in remote administration mode to use this server (default: 1)
+
+.B -U, --usrpcli N
+  the number of allowed users per client (default: $users)
+
+.B -M, --climode N
+  strategy used to connect users with clients (default: 1)
+  Available strategies:
+    1. fill first client before go to next
+
+.B -p, --proto TYPE
+  type of server (tcp|udp) - what protocol it will be operating for (default: tcp)
+
+.B -b, --baseport
+  listenports are temporary and differ for each client
+
+.B -a, --audit
+  additional information about connections are logged
+
+.B --nossl
+  ssl is not used to transfer data (but it's still used to establish a connection) (default: ssl is used)
+
+.B --nozlib
+  zlib is not used to compress data (default: zlib is used)
+
+.B --dnslookups
+  try to obtain dns names of the computers rather than their numeric IP
+
+.I Logging
+
+.B -o, --log LOGCMD
+  log choosen information to file/socket
+  
+.B -v, --verbose
+  to be verbose - program won't enter the daemon mode (use several times for greater effect)
+
+.I "IP family"
+
+.B -4, --ipv4
+  use ipv4 only
+  
+.B -6, --ipv6
+  use ipv6 only
+
+.I HTTP PROXY
+
+.B -P, --enableproxy
+  enable http proxy mode
+
+.SH "REMOTE ADMINISTRATION"
+
+Currently available commands are:
+
+.B help
+  display help
+
+.B lcmd
+  lists available commands
+
+.B info
+  prints info about server
+
+.B rshow
+  display realms
+
+.B cshow X
+  display clients in X realm
+
+.B ushow X
+  display users in X realm
+
+.B quit
+  quit connection
+
+.B timeout N X
+  set timeout value in X realm
+
+.B audit {0|1} X
+  set audit mode in X realm
+
+.B dnslookups {0|1} X
+  set dnslookups mode in X realm
+
+.B dateformat S
+  set dateformat
+
+.B kuser S
+  kick user named S
+
+.B kclient N
+  kick client with number N
+
+.SH "LOGCMD FORMAT"
+
+.B LOGCMD
+has the following synopsis:
+.B target,description,msgdesc
+
+Where
+.B target
+is
+.B file
+or
+.B sock
+
+.B description
+is
+.B filename
+or
+.B host,port
+
+and
+.B msgdesc
+is the subset of:
+
+.B LOG_T_ALL,
+.B LOG_T_USER,
+.B LOG_T_CLIENT,
+.B LOG_T_INIT,
+.B LOG_T_MANAGE,
+.B LOG_T_MAIN,
+.B LOG_I_ALL,
+.B LOG_I_CRIT,
+.B LOG_I_DEBUG,
+.B LOG_I_DDEBUG,
+.B LOG_I_INFO,
+.B LOG_I_NOTICE,
+.B LOG_I_WARNING,
+.B LOG_I_ERR
+
+written without spaces.
+
+  Example:
+
+  file,filename,LOG_T_ALL,LOG_I_CRIT,LOG_I_ERR,LOG_I_WARNING
+
+.SH "SEE ALSO"
+
+.BR afserver.conf (5),
+.BR afclient (1),
+.BR afclient.conf (5)
+
+.SH BUGS
+
+.B Afserver
+is still under development. There are no known open bugs at the moment.
+
+.SH "REPORTING BUGS"
+
+Please report bugs to <jeremian [at] poczta.fm>
+
+.SH AUTHOR
+
+Jeremian <jeremian [at] poczta.fm>
+
+.SH CONTRIBUTIONS
+
+Alex Dyatlov <alex [at] gray-world.net>, Simon <scastro [at] entreelibre.com>, Ilia Perevezentsev <iliaper [at] mail.ru> Marco Solari <marco.solari [at] koinesistemi.it>, and Joshua Judson Rosen <rozzin [at] geekspace.com>
+
+.SH LICENSE
+
+Active Port Forwarder is distributed under the terms of the GNU General Public License v2.0 and is copyright (C) 2003-2007 jeremian <jeremian [at] poczta.fm>. See the file COPYING for details.

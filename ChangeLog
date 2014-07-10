@@ -1,0 +1,195 @@
+03.10.2007 (v0.8.4):
+  - Added (by Joshua Judson Rosen): certificate-based authentication
+
+21.11.2006 (v0.8.3):
+  - Fixed: bug in udp_listen function when AF_INET6 is not defined
+
+13.09.2006 (v0.8.2):
+  - Fixed: bug in resource deallocation for remote admin clients
+
+06.04.2006 (v0.8.1):
+  - Fixed: enableproxy option in server's config file
+  - Added: clients idle time
+  - Added: 'maxidle' option
+  - Modified: task scheduling subsystem has been completely rewritten
+  - Fixed: segmentation fault in http tunnels after multiple simultaneous POST
+	         connections from the same source
+  - Fixed: unexpected connection close when http proxy was too slow
+  - Fixed: SIGSEGV in http proxy mode under cygwin
+  - Added: enabled the SO_KEEPALIVE option for all the sockets used by the apf
+  - Added: 60 seconds timeout for SSL_connect
+	
+04.02.2006 (v0.8):
+  - Fixed: infinite loop after buffering message
+  - Fixed: corrupt packets after closing connections in the stopped state
+  - Fixed: bug in mapping user numbers between afclient and afserver
+  - Fixed: premature close of the service connection
+  - Fixed: invalid buffering when the connection is closing
+  - Added: Multiple tunnels in one afclient<->afserver connection
+
+16.11.2005 (v0.7.5):
+  - Fixed: manageport option in the afclient config file
+  - Fixed: severe bug in string_cp
+  - Fixed: wrong connection type used by afclient when afserver used --nossl
+           or --nozlib option
+  - Fixed: broken keep-alive option
+
+03.11.2005 (v0.7.4):
+  - Fixed: sockets in CLOSE_WAIT state left by afclient
+  - Added: --localname and --localport options
+  - Added: --localdesname option
+  - Added: kicking user in 'opening' state
+  - Fixed: info about kicked user
+  - Fixed: TERM signal handling
+  - Fixed: id lost after reconnection
+  - Fixed: printing wrong client name in 'SSL_accept failed (timeout)' message
+  - Fixed: ignored 'certificate' and 'key' options from config file
+  - Added: config files for afclient
+  - Modified: some options in afserver config file
+
+05.08.2005 (v0.7.2):
+  - Added: http proxy basic authorization
+  - Fixed: logging initialization after some value checking
+  - Fixed: auto-reconnect failure when --nossl option is set
+  - Added: auto-reconnect when afserver is not reachable on start
+  - Added: auto-reconnect after normal afserver quit
+  - Added: per user statistics: idle time, amount of downloaded/uploaded bytes
+           and current download/upload rate
+  - Added: support for https proxies
+  - Added: possibility to bind sockets on different interfaces
+  - Fixed: receiving incomplete headers from afclient
+  - Fixed: close user connections by afclient
+
+03.07.2005 (v0.7.1):
+  - Added: afserver certificate storing and checking
+  - Modified: generating keys and certificate
+  - Fixed: creating apf directory
+  - Fixed: some bugs in proxy tunnel initialization
+
+07.06.2005 (v0.7):
+  - Added: http proxy tunnels between afserver and afclient
+  - Fixed: sigint interception with threads enabled (in http proxy mode)
+  - Fixed: FATAL ERROR in afclient in some situations after close of afserver
+           when http proxy mode is enabled
+  - Added: afclients can connect directly to afserver with enabled proxy mode
+  - Fixed: timeout routine in http proxy tunnels
+  - Added: 'rshow' command in ra mode displays 'tunneltype'
+  - Fixed: printing IP of clients when http proxy mode is enabled
+  - Added: 'tunneltype' per client in ra mode after 'cshow' command
+  - Fixed: closing connection when http proxy mode is enabled
+  - Fixed: threads initialization
+  - Fixed: afserver closing after sigint
+  - Fixed: afclient threads initialization
+  - Added: 'version' option to display program version number
+  - Modified: establishing afclient<->afserver connection
+  - Added: 'keep-alive' option
+  - Fixed: using 'proxyport' without 'proxyname'
+  - Added: auto-reconnect feature to afclient
+  - Added: 'ar-tries' and 'ar-delay' options
+  - Modified: http proxy logging
+  - Fixed: closing connection with afclient after receiving id
+  - Fixed: thread closing due to wrong initialization sequence
+  - Fixed: small bug in initialization process
+  - Heavily Modified: logging routines
+  - Added: audit option
+  - Modified: default dateformat is now ISO 8601
+  - Modified: printing usage
+  - Fixed: bug in threads' initialization in afclient
+  - Added: 'timeout' and 'dateformat' options in ra mode
+  - Modified: empty dateformat disables printing '[] '
+  - Added: 'audit' and 'dnslookups' options in ra mode
+  - Fixed: afserver freeze bug
+  - Added: 'kuser' and 'kclient' options in ra mode
+  - Fixed: bug in starting afclient in ra mode
+  - Added: audit log printed also after kicking the client
+
+11.03.2005 (v0.6):
+  - Fixed: default password incompatibilities from config file
+  - Added: "client's id" option
+  - Lightly Modified: verbose mode
+  - Added: temporary listen ports
+  - Fixed: bug in printing "client's id"
+  - Added: 'dateformat' option to set format of the date in the logs
+  - Modified: command line option and config file behaviour
+  - Added: logging to a socket
+  - Fixed: parsing config file
+  - Fixed: major bug in packet buffering
+  - Added: several clients-users in one realm
+  - Modified: default hostname used by afserver
+  - Modified: server listening behaviour (for clients)
+  - Fixed: bug in checking options values
+  - Modified: verbose mode
+  - Modified: client initial connection to server
+  - Added: connection time / uptime statistics
+  - Added: first version of remote administration (statistics only)
+  - Fixed: major bug in remove_client routine
+  - Added: 'raclients' option
+  - Added: use of automake/autoconf
+  - Added: creating ~/.apf directory
+  - Modified: the way of creating/managing keys/certificates
+  - Added: 'dnslookups' option
+  - Modified: usage functions
+  - Fixed: no handling of missing 'listen' option after 'newrealm' in config file
+  - Added: 'quit' command in remote administration mode
+  - Modified: logging error messages during initialization
+  - Modified: 'newrealm' changed to 'realm' in config file
+  - Added: realm names 
+  - Modified: connection time / uptime
+  - Added: client names / unique numbers
+  - Added: user unique numbers
+  - Fixed: segmentation fault after 'quit' command
+
+19.11.2004 (udp_patch):
+  - Lightly Modified: verbose in client's udp reverse mode
+  - Fixed: major bug in udp protocol forwarding
+
+11.10.2004 (v0.5.5):
+  - Added: rsa key generation by afclient
+  - Modified: afclient is now generating keys by default
+  - Fixed: major bug in packet buffering
+  - Added: 'timeout', 'clients' and 'usrpcli' options
+  - Fixed: parsing 'users' option
+  - Modified: module management routines
+  - Added: module support for service's packet filtering
+  - Fixed: few minor bugs in closing connection routines
+  - Added: possibility to use several clients per realm
+  - Modified: there is no need for 'users', 'timeout', 'clients', 
+              'proto', 'usrpcli' and 'climode' options in config
+              file when default values are acceptable
+  
+26.05.2004 (v0.5.4):
+  - Fixed: default password incompatibilities
+  - Modified: server listening behaviour
+  - Added: module support for client's packet filtering
+  - Modified: client behaviour after unsuccessful connection
+  - Fixed: printing ipv6 addresses
+  - Added: IP protocol family strict choice: 'ipv4' and 'ipv6'
+  - Added: flow control / packet buffering
+  - Fixed: signal handling
+  - Fixed: client freeze in udp reverse mode with zlib enabled
+
+09.01.2004 (v0.5.3):
+  - Added: client password identification (weak)
+  - Added: sigint interception and server closing
+  - Modified: communication between server and client
+  - Added: 'nossl' and 'nozlib' modes
+  - Added: zlib support
+  - Lightly Modified: verbose mode
+  - Modified/Added: help screen and long options support
+  
+06.12.2003 (v0.5.2):
+  - Added: types of realm
+  - Added: logging to a file
+  - Fixed: major bug in communication between server and client
+  - Fixed: deformed packets in udp protocol forwarding
+  
+04.12.2003 (v0.5.1):
+  - Fixed: some data transfer problems
+  - Added: udp protocol tunneling/forwarding
+  - Fixed: bug in parsing the config file
+  - Improved: making connection between server and client
+  - Lightly modified: verbose mode (added double v mode)
+
+23.11.2003 (v0.5):
+  - This is the first release
+  - There are no known major bugs
