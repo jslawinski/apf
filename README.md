@@ -1,5 +1,5 @@
 
-GRAY-WORLD.NET / Active Port Forwarder
+# GRAY-WORLD.NET / Active Port Forwarder
 
   The Active Port Forwarder program is  part  of  the  Gray-World.net  projects.
 
@@ -9,16 +9,14 @@ GRAY-WORLD.NET / Active Port Forwarder
   network security topics.
 
 
-=======
-SUMMARY
-=======
+## SUMMARY
 
 INTRO
 
 1. INSTALLATION
-  1.1 Instructions
-  1.2 Required libs
-  1.3 Tested platforms
+  1. Instructions
+  2. Required libs
+  3. Tested platforms
 2. USAGE
   2.1 afserver
   2.2 afclient
@@ -42,11 +40,8 @@ NOTES
 
 THANKS
 
-================================================================================
 
-=====
-INTRO
-=====
+## INTRO
 
 Active  port  forwarder  is  a  software  tool  for  secure   port   forwarding.
 It uses ssl to increase security of communication between a server and a client.
