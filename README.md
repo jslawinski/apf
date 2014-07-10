@@ -21,12 +21,12 @@ INTRO
   2.1. afserver
   2.2. afclient
 3. REMOTE ADMINISTRATION
-  3.1 Usage
-  3.2 Commands
-  3.3 States
-    3.3.1 Users
-    3.3.2 Clients
-  3.4 Relay mode
+  * 3.1 Usage
+  * 3.2 Commands
+  * 3.3 States
+    * 3.3.1 Users
+    * 3.3.2 Clients
+  * 3.4 Relay mode
 4. HTTP PROXY TUNNELS
 5. LOGGING
 6. MODULES
