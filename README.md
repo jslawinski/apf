@@ -14,12 +14,12 @@
 INTRO
 
 1. INSTALLATION
-  1. Instructions
-  2. Required libs
-  3. Tested platforms
+  * 1.1 Instructions
+  * 1.2 Required libs
+  * 1.3 Tested platforms
 2. USAGE
-  2.1. afserver
-  2.2. afclient
+  * 2.1 afserver
+  * 2.2 afclient
 3. REMOTE ADMINISTRATION
   * 3.1 Usage
   * 3.2 Commands
@@ -32,8 +32,8 @@ INTRO
 6. MODULES
 7. MULTI TUNNELS
 8. EXAMPLES
-  8.1 tcp mode
-  8.2 reverse udp mode
+  * 8.1 tcp mode
+  * 8.2 reverse udp mode
 9. BUGS/PROBLEMS
 
 NOTES
@@ -59,14 +59,10 @@ provides good performance and reasonably small latency.
 
 Multiple clients allow to create more sophisticated tunneling scheme.
 
-================================================================================
 
-===============
-1. INSTALLATION
-===============
+## 1. INSTALLATION
 
-  1.1 Instructions
-  ----------------
+### 1.1 Instructions
 
 1. Download the compressed sources from http://www.gray-world.net/pr_af.shtml
 2. Unpack them with tar zxvf
@@ -76,25 +72,20 @@ Multiple clients allow to create more sophisticated tunneling scheme.
 6. If something goes wrong - mail the author or post a message on
    http://gray-world.net/board/
 
-  1.2 Required libs
-  -----------------
+### 1.2 Required libs
 
 1. openssl   -   http://www.openssl.org/
 2. zlib      -   http://www.gzip.org/zlib/
 
-  1.3 Tested platforms
-  --------------------
+### 1.3 Tested platforms
   
 1. Linux:
   Gentoo, Slackware, Mandrake - built without any problems
 2. Windows:
   win32 - cygwin version is available on the project homepage
   
-================================================================================
 
-========
-2. USAGE
-========
+## 2. USAGE
 
   2.1 afserver
   ------------
