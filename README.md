@@ -1,11 +1,5 @@
-AF - Active Port Forwarder 0.8.4 - README
-Copyright (C) 2003-2007 jeremian - <jeremian [at] poczta.fm>
-=================================================================
-
-================================================================================
 
 GRAY-WORLD.NET / Active Port Forwarder
-======================================
 
   The Active Port Forwarder program is  part  of  the  Gray-World.net  projects.
 
@@ -14,7 +8,6 @@ GRAY-WORLD.NET / Active Port Forwarder
   Access Control System) bypassing  research  field  and  to  the  computer  and
   network security topics.
 
-================================================================================
 
 =======
 SUMMARY
@@ -677,7 +670,7 @@ LICENSE
 
   Active Port Forwarder is distributed  under  the  terms  of  the  GNU  General
   Public License v2.0  and is copyright (C)  2003-2007  jeremian  <jeremian
-  [at] poczta.fm>. See the file COPYING for details.
+  [at] poczta.fm>. See the file LICENSE for details.
 
   In addition, as a special exception, the copyright holders give permission  to
   link the code of portions of this  program  with  the  OpenSSL  library  under
