@@ -8,7 +8,7 @@ afserver_SOURCES = afserver.c network.c file.c stats.c buf_list_node_struct.c bu
 									 audit_list_node_struct.c audit_list_struct.c connect_client_struct.c timeval_functions.c \
 									 header_buffer_struct.c server_realm_struct.c server_configuration_struct.c file_server.c \
 									 task_struct.c task_list_node_struct.c task_scheduler_struct.c remove_client_task.c
-afclient_LDFLAGS = ${USE_RDYNAMIC} ${LINKED_LDLIB}
+afclient_LDFLAGS = ${USE_RDYNAMIC}
 afclient_SOURCES = afclient.c network.c file.c stats.c buf_list_node_struct.c buf_list_struct.c \
 									 module_struct.c client_remoteadmin.c make_ssl_handshake.c first_run.c inet_ntop.c \
 									 http_proxy_functions.c http_proxy_client.c http_proxy_options_struct.c \

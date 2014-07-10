@@ -58,15 +58,13 @@ AC_CHECK_LIB([z], [compress], [],
               ])
 AC_CHECK_LIB([dl], [dlopen],
              [
-              LINKED_LDLIB="-ldl"
+              LIBS="-ldl  $LIBS"
               USE_RDYNAMIC="-rdynamic"
               AC_DEFINE(HAVE_LIBDL, 1, [Define to 1 if you have the `dl' library (-ldl).])
               ],
               [
-               LINKED_LDLIB=""
                USE_RDYNAMIC=""
                ])
-AC_SUBST(LINKED_LDLIB)
 AC_SUBST(USE_RDYNAMIC)
 AC_CHECK_LIB([pthread], [pthread_create], [], [])
 AC_CHECK_LIB([socket], [socket], [], [])
