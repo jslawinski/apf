@@ -18,8 +18,8 @@ INTRO
   2. Required libs
   3. Tested platforms
 2. USAGE
-  2.1 afserver
-  2.2 afclient
+  2.1. afserver
+  2.2. afclient
 3. REMOTE ADMINISTRATION
   3.1 Usage
   3.2 Commands
