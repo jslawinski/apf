@@ -708,7 +708,7 @@ main(int argc, char **argv)
 
     certif = ClientConfiguration_get_certificateFile(cconfig);
     if (certif) {
-      if (SSL_CTX_use_certificate_file(ctx, certif, SSL_FILETYPE_PEM) != 1) {
+      if (SSL_CTX_use_certificate_chain_file(ctx, certif) != 1) {
         aflog(LOG_T_INIT, LOG_I_CRIT,
             "Setting certificate failed (%s)... exiting", certif);
         exit(1);
