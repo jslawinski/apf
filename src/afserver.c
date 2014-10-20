@@ -515,8 +515,17 @@ main(int argc, char **argv)
 	maxfdp1 = 0;
 	
 	SSL_library_init();
-	method = SSLv3_server_method();
+
+        /* Trust the clients to use whatever the latest/best SSL/TLS protocol
+           they can. This should generally mean that security automatically
+           improves as the server and client deployments upgrade to later
+           OpenSSL releases--without breaking older client deployments
+           that, for whatever reason, can't be immediately upgraded to
+           the latest APF/OpenSSL versions used on the server.
+        */
+	method = SSLv23_server_method();
 	ctx = SSL_CTX_new(method);
+
 	if (SSL_CTX_set_cipher_list(ctx, "ALL:@STRENGTH") == 0) {
 		aflog(LOG_T_INIT, LOG_I_CRIT,
         "Setting ciphers list failed... exiting");
