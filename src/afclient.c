@@ -673,8 +673,17 @@ main(int argc, char **argv)
   
   if (ClientRealm_get_clientMode(pointer) != CLIENTREALM_MODE_REVERSE) {
     SSL_library_init();
-    method = SSLv3_client_method();
+
+    /* Use the latest TLS version we can: */
+    method = SSLv23_client_method();
     ctx = SSL_CTX_new(method);
+    /* Both SSLv2 and SSLv3 are broken--refuse to use them;
+       this should get us at least some version of TLS,
+       ideally whatever the best both our OpenSSL library
+       and the server's OpenSSL library can support:
+    */
+    SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3);
+
     if (SSL_CTX_set_cipher_list(ctx, "ALL:@STRENGTH") == 0) {
       aflog(LOG_T_INIT, LOG_I_CRIT,
           "Setting cipher list failed... exiting");
