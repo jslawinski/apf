@@ -1465,9 +1465,10 @@ main(int argc, char **argv)
                         continue;
                       }
               default: {
-                         aflog(LOG_T_CLIENT, LOG_I_DEBUG,
-                             "realm[%s]: new Client[%s]: ACCEPTED by SSL_accept",
-                             get_realmname(config, j), get_clientname(pointer, k));
+                         aflog(LOG_T_CLIENT, LOG_I_DEBUG, "realm[%s]: new Client[%s]: ACCEPTED by SSL_accept[%s]",
+                               get_realmname(config, j),
+                               get_clientname(pointer, k),
+                               SSL_get_version(SslFd_get_ssl(ConnectClient_get_sslFd(srClientsTable[k]))));
                          ConnectClient_set_state(srClientsTable[k], CONNECTCLIENT_STATE_AUTHORIZING);
                          continue;
                        }
@@ -2145,9 +2146,10 @@ main(int argc, char **argv)
                         continue;
                       }
               default: {
-                         aflog(LOG_T_MANAGE, LOG_I_DEBUG,
-                             "realm[%s]: new Client[%s] (ra): ACCEPTED by SSL_accept",
-                             get_realmname(config, j), get_raclientname(pointer, k));
+                         aflog(LOG_T_MANAGE, LOG_I_DEBUG, "realm[%s]: new Client[%s] (ra): ACCEPTED by SSL_accept[%s]",
+                               get_realmname(config, j),
+                               get_raclientname(pointer, k),
+                               SSL_get_version(SslFd_get_ssl(ConnectClient_get_sslFd(srClientsTable[k]))));
                          ConnectClient_set_state(srRaClientsTable[k], CONNECTCLIENT_STATE_AUTHORIZING);
                          continue;
                        }
