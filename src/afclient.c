@@ -837,10 +837,12 @@ main(int argc, char **argv)
 	
   aflog(LOG_T_CLIENT, LOG_I_INFO,
       "CLIENT STARTED mode: %s", (ClientRealm_get_clientMode(pointer) == CLIENTREALM_MODE_UDP) ? "udp" : "tcp");
-  aflog(LOG_T_CLIENT, LOG_I_INFO,
-      "SERVER SSL: %s, ZLIB: %s, MODE: %s", (TYPE_IS_SSL(ClientRealm_get_realmType(pointer))) ? "yes" : "no",
-      (TYPE_IS_ZLIB(ClientRealm_get_realmType(pointer))) ? "yes" : "no",
-      (TYPE_IS_TCP(ClientRealm_get_realmType(pointer))) ? "tcp" : "udp");
+  aflog(LOG_T_CLIENT, LOG_I_INFO, "SERVER SSL: %s, ZLIB: %s, MODE: %s",
+        (TYPE_IS_SSL(ClientRealm_get_realmType(pointer)) ?
+         SSL_get_version(SslFd_get_ssl(ClientRealm_get_masterSslFd(pointer)))
+         : "no"),
+        (TYPE_IS_ZLIB(ClientRealm_get_realmType(pointer))) ? "yes" : "no",
+        (TYPE_IS_TCP(ClientRealm_get_realmType(pointer))) ? "tcp" : "udp");
   aflog(LOG_T_CLIENT, LOG_I_INFO,
       "SERVER MULTI: %s", (TYPE_IS_SUPPORTED_MULTI(ClientRealm_get_realmType(pointer))) ? "yes" : "no");
   aflog(LOG_T_CLIENT, LOG_I_NOTICE,
