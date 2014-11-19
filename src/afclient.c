@@ -124,7 +124,7 @@ main(int argc, char **argv)
 #ifdef HAVE_LIBDL
   Module *moduleA = Module_new(), *moduleB = Module_new();
 #endif
-  SSL_METHOD* method;
+  const SSL_METHOD* method;
   SSL_CTX* ctx = NULL;
 
   /*

@@ -118,7 +118,7 @@ main(int argc, char **argv)
   char* dateformat = NULL;
   static char* stemp = NULL;
 
-	SSL_METHOD* method;
+  const SSL_METHOD* method;
 	SSL_CTX* ctx;
   SSL* tmp_ssl;
 	
