@@ -119,7 +119,6 @@ main(int argc, char **argv)
   static char* stemp = NULL;
 
   const SSL_METHOD* method;
-	SSL_CTX* ctx;
   SSL* tmp_ssl;
 	
 	sigfillset(&(act.sa_mask));
@@ -349,12 +348,6 @@ main(int argc, char **argv)
       else {
         ServerConfiguration_set_certificateFile(config, certif);
       }
-      if (cacertif != NULL) {
-        ServerConfiguration_set_cacertificateFile(config, cacertif);
-      }
-      if (cerdepth != NULL) {
-          ServerConfiguration_set_sCertificateDepth(config, cerdepth);
-      }
       if (keys == NULL) {
         if (ServerConfiguration_get_keysFile(config) == NULL) {
           ServerConfiguration_set_keysFile(config, "server.rsa");
@@ -395,8 +388,6 @@ main(int argc, char **argv)
       exit(1);
     }
     ServerConfiguration_set_certificateFile(config, certif);
-    ServerConfiguration_set_cacertificateFile(config, cacertif);
-    ServerConfiguration_set_sCertificateDepth(config, cerdepth);
     ServerConfiguration_set_keysFile(config, keys);
     ServerConfiguration_set_dateFormat(config, dateformat);
 
@@ -475,6 +466,9 @@ main(int argc, char **argv)
     ServerRealm_set_dnsLookupsOn(pointer, dnslookups);
     ServerRealm_set_realmName(pointer, realmname);
     ServerRealm_set_password(pointer, pass);
+    ServerRealm_set_cacertificateFile(pointer, cacertif);
+    ServerRealm_set_sCertificateDepth(pointer, cerdepth);
+
 		if (strcmp(type, "tcp") == 0) {
       temp = ServerRealm_get_realmType(pointer);
 			TYPE_SET_TCP(temp);
@@ -524,13 +518,7 @@ main(int argc, char **argv)
            the latest APF/OpenSSL versions used on the server.
         */
 	method = SSLv23_server_method();
-	ctx = SSL_CTX_new(method);
 
-	if (SSL_CTX_set_cipher_list(ctx, "ALL:@STRENGTH") == 0) {
-		aflog(LOG_T_INIT, LOG_I_CRIT,
-        "Setting ciphers list failed... exiting");
-		exit(1);
-	}
   if ((flags = create_apf_dir(0))) {
     aflog(LOG_T_INIT, LOG_I_WARNING,
         "Warning: Creating ~/.apf directory failed (%d)", flags);
@@ -545,45 +533,12 @@ main(int argc, char **argv)
         "Warning: Something bad happened when generating rsa keys... (%d)", flags);
   }
   ServerConfiguration_set_keysFile(config, keys);
-	if (SSL_CTX_use_RSAPrivateKey_file(ctx, ServerConfiguration_get_keysFile(config), SSL_FILETYPE_PEM) != 1) {
-    aflog(LOG_T_INIT, LOG_I_CRIT,
-        "Setting rsa key failed (%s)... exiting", ServerConfiguration_get_keysFile(config));
-    exit(1);
-  }
   certif = ServerConfiguration_get_certificateFile(config);
   if ((flags = generate_certificate(&certif, ServerConfiguration_get_keysFile(config)))) {
     aflog(LOG_T_INIT, LOG_I_WARNING,
         "Warning: Something bad happened when generating certificate... (%d)", flags);
   }
   ServerConfiguration_set_certificateFile(config, certif);
-	if (SSL_CTX_use_certificate_file(ctx,
-        ServerConfiguration_get_certificateFile(config), SSL_FILETYPE_PEM) != 1) {
-		aflog(LOG_T_INIT, LOG_I_CRIT,
-        "Setting certificate failed (%s)... exiting", ServerConfiguration_get_certificateFile(config));
-		exit(1);
-	}
-
-        cacertif = ServerConfiguration_get_cacertificateFile(config);
-        if (cacertif) {
-          if (SSL_CTX_load_verify_locations(ctx,
-                                            cacertif,
-                                            NULL)
-              != 1)
-          {
-            aflog(LOG_T_INIT, LOG_I_CRIT,
-                  "Setting CA certificate failed (%s)... exiting", cacertif);
-            exit(1);
-          }
-
-          SSL_CTX_set_verify (ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
-                              NULL);
-
-          cerdepth = ServerConfiguration_get_sCertificateDepth (config);
-          if (cerdepth == NULL) {
-              cerdepth = "9";
-          }
-          SSL_CTX_set_verify_depth(ctx, check_value_liberal (cerdepth, "Invalid max certificate-depth"));
-        }
 
 	if (ServerConfiguration_get_realmsNumber(config) == 0) {
 		aflog(LOG_T_INIT, LOG_I_CRIT,
@@ -622,6 +577,64 @@ main(int argc, char **argv)
   			exit(1);
   		}
     }
+
+
+    /* Set up an SSL context for this realm, which may or may not use
+       a realm-specific CA to authenticate clients:
+    */
+    ServerRealm_set_SslCtx(scRealmsTable[i], SSL_CTX_new(method));
+    if (SSL_CTX_set_cipher_list(ServerRealm_get_SslCtx (scRealmsTable[i]),
+                                "ALL:@STRENGTH")
+        == 0)
+    {
+            aflog(LOG_T_INIT, LOG_I_CRIT,
+    "Setting ciphers list failed... exiting");
+            exit(1);
+    }
+
+    if (SSL_CTX_use_RSAPrivateKey_file(ServerRealm_get_SslCtx (scRealmsTable[i]),
+                                       ServerConfiguration_get_keysFile(config),
+                                       SSL_FILETYPE_PEM)
+        != 1)
+    {
+      aflog(LOG_T_INIT, LOG_I_CRIT, "Setting rsa key failed (%s)... exiting",
+            ServerConfiguration_get_keysFile(config));
+      exit(1);
+    }
+    if (SSL_CTX_use_certificate_file(ServerRealm_get_SslCtx (scRealmsTable[i]),
+                                     ServerConfiguration_get_certificateFile(config),
+                                     SSL_FILETYPE_PEM)
+        != 1)
+    {
+            aflog(LOG_T_INIT, LOG_I_CRIT, "Setting certificate failed (%s)... exiting",
+                  ServerConfiguration_get_certificateFile(config));
+            exit(1);
+    }
+
+    cacertif = ServerRealm_get_cacertificateFile(scRealmsTable[i]);
+    if (cacertif) {
+      if (SSL_CTX_load_verify_locations(ServerRealm_get_SslCtx (scRealmsTable[i]),
+                                        cacertif, NULL)
+          != 1)
+      {
+        aflog(LOG_T_INIT, LOG_I_CRIT,
+              "Setting CA certificate failed (%s)... exiting", cacertif);
+        exit(1);
+      }
+
+      SSL_CTX_set_verify (ServerRealm_get_SslCtx (scRealmsTable[i]),
+                          SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
+                          NULL);
+
+      cerdepth = ServerRealm_get_sCertificateDepth (scRealmsTable[i]);
+      if (cerdepth == NULL) {
+          cerdepth = "9";
+      }
+      SSL_CTX_set_verify_depth(ServerRealm_get_SslCtx (scRealmsTable[i]),
+                               check_value_liberal (cerdepth, "Invalid max certificate-depth"));
+    }
+
+
     /* checking type of the realm */
     if (!TYPE_IS_SET(ServerRealm_get_realmType(scRealmsTable[i]))) {
       if (type != NULL) {
@@ -881,7 +894,7 @@ main(int argc, char **argv)
                           ServerRealm_get_clientsLimit(scRealmsTable[i]) +
                           ServerRealm_get_raClientsLimit(scRealmsTable[i]),
                           (ServerRealm_get_tunnelType(scRealmsTable[i]) - 1),
-                          ctx)) {
+                          ServerRealm_get_SslCtx(scRealmsTable[i]))) {
                       aflog(LOG_T_INIT, LOG_I_CRIT,
 #ifdef AF_INET6
                           "http%s_proxy_listen_%s error for %s, %s",
@@ -925,7 +938,8 @@ main(int argc, char **argv)
     }
 		
     for (j = 0; j < ServerRealm_get_clientsLimit(scRealmsTable[i]); ++j) {
-      SslFd_set_ssl(ConnectClient_get_sslFd(srClientsTable[j]), SSL_new(ctx));
+      SslFd_set_ssl(ConnectClient_get_sslFd(srClientsTable[j]),
+                    SSL_new(ServerRealm_get_SslCtx(scRealmsTable[i])));
   		if (SslFd_get_ssl(ConnectClient_get_sslFd(srClientsTable[j])) == NULL) {
   			aflog(LOG_T_INIT, LOG_I_CRIT,
             "Creation of ssl object failed... exiting");
@@ -934,7 +948,8 @@ main(int argc, char **argv)
     }
     
     for (j = 0; j < ServerRealm_get_raClientsLimit(scRealmsTable[i]); ++j) {
-      SslFd_set_ssl(ConnectClient_get_sslFd(srRaClientsTable[j]), SSL_new(ctx));
+      SslFd_set_ssl(ConnectClient_get_sslFd(srRaClientsTable[j]),
+                    SSL_new(ServerRealm_get_SslCtx(scRealmsTable[i])));
   		if (SslFd_get_ssl(ConnectClient_get_sslFd(srRaClientsTable[j])) == NULL) {
   			aflog(LOG_T_INIT, LOG_I_CRIT,
             "Creation of ssl object failed... exiting");
@@ -1449,7 +1464,7 @@ main(int argc, char **argv)
                         /* This SSL-object is busted; don't reuse it
                            (SSL_clear isn't sufficient because ssl->new_session is set): */
                         SslFd_set_ssl(ConnectClient_get_sslFd(srClientsTable[k]),
-                                      SSL_new (ctx));
+                                      SSL_new (ServerRealm_get_SslCtx(pointer)));
 
                         ConnectClient_set_state(srClientsTable[k], CONNECTCLIENT_STATE_FREE);
                         if ((task = ConnectClient_get_task(srClientsTable[k]))) {

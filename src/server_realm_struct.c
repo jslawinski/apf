@@ -98,6 +98,18 @@ ServerRealm_free(ServerRealm** sr)
     free((*sr)->realmName);
     (*sr)->realmName = NULL;
   }
+  if ((*sr)->cacertificateFile) {
+    free((*sr)->cacertificateFile);
+    (*sr)->cacertificateFile = NULL;
+  }
+  if ((*sr)->cacertificatePath) {
+    free((*sr)->cacertificatePath);
+    (*sr)->cacertificatePath = NULL;
+  }
+  if ((*sr)->sCertificateDepth) {
+    free((*sr)->sCertificateDepth);
+    (*sr)->sCertificateDepth = NULL;
+  }
   if ((*sr)->clientAddress) {
     free((*sr)->clientAddress);
     (*sr)->clientAddress = NULL;
@@ -310,6 +322,76 @@ ServerRealm_set_password(ServerRealm* sr, unsigned char* password)
     return;
   }
   memcpy(sr->password, password, 4);
+}
+
+/*
+ * Function name: ServerRealm_set_SslCtx
+ * Description: Set SSL context
+ * Arguments: sr - pointer to ServerRealm structure
+ *            ctx - pointer to SSL_CTX object
+ */
+void
+ServerRealm_set_SslCtx(ServerRealm* sr, SSL_CTX* ctx)
+{
+  assert(sr != NULL);
+  if (sr == NULL) {
+    return;
+  }
+
+  sr->sslCtx = ctx;
+}
+
+/*
+ * Function name: ServerRealm_set_cacertificateFile
+ * Description: Set CA certificate filename.
+ * Arguments: sr - pointer to ServerRealm structure
+ *            certificateFile - CA certificate filename
+ */
+
+void
+ServerRealm_set_cacertificateFile(ServerRealm* sr, char* cacertificateFile)
+{
+  assert(sr != NULL);
+  if (sr == NULL) {
+    return;
+  }
+  string_cp(&(sr->cacertificateFile), cacertificateFile);
+}
+
+/*
+ * Function name: ServerRealm_set_cacertificatePath
+ * Description: Set CA certificate filename.
+ * Arguments: sr - pointer to ServerRealm structure
+ *            cacertificateFile - CA certificate path
+ */
+
+void
+ServerRealm_set_cacertificatePath(ServerRealm* sr, char* cacertificatePath)
+{
+  assert(sr != NULL);
+  if (sr == NULL) {
+    return;
+  }
+  string_cp(&(sr->cacertificatePath), cacertificatePath);
+}
+
+void
+ServerRealm_set_sCertificateDepth(ServerRealm* sr, char* sCertificateDepth)
+{
+  assert(sr != NULL);
+  if (sr == NULL) {
+    return;
+  }
+  string_cp(&(sr->sCertificateDepth), sCertificateDepth);
+}
+void
+ServerRealm_set_certificateDepth(ServerRealm* sr, int certificateDepth)
+{
+  assert(sr != NULL);
+  if (sr == NULL) {
+    return;
+  }
+  sr->certificateDepth = certificateDepth;
 }
 
 /*
@@ -932,6 +1014,77 @@ ServerRealm_get_password(ServerRealm* sr)
     return NULL;
   }
   return sr->password;
+}
+
+/*
+ * Function name: ServerRealm_get_SslCtx
+ * Description: Get SSL context
+ * Arguments: sr - pointer to ServerRealm structure
+ * Returns: pointer to SSL_CTX object
+ */
+SSL_CTX*
+ServerRealm_get_SslCtx(ServerRealm* sr)
+{
+  assert(sr != NULL);
+  if (sr == NULL) {
+    return NULL;
+  }
+
+  return sr->sslCtx;
+}
+
+/*
+ * Function name: ServerRealm_get_cacertificateFile
+ * Description: Get CA certificate filename.
+ * Arguments: sc - pointer to ServerRealm structure
+ * Returns: CA Certificate filename.
+ */
+
+char*
+ServerRealm_get_cacertificateFile(ServerRealm* sr)
+{
+  assert(sr != NULL);
+  if (sr == NULL) {
+    return NULL;
+  }
+  return sr->cacertificateFile;
+}
+
+/*
+ * Function name: ServerRealm_get_cacertificatePath
+ * Description: Get CA certificate path
+ * Arguments: sr - pointer to ServerRealm structure
+ * Returns: CA Certificate path.
+ */
+
+char*
+ServerRealm_get_cacertificatePath(ServerRealm* sr)
+{
+  assert(sr != NULL);
+  if (sr == NULL) {
+    return NULL;
+  }
+  return sr->cacertificatePath;
+}
+
+char*
+ServerRealm_get_sCertificateDepth(ServerRealm* sr)
+{
+  assert(sr != NULL);
+  if (sr == NULL) {
+    return NULL;
+  }
+  return sr->sCertificateDepth;
+}
+
+int
+ServerRealm_get_certificateDepth(ServerRealm* sr)
+{
+  assert(sr != NULL);
+  if (sr == NULL) {
+    return -1;
+  }
+  return sr->certificateDepth;
 }
 
 /*

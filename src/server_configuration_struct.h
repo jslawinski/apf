@@ -25,10 +25,6 @@
 #include "server_realm_struct.h"
 
 typedef struct {
-  char* cacertificateFile;
-  char* cacertificatePath;
-  char* sCertificateDepth;
-  int certificateDepth;
   char* certificateFile;
   char* keysFile;
   char* dateFormat;
@@ -43,10 +39,6 @@ ServerConfiguration* ServerConfiguration_new();
 void ServerConfiguration_free(ServerConfiguration** sc);
 /* setters */
 void ServerConfiguration_set_certificateFile(ServerConfiguration* sc, char* certificateFile);
-void ServerConfiguration_set_cacertificateFile(ServerConfiguration* sc, char* cacertificateFile);
-void ServerConfiguration_set_cacertificatePath(ServerConfiguration* sc, char* cacertificatePath);
-void ServerConfiguration_set_sCertificateDepth(ServerConfiguration* sc, char* sCertificateDepth);
-void ServerConfiguration_set_certificateDepth(ServerConfiguration* sc, int certificateDepth);
 void ServerConfiguration_set_keysFile(ServerConfiguration* sc, char* keysFile);
 void ServerConfiguration_set_dateFormat(ServerConfiguration* sc, char* dateFormat);
 void ServerConfiguration_set_realmsNumber(ServerConfiguration* sc, int realmsNumber);
@@ -54,10 +46,6 @@ void ServerConfiguration_set_startTime(ServerConfiguration* sc, time_t startTime
 void ServerConfiguration_set_realmsTable(ServerConfiguration* sc, ServerRealm** realmsTable);
 /* getters */
 char* ServerConfiguration_get_certificateFile(ServerConfiguration* sc);
-char* ServerConfiguration_get_cacertificateFile(ServerConfiguration* sc);
-char* ServerConfiguration_get_cacertificatePath(ServerConfiguration* sc);
-char* ServerConfiguration_get_sCertificateDepth(ServerConfiguration* sc);
-int ServerConfiguration_get_certificateDepth(ServerConfiguration* sc);
 char* ServerConfiguration_get_keysFile(ServerConfiguration* sc);
 char* ServerConfiguration_get_dateFormat(ServerConfiguration* sc);
 int ServerConfiguration_get_realmsNumber(ServerConfiguration* sc);

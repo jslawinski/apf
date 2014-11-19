@@ -66,18 +66,6 @@ ServerConfiguration_free(ServerConfiguration** sc)
     free((*sc)->certificateFile);
     (*sc)->certificateFile = NULL;
   }
-  if ((*sc)->cacertificateFile) {
-    free((*sc)->cacertificateFile);
-    (*sc)->cacertificateFile = NULL;
-  }
-  if ((*sc)->cacertificatePath) {
-    free((*sc)->cacertificatePath);
-    (*sc)->cacertificatePath = NULL;
-  }
-  if ((*sc)->sCertificateDepth) {
-    free((*sc)->sCertificateDepth);
-    (*sc)->sCertificateDepth = NULL;
-  }
   if ((*sc)->keysFile) {
     free((*sc)->keysFile);
     (*sc)->keysFile = NULL;
@@ -114,59 +102,6 @@ ServerConfiguration_set_certificateFile(ServerConfiguration* sc, char* certifica
     return;
   }
   string_cp(&(sc->certificateFile), certificateFile);
-}
-
-/*
- * Function name: ServerConfiguration_set_cacertificateFile
- * Description: Set CA certificate filename.
- * Arguments: sc - pointer to ServerConfiguration structure
- *            certificateFile - CA certificate filename
- */
-
-void
-ServerConfiguration_set_cacertificateFile(ServerConfiguration* sc, char* cacertificateFile)
-{
-  assert(sc != NULL);
-  if (sc == NULL) {
-    return;
-  }
-  string_cp(&(sc->cacertificateFile), cacertificateFile);
-}
-
-/*
- * Function name: ServerConfiguration_set_cacertificatePath
- * Description: Set CA certificate filename.
- * Arguments: sc - pointer to ServerConfiguration structure
- *            cacertificateFile - CA certificate path
- */
-
-void
-ServerConfiguration_set_cacertificatePath(ServerConfiguration* sc, char* cacertificatePath)
-{
-  assert(sc != NULL);
-  if (sc == NULL) {
-    return;
-  }
-  string_cp(&(sc->cacertificatePath), cacertificatePath);
-}
-
-void
-ServerConfiguration_set_sCertificateDepth(ServerConfiguration* sc, char* sCertificateDepth)
-{
-  assert(sc != NULL);
-  if (sc == NULL) {
-    return;
-  }
-  string_cp(&(sc->sCertificateDepth), sCertificateDepth);
-}
-void
-ServerConfiguration_set_certificateDepth(ServerConfiguration* sc, int certificateDepth)
-{
-  assert(sc != NULL);
-  if (sc == NULL) {
-    return;
-  }
-  sc->certificateDepth = certificateDepth;
 }
 
 /*
@@ -279,60 +214,6 @@ ServerConfiguration_get_certificateFile(ServerConfiguration* sc)
     return NULL;
   }
   return sc->certificateFile;
-}
-
-/*
- * Function name: ServerConfiguration_get_cacertificateFile
- * Description: Get CA certificate filename.
- * Arguments: sc - pointer to ServerConfiguration structure
- * Returns: CA Certificate filename.
- */
-
-char*
-ServerConfiguration_get_cacertificateFile(ServerConfiguration* sc)
-{
-  assert(sc != NULL);
-  if (sc == NULL) {
-    return NULL;
-  }
-  return sc->cacertificateFile;
-}
-
-/*
- * Function name: ServerConfiguration_get_cacertificatePath
- * Description: Get CA certificate path
- * Arguments: sc - pointer to ServerConfiguration structure
- * Returns: CA Certificate path.
- */
-
-char*
-ServerConfiguration_get_cacertificatePath(ServerConfiguration* sc)
-{
-  assert(sc != NULL);
-  if (sc == NULL) {
-    return NULL;
-  }
-  return sc->cacertificatePath;
-}
-
-char*
-ServerConfiguration_get_sCertificateDepth(ServerConfiguration* sc)
-{
-  assert(sc != NULL);
-  if (sc == NULL) {
-    return NULL;
-  }
-  return sc->sCertificateDepth;
-}
-
-int
-ServerConfiguration_get_certificateDepth(ServerConfiguration* sc)
-{
-  assert(sc != NULL);
-  if (sc == NULL) {
-    return -1;
-  }
-  return sc->certificateDepth;
 }
 
 /*
