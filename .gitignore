@@ -23,3 +23,12 @@
 *.hex
 /src/afclient
 /src/afserver
+
+# Autotools-generated files:
+/autom4te.cache
+/config.log
+/config.status
+/config.h
+/stamp-h1
+Makefile
+.deps
