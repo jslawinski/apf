@@ -28,6 +28,8 @@
 #include "logging.h"
 #include "server_configuration_struct.h"
 
+#include <time.h>
+
 extern ServerConfiguration* config;
 
 /*
@@ -77,7 +79,12 @@ server_sig_int(int signo)
   }
 
   /* FIXME: give a time to close all connections */
-  mysleep(0.1);
+  {
+    struct timespec ts;
+    ts.tv_sec = 0;
+    ts.tv_nsec = 100000000;
+    nanosleep(&ts, NULL);
+  }
 
   aflog(LOG_T_MAIN, LOG_I_NOTICE,
       "SERVER CLOSED cg: %ld bytes", getcg());

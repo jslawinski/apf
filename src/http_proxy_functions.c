@@ -51,21 +51,6 @@ myrand(int down, int up)
 }
 
 /*
- * Function name: mysleep
- * Description: Sleeps for the given amount of milliseconds.
- * Arguments: time - the amount of milliseconds to sleep for
- */
-
-void
-mysleep(double time)
-{
-	struct timeval tv;
-	tv.tv_sec = (int) time;
-	tv.tv_usec = (int)(time * 1000000)%1000000;
-	select(0, NULL, NULL, NULL, &tv);
-}
-
-/*
  * Function name: delete_user
  * Description: Deletes the user's connection from the http proxy connections.
  * Arguments: cnts - the connection to remove

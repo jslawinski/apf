@@ -72,7 +72,6 @@ typedef struct {
 } connection;
 
 int myrand(int, int);
-void mysleep(double);
 int parse_header(SslFd*, char*, header*, char);
 int read_message(int, int, connection*, char*, int);
 void delete_user(connection*, int, fd_set*);

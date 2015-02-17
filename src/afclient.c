@@ -22,6 +22,8 @@
 
 #include "afclient.h"
 
+#include <unistd.h>
+
 static struct option long_options[] = {
   {"help", 0, 0, 'h'},
   {"udpmode", 0, 0, 'u'},
@@ -825,7 +827,7 @@ main(int argc, char **argv)
     if ((i != 0) && (temp == 1)) {
       aflog(LOG_T_INIT, LOG_I_INFO,
           "Trying to reconnect...");
-      mysleep(ArOptions_get_arDelay(ClientRealm_get_arOptions(pointer)));
+      sleep(ArOptions_get_arDelay(ClientRealm_get_arOptions(pointer)));
       ClientRealm_set_realmType(pointer, realmType);
     }
     if (temp == 0) {
@@ -1140,7 +1142,7 @@ main(int argc, char **argv)
           ClientRealm_closeUsersConnections(pointer);
           close(SslFd_get_fd(ClientRealm_get_masterSslFd(pointer)));
           SslFd_set_ssl(ClientRealm_get_masterSslFd(pointer), NULL);
-          mysleep(ArOptions_get_arDelay(ClientRealm_get_arOptions(pointer)));
+          sleep(ArOptions_get_arDelay(ClientRealm_get_arOptions(pointer)));
           aflog(LOG_T_CLIENT, LOG_I_INFO,
               "Trying to reconnect...");
           
@@ -1428,7 +1430,7 @@ main(int argc, char **argv)
             ClientRealm_closeUsersConnections(pointer);
             close(SslFd_get_fd(ClientRealm_get_masterSslFd(pointer)));
             SslFd_set_ssl(ClientRealm_get_masterSslFd(pointer), NULL);
-            mysleep(ArOptions_get_arDelay(ClientRealm_get_arOptions(pointer)));
+            sleep(ArOptions_get_arDelay(ClientRealm_get_arOptions(pointer)));
             aflog(LOG_T_CLIENT, LOG_I_INFO,
                 "Trying to reconnect...");
           
