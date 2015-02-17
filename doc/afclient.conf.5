@@ -20,7 +20,7 @@ are ignored. Options from configuration file are taken before values from comman
 .IR --storefile ,
 .IR --dateformat ,
 .IR --ignorepkeys
-and the options connected with http proxy and auto-reconnect support). When something is not declared, hard-coded values are used.
+and the options connected with auto-reconnect support). When something is not declared, hard-coded values are used.
 
 .SH DESCRIPTION
 .B Afclient
@@ -117,21 +117,6 @@ is running
 
 .B Load FILE
   load a module for service's packets filtering
-
-.B use-https
-  use https proxy instead of http proxy
-
-.B proxyname NAME
-  the name of the machine with proxy server
-
-.B proxyport PORT
-  the port used by proxy server (default: 8080)
-
-.B pa-cred  U:P
-  the user (U) and password (P) used in proxy authorization
-
-.B pa-t-basic
-  the Basic type of proxy authorization (default)
 
 .SH "SEE ALSO"
 

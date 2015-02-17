@@ -54,12 +54,6 @@ static struct option long_options[] = {
 	{"baseport", 0, 0, 'b'},
 	{"dnslookups", 0, 0, 311},
 	{"dateformat", 1, 0, 'D'},
-#ifdef HAVE_LIBPTHREAD
-	{"enableproxy", 0, 0, 'P'},
-  /* FIXME: don't need it now
-	{"use-https", 0, 0, 'S'},
-  */
-#endif
 	{"version", 0, 0, 'V'},
 	{0, 0, 0, 0}
 };
@@ -93,9 +87,6 @@ main(int argc, char **argv)
 	unsigned char pass[4] = {1, 2, 3, 4};
 	char verbose = 0;
 	char mode = 0;
-#ifdef HAVE_LIBPTHREAD
-  char tunneltype = 0;
-#endif
 	char ipfam = 0;
   char baseport = 0;
   char audit = 0;
@@ -133,27 +124,15 @@ main(int argc, char **argv)
 	TYPE_SET_SSL(mode);
 	TYPE_SET_ZLIB(mode);
   TYPE_SET_SUPPORTED_MULTI(mode);
-  
-#ifdef HAVE_LIBPTHREAD
-  remember_mainthread();
-#endif
 
 #ifdef AF_INET6
 #define GETOPT_LONG_AF_INET6(x) "46"x
 #else
 #define GETOPT_LONG_AF_INET6(x) x
 #endif
-#ifdef HAVE_LIBPTHREAD
-/* FIXME: 'S' option is not needed now
-#define GETOPT_LONG_LIBPTHREAD(x) "PS"x
-*/
-#define GETOPT_LONG_LIBPTHREAD(x) "P"x
-#else
-#define GETOPT_LONG_LIBPTHREAD(x) x
-#endif
-  
+ 
   while ((n = getopt_long(argc, argv,
-          GETOPT_LONG_LIBPTHREAD(GETOPT_LONG_AF_INET6("hn:l:m:vu:c:A:d:k:f:p:o:t:C:U:M:abD:R:r:V"))
+          GETOPT_LONG_AF_INET6("hn:l:m:vu:c:A:d:k:f:p:o:t:C:U:M:abD:R:r:V")
           , long_options, 0)) != -1) {
     switch (n) {
       case 'h': {
@@ -293,30 +272,6 @@ main(int argc, char **argv)
                   dateformat = optarg;
                   break;
                 }
-#ifdef HAVE_LIBPTHREAD
-      case 'P': {
-                  if ((tunneltype < 0) || (tunneltype > 2)) {
-                    tunneltype = -1;
-                  }
-                  else {
-                    if (tunneltype != 2) {
-                      tunneltype = 1;
-                    }
-                  }
-                  break;
-                }
-                /* FIXME: don't need it now
-      case 'S': {
-                  if ((tunneltype < 0) || (tunneltype > 2)) {
-                    tunneltype = -1;
-                  }
-                  else {
-                    tunneltype = 2;
-                  }
-                  break;
-                }
-                */
-#endif
       case 'V': {
                   printf("%s\n", (AF_VER("Active port forwarder (server)")));
                   exit(0);
@@ -460,9 +415,6 @@ main(int argc, char **argv)
     ServerRealm_set_sClientMode(pointer, clim);
     ServerRealm_set_basePortOn(pointer, baseport);
     ServerRealm_set_auditOn(pointer, audit);
-#ifdef HAVE_LIBPTHREAD
-    ServerRealm_set_tunnelType(pointer, tunneltype);
-#endif
     ServerRealm_set_dnsLookupsOn(pointer, dnslookups);
     ServerRealm_set_realmName(pointer, realmname);
     ServerRealm_set_password(pointer, pass);
@@ -699,17 +651,6 @@ main(int argc, char **argv)
     if (ServerRealm_get_auditOn(scRealmsTable[i]) == 0) {
       ServerRealm_set_auditOn(scRealmsTable[i], audit);
     }
-#ifdef HAVE_LIBPTHREAD
-    /* using user's tunneltype value*/
-    if (ServerRealm_get_tunnelType(scRealmsTable[i]) == 0) {
-      if (tunneltype == -1) {
-        aflog(LOG_T_INIT, LOG_I_CRIT,
-            "Conflicting types of tunnel type... exiting");
-        exit(1);
-      }
-      ServerRealm_set_tunnelType(scRealmsTable[i], tunneltype);
-    }
-#endif
     /* using user's dnslookups value*/
     if (ServerRealm_get_dnsLookupsOn(scRealmsTable[i]) == 0) {
       ServerRealm_set_dnsLookupsOn(scRealmsTable[i], dnslookups);
@@ -878,49 +819,6 @@ main(int argc, char **argv)
                         UsrCli_get_managePortName(srUsersClientsTable[j])));
                   break;
                 }
-#ifdef HAVE_LIBPTHREAD
-        case 1:
-        case 2: {
-                  temp = find_previousFd(srUsersClientsTable, j,
-                      UsrCli_get_manageHostName(srUsersClientsTable[j]),
-                      UsrCli_get_managePortName(srUsersClientsTable[j]));
-                  if (temp == -1) {
-                    if (initialize_http_proxy_server(&temp,
-                          UsrCli_get_manageHostName(srUsersClientsTable[j]) ?
-                          UsrCli_get_manageHostName(srUsersClientsTable[j]) :
-                          ServerRealm_get_hostName(scRealmsTable[i]),
-                          UsrCli_get_managePortName(srUsersClientsTable[j]),
-                          (&len), ipfam,
-                          ServerRealm_get_clientsLimit(scRealmsTable[i]) +
-                          ServerRealm_get_raClientsLimit(scRealmsTable[i]),
-                          (ServerRealm_get_tunnelType(scRealmsTable[i]) - 1),
-                          ServerRealm_get_SslCtx(scRealmsTable[i]))) {
-                      aflog(LOG_T_INIT, LOG_I_CRIT,
-#ifdef AF_INET6
-                          "http%s_proxy_listen_%s error for %s, %s",
-                          (ServerRealm_get_tunnelType(scRealmsTable[i]) == 2) ? "s" : "",
-                          (ipfam & 0x02)?"ipv4":(ipfam & 0x04)?"ipv6":"unspec",
-#else
-                          "http%s_proxy_listen error for %s, %s",
-                          (ServerRealm_get_tunnelType(scRealmsTable[i]) == 2) ? "s" : "",
-#endif
-                          UsrCli_get_manageHostName(srUsersClientsTable[j]) ?
-                          UsrCli_get_manageHostName(srUsersClientsTable[j]) :
-                          ServerRealm_get_hostName(scRealmsTable[i]),
-                          UsrCli_get_managePortName(srUsersClientsTable[j]));
-                      exit(1);
-                    }
-                  }
-                  ServerRealm_set_addressLength(scRealmsTable[i], len);
-                  UsrCli_set_manageFd(srUsersClientsTable[j], temp);
-                  flags = fcntl(UsrCli_get_manageFd(srUsersClientsTable[j]), F_GETFL, 0);
-                  fcntl(UsrCli_get_manageFd(srUsersClientsTable[j]), F_SETFL, flags | O_NONBLOCK);
-                  UsrCli_set_number(srUsersClientsTable[j], eval_UsrCliPair(srUsersClientsTable, j,
-                        UsrCli_get_manageHostName(srUsersClientsTable[j]),
-                        UsrCli_get_managePortName(srUsersClientsTable[j])));
-                  break;
-                }
-#endif
         default: {
                    aflog(LOG_T_INIT, LOG_I_CRIT,
                        "Unknown tunnel type");
@@ -2048,11 +1946,6 @@ main(int argc, char **argv)
                                            ConnectClient_set_lastActivity(
                                                srRaClientsTable[l],
                                                ConnectClient_get_lastActivity(srClientsTable[k]));
-#ifdef HAVE_LIBPTHREAD
-                                           ConnectClient_set_tunnelType(
-                                               srRaClientsTable[l],
-                                               ConnectClient_get_tunnelType(srClientsTable[k]));
-#endif
                                            ConnectClient_set_clientId(
                                                srRaClientsTable[l],
                                                ConnectClient_get_clientId(srClientsTable[k]));
@@ -2259,11 +2152,6 @@ main(int argc, char **argv)
                                       ConnectClient_set_lastActivity(
                                           srClientsTable[l],
                                           ConnectClient_get_lastActivity(srRaClientsTable[k]));
-#ifdef HAVE_LIBPTHREAD
-                                      ConnectClient_set_tunnelType(
-                                          srClientsTable[l],
-                                          ConnectClient_get_tunnelType(srRaClientsTable[k]));
-#endif
                                       ConnectClient_set_clientId(
                                           srClientsTable[l],
                                           ConnectClient_get_clientId(srRaClientsTable[k]));
@@ -2536,12 +2424,7 @@ main(int argc, char **argv)
           aflog(LOG_T_CLIENT, LOG_I_DDEBUG,
               "realm[%s]: managefd: FD_ISSET", get_realmname(config, j));
           len = ServerRealm_get_addressLength(pointer);
-#ifdef HAVE_LIBPTHREAD
-          sent = get_new_socket(UsrCli_get_manageFd(srUsersClientsTable[l]),
-              ServerRealm_get_tunnelType(pointer),ServerRealm_get_clientAddress(pointer), &len, &tunneltype); 
-#else
           sent = accept(UsrCli_get_manageFd(srUsersClientsTable[l]), ServerRealm_get_clientAddress(pointer), &len);
-#endif
           if (sent == -1) {
             if (errno == EAGAIN) {
               aflog(LOG_T_USER, LOG_I_DDEBUG,
@@ -2567,9 +2450,6 @@ main(int argc, char **argv)
               time(&now);
               ConnectClient_set_connectTime(srClientsTable[k], now);
               ConnectClient_set_lastActivity(srClientsTable[k], now);
-#ifdef HAVE_LIBPTHREAD
-              ConnectClient_set_tunnelType(srClientsTable[k], tunneltype);
-#endif
               aflog(LOG_T_CLIENT, LOG_I_INFO,
                   "realm[%s]: new Client[%s] IP:%s", get_realmname(config, j), get_clientname(pointer, k),
                   sock_ntop(ServerRealm_get_clientAddress(pointer), len, ConnectClient_get_nameBuf(srClientsTable[k]),
@@ -2603,9 +2483,6 @@ main(int argc, char **argv)
                 time(&now);
                 ConnectClient_set_connectTime(srRaClientsTable[k], now);
                 ConnectClient_set_lastActivity(srRaClientsTable[k], now);
-#ifdef HAVE_LIBPTHREAD
-                ConnectClient_set_tunnelType(srRaClientsTable[k], tunneltype);
-#endif
                 aflog(LOG_T_MANAGE, LOG_I_INFO,
                     "realm[%s]: new Client[%s] (ra) IP:%s",
                     get_realmname(config, j), get_raclientname(pointer, k),

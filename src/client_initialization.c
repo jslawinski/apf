@@ -70,36 +70,6 @@ initialize_client_stage1(ClientRealm* cr, SSL_CTX* ctx, unsigned char* buff, cha
       SslFd_set_fd(ClientRealm_get_masterSslFd(cr), tmp);
       break;
             }
-#ifdef HAVE_LIBPTHREAD 
-    case 1: {
-      if (initialize_http_proxy_client(&tmp, cr, ctx)) {
-#ifdef AF_INET6
-        aflog(LOG_T_INIT, LOG_I_CRIT,
-            "http_proxy_connect_%s error for %s, %s (proxy: %s, %s)",
-            (ClientRealm_get_ipFamily(cr) & 0x02) ?
-              "ipv4":(ClientRealm_get_ipFamily(cr) & 0x04) ?
-                "ipv6":"unspec", ClientRealm_get_serverName(cr),
-                ClientRealm_get_managePort(cr),
-                HttpProxyOptions_get_proxyname(ClientRealm_get_httpProxyOptions(cr)),
-                HttpProxyOptions_get_proxyport(ClientRealm_get_httpProxyOptions(cr)));
-#else 
-        aflog(LOG_T_INIT, LOG_I_CRIT,
-            "http_proxy_connect error for %s, %s (proxy: %s, %s)", ClientRealm_get_serverName(cr),
-            ClientRealm_get_managePort(cr),
-            HttpProxyOptions_get_proxyname(ClientRealm_get_httpProxyOptions(cr)),
-            HttpProxyOptions_get_proxyport(ClientRealm_get_httpProxyOptions(cr)));
-#endif 
-        if (wanttoexit) {
-          exit(1);
-        }
-        else {
-          return 1;
-        }
-      }
-      SslFd_set_fd(ClientRealm_get_masterSslFd(cr), tmp);
-      break;
-            }
-#endif
     default: {
                aflog(LOG_T_INIT, LOG_I_CRIT,
                    "Unknown tunnel type");

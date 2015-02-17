@@ -206,19 +206,6 @@ parsefile(char* name, int* status)
             ServerConfiguration_get_realmsTable(cfg)[ServerConfiguration_get_realmsNumber(cfg) - 1],
             1);
       }
-#ifdef HAVE_LIBPTHREAD
-      else if (strcmp(helpbuf1, "enableproxy")==0) {
-        if (ServerRealm_get_tunnelType(
-              ServerConfiguration_get_realmsTable(cfg)[ServerConfiguration_get_realmsNumber(cfg) - 1]) == 0) {
-          ServerRealm_set_tunnelType(
-              ServerConfiguration_get_realmsTable(cfg)[ServerConfiguration_get_realmsNumber(cfg) - 1],
-              1);
-        }
-        else {
-          return cfg;
-        }
-      }
-#endif
 #ifdef AF_INET6
       else if (strcmp(helpbuf1, "ipv4")==0) {
         if (TYPE_IS_UNSPEC(ServerRealm_get_realmType(

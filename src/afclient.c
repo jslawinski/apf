@@ -19,6 +19,7 @@
  */
 
 #include <config.h>
+#include <unistd.h>
 
 #include "afclient.h"
 
@@ -51,13 +52,6 @@ static struct option long_options[] = {
   {"id", 1, 0, 'i'},
   {"dateformat", 1, 0, 'D'},
   {"remoteadmin", 0, 0, 'r'},
-#ifdef HAVE_LIBPTHREAD
-  {"use-https", 0, 0, 'S'},
-  {"proxyname", 1, 0, 'P'},
-  {"proxyport", 1, 0, 'X'},
-  {"pa-t-basic", 0, 0, 'B'},
-  {"pa-cred", 1, 0, 'C'},
-#endif
   {"version", 0, 0, 'V'},
   {"keep-alive", 1, 0, 'K'},
   {"ar-tries", 1, 0, 'A'},
@@ -95,8 +89,6 @@ main(int argc, char **argv)
   fd_set rset, allset, wset, tmpset;
   struct timeval keepAlive;
   char verbose = 0;
-  HttpProxyOptions* hpo = HttpProxyOptions_new();
-  char hpoUsed = 0;
   ArOptions* ao = ArOptions_new();
   ClientRealm* pointer;
   char aoUsed = 0;
@@ -133,13 +125,6 @@ main(int argc, char **argv)
    * initialization
    */
 
-#ifdef HAVE_LIBPTHREAD
-  if (hpo == NULL) {
-    printf("Problems with memory allocation... exiting\n");
-    exit(1);
-  }
-#endif
-
   if (ao == NULL) {
     printf("Problems with memory allocation... exiting\n");
     exit(1);
@@ -162,19 +147,10 @@ main(int argc, char **argv)
   act.sa_handler = client_sig_alrm;
   sigaction(SIGALRM, &act, NULL);
   
-#ifdef HAVE_LIBPTHREAD
-  remember_mainthread();
-#endif
-
 #ifdef AF_INET6
 #define GETOPT_LONG_AF_INET6(x) "46"x
 #else
 #define GETOPT_LONG_AF_INET6(x) x
-#endif
-#ifdef HAVE_LIBPTHREAD
-#define GETOPT_LONG_LIBPTHREAD(x) "SP:X:BC:"x
-#else
-#define GETOPT_LONG_LIBPTHREAD(x) x
 #endif
 #ifdef HAVE_LIBDL
 #define GETOPT_LONG_LIBDL(x) "l:L:"x
@@ -183,8 +159,8 @@ main(int argc, char **argv)
 #endif
   
   while ((n = getopt_long(argc, argv,
-          GETOPT_LONG_LIBDL(GETOPT_LONG_LIBPTHREAD(
-              GETOPT_LONG_AF_INET6("huUn:m:d:p:vk:c:s:o:i:D:rP:X:VK:A:T:f:")))
+          GETOPT_LONG_LIBDL(
+              GETOPT_LONG_AF_INET6("huUn:m:d:p:vk:c:s:o:i:D:rP:X:VK:A:T:f:"))
           , long_options, 0)) != -1) {
     switch (n) {
       case 'h': {
@@ -195,33 +171,6 @@ main(int argc, char **argv)
         serverName = optarg;
         break;
       }
-#ifdef HAVE_LIBPTHREAD
-      case 'S': {
-        HttpProxyOptions_use_https(hpo);
-        hpoUsed = 1;
-        break;
-      }
-      case 'P': {
-        HttpProxyOptions_set_proxyname(hpo, optarg);
-        hpoUsed = 1;
-        break;
-      }
-      case 'X': {
-        HttpProxyOptions_set_proxyport(hpo, optarg);
-        hpoUsed = 1;
-        break;
-      }
-      case 'B': {
-        HttpProxyOptions_set_proxyauth_type(hpo, PROXYAUTH_TYPE_BASIC);
-        hpoUsed = 1;
-        break;
-      }
-      case 'C': {
-        HttpProxyOptions_set_proxyauth_cred(hpo, optarg);
-        hpoUsed = 1;
-        break;
-      }
-#endif
       case 'i': {
         realmId = optarg;
         break;
@@ -422,12 +371,6 @@ main(int argc, char **argv)
             "Working without sense is really without sense...");
         exit(1);
       }
-      if (hpoUsed) {
-        ClientRealm_set_httpProxyOptions(pointer, hpo);
-      }
-      else {
-        HttpProxyOptions_free(&hpo);
-      }
       if (aoUsed) {
         ClientRealm_set_arOptions(pointer, ao);
       }
@@ -531,7 +474,6 @@ main(int argc, char **argv)
     ClientRealm_set_hostName(pointer, hostName);
     ClientRealm_set_destinationPorts(pointer, destinationPorts);
     ClientRealm_set_realmId(pointer, realmId);
-    ClientRealm_set_httpProxyOptions(pointer, hpo);
     ClientRealm_set_arOptions(pointer, ao);
     ClientRealm_set_password(pointer, password);
     ClientRealm_set_localName(pointer, localName);
@@ -587,22 +529,6 @@ main(int argc, char **argv)
     if (ClientRealm_get_clientMode(pointer) == CLIENTREALM_MODE_REVERSE)
       client_short_usage("Port on the server is required in reverse mode");
   }
-#ifdef HAVE_LIBPTHREAD
-  if ((HttpProxyOptions_get_proxyname(ClientRealm_get_httpProxyOptions(pointer))) ||
-      (HttpProxyOptions_get_proxyport(ClientRealm_get_httpProxyOptions(pointer)))) {
-    if (ClientRealm_get_tunnelType(pointer) == CLIENTREALM_TUNNELTYPE_DIRECT) {
-      ClientRealm_set_tunnelType(pointer, CLIENTREALM_TUNNELTYPE_HTTPPROXY);
-    }
-    else {
-      ClientRealm_set_tunnelType(pointer, CLIENTREALM_TUNNELTYPE_UNKNOWN);
-    }
-  }
-  if (ClientRealm_get_tunnelType(pointer) == CLIENTREALM_TUNNELTYPE_HTTPPROXY) {
-    if (HttpProxyOptions_get_proxyport(ClientRealm_get_httpProxyOptions(pointer)) == NULL) {
-      HttpProxyOptions_set_proxyport(ClientRealm_get_httpProxyOptions(pointer), "8080");
-    }
-  }
-#endif
   if ((ClientRealm_get_clientMode(pointer) != CLIENTREALM_MODE_REVERSE) &&
       (ClientRealm_get_clientMode(pointer) != CLIENTREALM_MODE_REMOTE) &&
       (ClientRealm_get_hostName(pointer) == NULL)) {

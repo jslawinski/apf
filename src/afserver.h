@@ -34,8 +34,6 @@
 #include "clientnames.h"
 #include "usernames.h"
 #include "server_get.h"
-#include "http_proxy_server.h"
-#include "thread_management.h"
 #include "server_signals.h"
 #include "usage.h"
 #include "logging.h"

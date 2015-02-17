@@ -110,15 +110,7 @@ server_long_usage(char* info)
   printf("  -4, --ipv4          - use ipv4 only\n");
   printf("  -6, --ipv6          - use ipv6 only\n\n");
 #endif
-#ifdef HAVE_LIBPTHREAD
-  printf(" HTTP PROXY:\n\n");
-  printf("  -P, --enableproxy   - enable http proxy mode\n\n");
-  /* FIXME: afclient is always trying to get http page, so this option is not needed now
-  printf("  -S, --use-https     - use https proxy instead of http proxy. '-P' option\n");
-  printf("                        will be set implicitly\n\n");
-  */
-#endif
-  
+
   exit(0);
 }
 
@@ -213,15 +205,6 @@ client_long_usage(char* info)
   printf("  -l, --load          - load a module for user's packets filtering\n");
   printf("  -L, --Load          - load a module for service's packets filtering\n\n");
 #endif
-#ifdef HAVE_LIBPTHREAD
-  printf(" HTTP/HTTPS PROXY:\n\n");
-  printf("  -S, --use-https     - use https proxy instead of http proxy\n");
-  printf("  -P, --proxyname     - the name of the machine with proxy server\n");
-  printf("  -X, --proxyport     - the port used by proxy server (default: 8080)\n");
-  printf("  -C, --pa-cred  U:P  - the user (U) and password (P) used in proxy\n");
-  printf("                        authorization\n");
-  printf("  -B, --pa-t-basic    - the Basic type of proxy authorization (default)\n\n");
-#endif
-  
+
   exit(0);
 }

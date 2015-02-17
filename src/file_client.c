@@ -144,27 +144,6 @@ cparsefile(char* name, int* status)
           ClientRealm_set_clientMode(ClientConfiguration_get_realmsTable(cfg)[0], CLIENTREALM_MODE_UNKNOWN);
         }
       }
-      else if ((strcmp(helpbuf1, "S") == 0) || (strcmp(helpbuf1, "use-https") == 0)) {
-        HttpProxyOptions_use_https(ClientRealm_get_httpProxyOptions(
-              ClientConfiguration_get_realmsTable(cfg)[0]));
-      }
-      else if ((strcmp(helpbuf1, "B") == 0) || (strcmp(helpbuf1, "pa-t-basic") == 0)) {
-        HttpProxyOptions_set_proxyauth_type(ClientRealm_get_httpProxyOptions(
-              ClientConfiguration_get_realmsTable(cfg)[0]), PROXYAUTH_TYPE_BASIC);
-      }
-#ifdef HAVE_LIBPTHREAD
-      else if (strcmp(helpbuf1, "enableproxy")==0) {
-        if (ClientRealm_get_tunnelType(
-              ClientConfiguration_get_realmsTable(cfg)[0]) == 0) {
-          ClientRealm_set_tunnelType(
-              ClientConfiguration_get_realmsTable(cfg)[0],
-              1);
-        }
-        else {
-          return cfg;
-        }
-      }
-#endif
 #ifdef AF_INET6
       else if (strcmp(helpbuf1, "ipv4")==0) {
         if (TYPE_IS_UNSPEC(ClientRealm_get_realmType(
@@ -254,18 +233,6 @@ cparsefile(char* name, int* status)
       else if ((strcmp(helpbuf1, "T") == 0) || (strcmp(helpbuf1, "ar-delay") == 0)) {
         ArOptions_set_s_arDelay(ClientRealm_get_arOptions(ClientConfiguration_get_realmsTable(cfg)[0]),
             helpbuf2);
-      }
-      else if ((strcmp(helpbuf1, "P") == 0) || (strcmp(helpbuf1, "proxyname") == 0)) {
-        HttpProxyOptions_set_proxyname(ClientRealm_get_httpProxyOptions(
-              ClientConfiguration_get_realmsTable(cfg)[0]), helpbuf2);
-      }
-      else if ((strcmp(helpbuf1, "X") == 0) || (strcmp(helpbuf1, "proxyport") == 0)) {
-        HttpProxyOptions_set_proxyport(ClientRealm_get_httpProxyOptions(
-              ClientConfiguration_get_realmsTable(cfg)[0]), helpbuf2);
-      }
-      else if ((strcmp(helpbuf1, "C") == 0) || (strcmp(helpbuf1, "pa-cred") == 0)) {
-        HttpProxyOptions_set_proxyauth_cred(ClientRealm_get_httpProxyOptions(
-              ClientConfiguration_get_realmsTable(cfg)[0]), helpbuf2);
       }
       else {
         return cfg;

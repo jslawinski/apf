@@ -27,14 +27,13 @@ INTRO
     * 3.3.1 Users
     * 3.3.2 Clients
   * 3.4 Relay mode
-4. HTTP PROXY TUNNELS
-5. LOGGING
-6. MODULES
-7. MULTI TUNNELS
-8. EXAMPLES
-  * 8.1 tcp mode
-  * 8.2 reverse udp mode
-9. BUGS/PROBLEMS
+4. LOGGING
+5. MODULES
+6. MULTI TUNNELS
+7. EXAMPLES
+  * 7.1 tcp mode
+  * 7.2 reverse udp mode
+8. BUGS/PROBLEMS
 
 NOTES
 
@@ -156,10 +155,6 @@ Multiple clients allow to create more sophisticated tunneling scheme.
   -4, --ipv4          - use ipv4 only
   -6, --ipv6          - use ipv6 only
 
- HTTP PROXY:
-
-  -P, --enableproxy   - enable http proxy mode
-
 
   2.2 afclient
   ------------
@@ -239,15 +234,6 @@ Multiple clients allow to create more sophisticated tunneling scheme.
 
   -l, --load          - load a module for user's packets filtering
   -L, --Load          - load a module for service's packets filtering
-
- HTTP/HTTPS PROXY:
-
-  -S, --use-https     - use https proxy instead of http proxy
-  -P, --proxyname     - the name of the machine with proxy server
-  -X, --proxyport     - the port used by proxy server (default: 8080)
-  -C, --pa-cred  U:P  - the user (U) and password (P) used in proxy
-                        authorization
-  -B, --pa-t-basic    - the Basic type of proxy authorization (default)
 
 
 ================================================================================
@@ -376,22 +362,8 @@ When user quits (close the connection or send 'quit' command),  afclient  exits.
 
 ================================================================================
 
-=====================
-4. HTTP PROXY TUNNELS
-=====================
-
-Afclient can communicate with afserver via HTTP proxy.  In  order  to  use  this
-feature, afserver must be started with '-P, --enableproxy' option. Afclient must
-specify the proxy host ('-P, --proxyname' option) and  port  ('-X,  --proxyport'
-option).
-
-Afclient with  HTTP  proxy  mode  enabled  can  still  accept  connections  from
-afclients, which don't use HTTP proxy mode.
-
-================================================================================
-
 ==========
-5. LOGGING
+4. LOGGING
 ==========
 
 Logging can be enabled by '-o, --log' option. The argument to this option must
@@ -427,7 +399,7 @@ Where
 ================================================================================
 
 ==========
-6. MODULES
+5. MODULES
 ==========
 
 Afclient can use external modules for user's packets  filtering  ('-l,  --load')
@@ -504,7 +476,7 @@ Modules have to be compiled with '-fPIC -shared' options.
 ================================================================================
 
 ================
-7. MULTI TUNNELS
+6. MULTI TUNNELS
 ================
 
 Since version 0.8  it's  possible  to  transfer  multiple  tunnels  in  the  one
@@ -521,10 +493,10 @@ transferred to the destination pointed by the second '-p' option.
 ================================================================================
 
 ===========
-8. EXAMPLES
+7. EXAMPLES
 ===========
 
-  8.1 tcp mode
+  7.1 tcp mode
   ------------
 
                     local network   |FireWall|   Internet
@@ -573,7 +545,7 @@ on our computer and we are behind a masquerade or a firewall:
 6) We can now enter with a web-browser to: <name of  the  server>:50127  and  we
    will enter to our computer in the fact.
 
-  8.2 reverse udp mode
+  7.2 reverse udp mode
   --------------------
 
                     local network   |FireWall|   Internet
@@ -612,7 +584,7 @@ server on our computer (udp port 27960 on our machine):
 ================================================================================
 
 ================
-9. BUGS/PROBLEMS
+8. BUGS/PROBLEMS
 ================
 
 There are no known/open bugs at the moment.

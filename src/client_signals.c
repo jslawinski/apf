@@ -21,7 +21,6 @@
 #include <config.h>
 
 #include "client_signals.h"
-#include "thread_management.h"
 #include "stats.h"
 #include "logging.h"
 
@@ -36,11 +35,6 @@
 void
 client_sig_int(int signo)
 {
-#ifdef HAVE_LIBPTHREAD
-  if (!is_this_a_mainthread()) {
-    return;
-  }
-#endif
   aflog(LOG_T_MAIN, LOG_I_NOTICE,
       "CLIENT CLOSED cg: %ld bytes", getcg());
   exit(0);

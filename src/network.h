@@ -30,9 +30,6 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#ifdef HAVE_LIBPTHREAD
-#include <pthread.h>
-#endif
 #include <netdb.h>
 #include <openssl/ssl.h>
 

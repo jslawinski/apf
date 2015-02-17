@@ -66,7 +66,6 @@ AC_CHECK_LIB([dl], [dlopen],
                USE_RDYNAMIC=""
                ])
 AC_SUBST(USE_RDYNAMIC)
-AC_CHECK_LIB([pthread], [pthread_create], [], [])
 AC_CHECK_LIB([socket], [socket], [], [])
 AC_CHECK_LIB([nsl], [gethostbyaddr], [], [])
 AC_CHECK_LIB([crypto], [X509_sign], [], [])

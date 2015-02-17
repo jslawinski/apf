@@ -59,12 +59,6 @@ ClientRealm_new()
     ClientRealm_free(&tmp);
     return NULL;
   }
-  tmp->httpProxyOptions = HttpProxyOptions_new();
-  assert(tmp->httpProxyOptions != NULL);
-  if (tmp->httpProxyOptions == NULL) {
-    ClientRealm_free(&tmp);
-    return NULL;
-  }
 #ifdef HAVE_LIBDL
   tmp->userModule = Module_new();
   assert(tmp->userModule != NULL);
@@ -110,7 +104,6 @@ ClientRealm_free(ClientRealm** cr)
   ClientRealm_set_localDestinationName((*cr), NULL);
   ClientRealm_set_clientAddress((*cr), NULL);
   ClientRealm_set_masterSslFd((*cr), NULL);
-  ClientRealm_set_httpProxyOptions((*cr), NULL);
   ClientRealm_set_arOptions((*cr), NULL);
   ClientRealm_set_destinationPorts((*cr), NULL);
   ClientRealm_set_usersTable((*cr), NULL);
@@ -504,26 +497,6 @@ ClientRealm_set_masterSslFd(ClientRealm* cr, SslFd* masterSslFd)
     SslFd_free(&(cr->masterSslFd));
   }
   cr->masterSslFd = masterSslFd;
-}
-
-/*
- * Function name: ClientRealm_set_httpProxyOptions
- * Description: Set client realm's http proxy options.
- * Arguments: cr - pointer to ClientRealm structure
- *            httpProxyOptions - client realm's http proxy options
- */
-
-void
-ClientRealm_set_httpProxyOptions(ClientRealm* cr, HttpProxyOptions* httpProxyOptions)
-{
-  assert(cr != NULL);
-  if (cr == NULL) {
-    return;
-  }
-  if (cr->httpProxyOptions) {
-    HttpProxyOptions_free(&(cr->httpProxyOptions));
-  }
-  cr->httpProxyOptions = httpProxyOptions;
 }
 
 /*
@@ -991,23 +964,6 @@ ClientRealm_get_masterSslFd(ClientRealm* cr)
     return NULL;
   }
   return cr->masterSslFd;
-}
-
-/*
- * Function name: ClientRealm_get_httpProxyOptions
- * Description: Get client realm's http proxy options.
- * Arguments: cr - pointer to ClientRealm structure
- * Returns: Client realm's http proxy options.
- */
-
-HttpProxyOptions*
-ClientRealm_get_httpProxyOptions(ClientRealm* cr)
-{
-  assert(cr != NULL);
-  if (cr == NULL) {
-    return NULL;
-  }
-  return cr->httpProxyOptions;
 }
 
 /*

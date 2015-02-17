@@ -23,8 +23,6 @@
 #include "activefor.h"
 #include "stats.h"
 #include "logging.h"
-#include "http_proxy_client.h"
-#include "http_proxy_options_struct.h"
 #include "ssl_fd_struct.h"
 #include "client_realm_struct.h"
 

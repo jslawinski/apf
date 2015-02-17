@@ -388,14 +388,6 @@ serve_admin(ServerConfiguration* config, int realm, int client, unsigned char* b
                                                 add_to_message(buff, "tunneltype: direct");
                                                 break;
                                               }
-                                      case CONNECTCLIENT_TUNNELTYPE_HTTPPROXY: {
-                                                add_to_message(buff, "tunneltype: http proxy");
-                                                break;
-                                              }
-                                      case CONNECTCLIENT_TUNNELTYPE_HTTPSPROXY: {
-                                                add_to_message(buff, "tunneltype: https proxy");
-                                                break;
-                                              }
                                       default: {
                                                  add_to_message(buff, "tunneltype: UNKNOWN");
                                                }
@@ -450,14 +442,6 @@ serve_admin(ServerConfiguration* config, int realm, int client, unsigned char* b
                                         switch (ConnectClient_get_tunnelType(cpointer)) {
                                           case CONNECTCLIENT_TUNNELTYPE_DIRECT: {
                                                     add_to_message(buff, "tunneltype: direct");
-                                                    break;
-                                                  }
-                                          case CONNECTCLIENT_TUNNELTYPE_HTTPPROXY: {
-                                                    add_to_message(buff, "tunneltype: http proxy");
-                                                    break;
-                                                  }
-                                          case CONNECTCLIENT_TUNNELTYPE_HTTPSPROXY: {
-                                                    add_to_message(buff, "tunneltype: https proxy");
                                                     break;
                                                   }
                                           default: {

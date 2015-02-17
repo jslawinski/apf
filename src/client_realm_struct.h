@@ -20,7 +20,6 @@
 
 #include "activefor.h"
 #include "ssl_fd_struct.h"
-#include "http_proxy_options_struct.h"
 #include "ar_options_struct.h"
 #include "module_struct.h"
 #include "port_list_struct.h"
@@ -36,8 +35,6 @@
 
 #define CLIENTREALM_TUNNELTYPE_UNKNOWN -1
 #define CLIENTREALM_TUNNELTYPE_DIRECT 0
-#define CLIENTREALM_TUNNELTYPE_HTTPPROXY 1
-#define CLIENTREALM_TUNNELTYPE_HTTPSPROXY 2
 
 typedef struct {
   char* serverName;
@@ -61,7 +58,6 @@ typedef struct {
   socklen_t addressLength;
   struct sockaddr* clientAddress;
   SslFd* masterSslFd;
-  HttpProxyOptions* httpProxyOptions;
   ArOptions* arOptions;
   PortList* destinationPorts;
   ConnectUser** usersTable;
@@ -97,7 +93,6 @@ void ClientRealm_set_keepAlive(ClientRealm* cr, struct timeval keepAlive);
 void ClientRealm_set_addressLength(ClientRealm* cr, socklen_t addressLength);
 void ClientRealm_set_clientAddress(ClientRealm* cr, struct sockaddr* clientAddress);
 void ClientRealm_set_masterSslFd(ClientRealm* cr, SslFd* masterSslFd);
-void ClientRealm_set_httpProxyOptions(ClientRealm* cr, HttpProxyOptions* httpProxyOptions);
 void ClientRealm_set_arOptions(ClientRealm* cr, ArOptions* arOptions);
 void ClientRealm_set_destinationPorts(ClientRealm* cr, PortList* destinationPorts);
 void ClientRealm_set_usersTable(ClientRealm* cr, ConnectUser** usersTable);
@@ -127,7 +122,6 @@ struct timeval ClientRealm_get_keepAlive(ClientRealm* cr);
 socklen_t ClientRealm_get_addressLength(ClientRealm* cr);
 struct sockaddr* ClientRealm_get_clientAddress(ClientRealm* cr);
 SslFd* ClientRealm_get_masterSslFd(ClientRealm* cr);
-HttpProxyOptions* ClientRealm_get_httpProxyOptions(ClientRealm* cr);
 ArOptions* ClientRealm_get_arOptions(ClientRealm* cr);
 PortList* ClientRealm_get_destinationPorts(ClientRealm* cr);
 ConnectUser** ClientRealm_get_usersTable(ClientRealm* cr);

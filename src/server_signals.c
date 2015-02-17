@@ -19,11 +19,10 @@
  */
 
 #include <config.h>
+#include <unistd.h>
 
 #include "server_signals.h"
 #include "activefor.h"
-#include "thread_management.h"
-#include "http_proxy_functions.h"
 #include "stats.h"
 #include "logging.h"
 #include "server_configuration_struct.h"
@@ -44,12 +43,6 @@ server_sig_int(int signo)
   int i, j;
   unsigned char buff[5];
   ServerRealm** scRealmsTable;
-  
-#ifdef HAVE_LIBPTHREAD
-  if (!is_this_a_mainthread()) {
-    return;
-  }
-#endif
 
   for (j = 0; j < ServerConfiguration_get_realmsNumber(config); ++j) {
     scRealmsTable = ServerConfiguration_get_realmsTable(config);
