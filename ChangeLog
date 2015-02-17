@@ -1,3 +1,15 @@
+17.02.2015 (v0.8.5):
+  - Fixed: security issues with SSL. We now use TLS rather than SSLv3,
+           and autonegotiate the strongest version of TLS we can get,
+           since all versions of pre-TLS SSL are widely deprecated
+           at this point (POODLE attack finally killed SSLv3).
+  - Removed: internal support for HTTP/HTTPS proxies:
+           there are better options readily available as external tools,
+           and removing the internal code makes it much easier to
+           reason about our own security and general correctness.
+  - Added: support for per-realm CA certificates
+  - Added: support for loading complete certificate-chains in afclient
+
 03.10.2007 (v0.8.4):
   - Added (by Joshua Judson Rosen): certificate-based authentication
 

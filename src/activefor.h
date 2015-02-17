@@ -53,7 +53,7 @@
 #define S_STATE_OPENING_CLOSED 17
 #define S_STATE_KICKING        19
 
-#define AF_VER(info)   info" v0.8.4"
+#define AF_VER(info)   info" v0.8.5"
 
 #define TYPE_TCP                 1
 #define TYPE_UDP                 3
