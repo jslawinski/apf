@@ -90,7 +90,7 @@ Multiple clients allow to create more sophisticated tunneling scheme.
   ------------
 
  Basic options:
-
+```
   -n, --hostname      - it's used when creating listening sockets
                         (default: '')
   -l, --listenport    - listening [host:]port - users connect to it
@@ -99,14 +99,18 @@ Multiple clients allow to create more sophisticated tunneling scheme.
                         (default: 50126)
   -V, --version       - display version number
   -h, --help          - prints this help
+```
 
  Authorization:
 
+```
   --pass              - set the password used for client identification
                         (default: no password)
+```
 
  Configuration:
 
+```
   -c, --cerfile       - the name of the file with certificate
                         (default: server-cert.pem)
   -A, --cacerfile     - the name of the file with CA certificates
@@ -143,24 +147,29 @@ Multiple clients allow to create more sophisticated tunneling scheme.
                         used)
   --dnslookups        - try to obtain dns names of the computers rather than
                         their numeric IP
+```
 
  Logging:
 
+```
   -o, --log           - log choosen information to file/socket
   -v, --verbose       - to be verbose - program won't enter the daemon mode
                         (use several times for greater effect)
+```
 
  IP family:
 
+```
   -4, --ipv4          - use ipv4 only
   -6, --ipv6          - use ipv6 only
-
+```
 
   2.2 afclient
   ------------
 
  Basic options:
 
+```
   -n, --servername    - where the second part of the active
                         port forwarder is running (required)
   -m, --manageport    - manage port number - server must be
@@ -177,16 +186,20 @@ Multiple clients allow to create more sophisticated tunneling scheme.
                         application (used to bind socket to different interfaces)
   -V, --version       - display version number
   -h, --help          - prints this help
+```
 
  Authorization:
 
+```
   -i, --id            - sends the id string to afserver
   --pass              - set the password used for client identification
                         (default: no password)
   --ignorepkeys       - ignore invalid server's public keys
+```
 
  Configuration:
 
+```
   -k, --keyfile       - the name of the file with RSA key (default: client.rsa)
   -c, --cerfile       - the name of the file with certificate
                         (default: no certificate used)
@@ -198,9 +211,11 @@ Multiple clients allow to create more sophisticated tunneling scheme.
                         for details) (default: %d.%m.%Y %H:%M:%S)
   -K, --keep-alive N  - send keepalive packets every N seconds
                         (default: not send keepalive packets)
+```
 
  Auto-reconnection:
 
+```
   --ar-start          - enable auto-reconnection when afserver is not
                         reachable on start (default: disabled)
   --ar-quit           - enable auto-reconnection after normal afserver quit
@@ -209,32 +224,40 @@ Multiple clients allow to create more sophisticated tunneling scheme.
                         quit (default: enabled)
   -A, --ar-tries N    - try N times to reconnect (default: unlimited)
   -T, --ar-delay N    - wait N seconds between reconnect tries (default: 5)
+```
 
  Modes:
 
+```
   -u, --udpmode       - udp mode - client will use udp protocol to
                         communicate with the hostname:portnum
   -U, --reverseudp    - reverse udp forwarding. Udp packets will be forwarded
                         from hostname:portnum to the server name:manageport
   -r, --remoteadmin   - remote administration mode. (using '-p #port' will
                         force afclient to use port rather than stdin-stdout)
+```
 
  Logging:
 
+```
   -o, --log           - log choosen information to file/socket
   -v, --verbose       - to be verbose - program won't enter the daemon mode
                         (use several times for greater effect)
+```
 
  IP family:
 
+```
   -4, --ipv4          - use ipv4 only
   -6, --ipv6          - use ipv6 only
+```
 
  Modules:
 
+```
   -l, --load          - load a module for user's packets filtering
   -L, --Load          - load a module for service's packets filtering
-
+```
 
 ================================================================================
 
@@ -255,7 +278,7 @@ All the commands parsing is done by afserver.
   ------------
   
 Currently available commands are:
-
+```
        help
          display help
 
@@ -294,7 +317,7 @@ Currently available commands are:
 
        kclient N
          kick client with number N
-
+```
 
   3.3 States
   ----------
@@ -303,7 +326,7 @@ Currently available commands are:
     -----------
     
     Connected users can be in several states:
-    
+```
        running
          user is properly connected and can send/receive data
          
@@ -326,13 +349,14 @@ Currently available commands are:
          
        unknown
          probably afserver internal state has been corrupted.
-         
-         
+```
+
     3.3.2 Clients
     -------------
 
     Connected clients can be in several states:
-    
+
+```
        running
          client is properly connected and can serve user's requests
          
@@ -349,7 +373,7 @@ Currently available commands are:
          
        unknown
          probably afserver internal state has been corrupted.
-
+```
 
   3.4 Relay mode
   --------------
@@ -374,6 +398,7 @@ Where
   target is file or sock
   description is filename or host,port
   msgdesc is the subset of:
+```
     LOG_T_ALL,
     LOG_T_USER,
     LOG_T_CLIENT,
@@ -388,13 +413,14 @@ Where
     LOG_I_NOTICE,
     LOG_I_WARNING,
     LOG_I_ERR
-
-    written without spaces.
+```
+written without spaces.
 
 
   Example:
-  
+```
   file,filename,LOG_T_MANAGE,LOG_I_ALL
+```
 
 ================================================================================
 
@@ -405,28 +431,31 @@ Where
 Afclient can use external modules for user's packets  filtering  ('-l,  --load')
 and service's packets filtering ('-L, --Load'). Module file has to declare three
 functions:
-
+```C
 char* info(void);
-  
+```  
   info() return values:
   - info about module
 
   Example:
-
+```C
   char*
   info(void)
   {
     return "Module tester v0.1";
   }
+```
 
+```C
 int allow(char* host, char* port);
-
+```
   allow() return values:
   0 - allow to connect
   !0 - drop the connection
 
   Example:
 
+```C
   int
   allow(char* host, char* port)
   {
@@ -434,7 +463,7 @@ int allow(char* host, char* port);
   }
 
 int filter(char* host, unsigned char* message, int* length);
-
+```
   filter() return values:
   0 - allow to transfer
   1 - drop the packet
@@ -443,8 +472,9 @@ int filter(char* host, unsigned char* message, int* length);
   4 - drop the packet and release the module
   5 - drop the connection and release the module
 
-  Example:
 
+  Example:
+```C
   int
   filter(char* host, unsigned char* message, int* length)
   {
@@ -470,7 +500,7 @@ int filter(char* host, unsigned char* message, int* length);
     }
     return 0; /* allow to transfer */
   }
-
+```
 Modules have to be compiled with '-fPIC -shared' options.
 
 ================================================================================
@@ -480,7 +510,7 @@ Modules have to be compiled with '-fPIC -shared' options.
 ================
 
 Since version 0.8  it's  possible  to  transfer  multiple  tunnels  in  the  one
-afclient <-> afserver connection.
+`afclient <-> afserver` connection.
 
 On the afserver we have to specify multiple listen ports with  the  same  manage
 port.
@@ -499,6 +529,7 @@ transferred to the destination pointed by the second '-p' option.
   7.1 tcp mode
   ------------
 
+```
                     local network   |FireWall|   Internet
                                         ||
                                         ||                           User 1
@@ -509,7 +540,7 @@ transferred to the destination pointed by the second '-p' option.
            /                            ||                     \
     Http server                         ||                      User 3
                                         ||
-
+```
 
 The use of it is extremely simple. Let's suppose we want to create a http server
 on our computer and we are behind a masquerade or a firewall:
@@ -521,8 +552,10 @@ on our computer and we are behind a masquerade or a firewall:
    afclient and client.rsa files)
 
 3) You can edit the config file or just type from the console (to use the config
-   type -f <cfgfile>) :
+   type -f `<cfgfile>`) :
+```
         $ ./afserver
+```
    This will work, if you want to use default values:
    - hostname will be taken from hostname function  (it  would  be  ideally,  if
      there is appropriate registration in /etc/hosts)
@@ -538,16 +571,19 @@ on our computer and we are behind a masquerade or a firewall:
    and client.rsa)
 
 5) We are typing from the console:
+```
         $ ./afclient -n <name of the server> -p 80
-   Where <name of the server>  is  a  string  like  :  'bastion.univ.gda.pl'  or
+```
+   Where `<name of the server>`  is  a  string  like  :  'bastion.univ.gda.pl'  or
    '153.19.7.200'
 
-6) We can now enter with a web-browser to: <name of  the  server>:50127  and  we
+6) We can now enter with a web-browser to: `<name of  the  server>:50127`  and  we
    will enter to our computer in the fact.
 
   7.2 reverse udp mode
   --------------------
 
+```
                     local network   |FireWall|   Internet
                                         ||                     (udp)
                                         ||              User 1-------AF Client
@@ -558,7 +594,7 @@ on our computer and we are behind a masquerade or a firewall:
            /                            ||                   /
     Game server                         ||               AF Client-------User 2
                                         ||                         (udp)
-
+```
 
 Let's see how to use af to forward udp packets. Suppose we want to create a game
 server on our computer (udp port 27960 on our machine):
@@ -566,20 +602,24 @@ server on our computer (udp port 27960 on our machine):
 1) - 4)  is  the  same  like  in  example  1.  (but  we  add  option:  -p  udp)
 
 5) We are typing from the console:
+```
   $ ./afclient -u -n <name of the server> -p 27960
-   Where <name of the server> is a name (or ip) of a host where  our  server  is
+```
+   Where `<name of the server>` is a name (or ip) of a host where  our  server  is
    running.
 
 6) Connecting to our game is more complicated. The user must use afclient to do
    this.  He has to specify the server he is connecting to and the  port,  which
    his program will be listening on:
+```
        $ ./afclient -U -d <hostname> -p <portnum> -n <name of the server>  \
          -m <server port>
-   Where <hostname> is the name of the user machine (who wants to connect to our
-   game). <portnum> is the port he will be connecting to. <name of the server>
-   is the name of the host where our server is running.  <server  port>  is  the
+```
+   Where `<hostname>` is the name of the user machine (who wants to connect to our
+   game). `<portnum>` is the port he will be connecting to. `<name of the server>`
+   is the name of the host where our server is running.  `<server  port>`  is  the
    port on which the server is listening for users.  In order to connect to  our
-   game, the user has to connect to <hostname>:<portnum>.
+   game, the user has to connect to `<hostname>:<portnum>`.
 
 ================================================================================
 
@@ -596,7 +636,7 @@ NOTES
 =====
 
 Active port forwarder is still under development, so please sent  any  comments,
-bugs notices and suggestions about it to <jeremian [at] poczta.fm>
+bugs notices and suggestions about it to `<jeremian [at] poczta.fm>`
 
 If you have some problems or want to share your opinions with others, feel  free
 to post a message at http://gray-world.net/board/
@@ -609,16 +649,16 @@ THANKS
 
  Big thanks to the GW Team:
 
- to Alex <alex [at] gray-world.net>
- and Simon <scastro [at] entreelibre.com> for testing AF and a lot of advices.
+ to Alex `<alex [at] gray-world.net>`
+ and Simon `<scastro [at] entreelibre.com>` for testing AF and a lot of advices.
 
- Thanks to Ilia Perevezentsev <iliaper [at] mail.ru> who read and corrected the
+ Thanks to Ilia Perevezentsev `<iliaper [at] mail.ru>` who read and corrected the
 README file.
 
- Thanks to Marco Solari <marco.solari [at] koinesistemi.it> for a lot of
+ Thanks to Marco Solari `<marco.solari [at] koinesistemi.it>` for a lot of
 requests, suggestions and ideas.
 
- Thanks to Joshua Judson Rosen <rozzin [at] geekspace.com> for the patch adding
+ Thanks to Joshua Judson Rosen `<rozzin [at] geekspace.com>` for the patch adding
 certificate-based authentication to the APF.
 
  And thanks for using this software!
@@ -627,8 +667,8 @@ LICENSE
 -------
 
   Active Port Forwarder is distributed  under  the  terms  of  the  GNU  General
-  Public License v2.0  and is copyright (C)  2003-2007  jeremian  <jeremian
-  [at] poczta.fm>. See the file COPYING for details.
+  Public License v2.0  and is copyright (C)  2003-2007  jeremian  `<jeremian
+  [at] poczta.fm>`. See the file COPYING for details.
 
   In addition, as a special exception, the copyright holders give permission  to
   link the code of portions of this  program  with  the  OpenSSL  library  under
